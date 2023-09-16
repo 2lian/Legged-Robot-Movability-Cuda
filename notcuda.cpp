@@ -7,3 +7,7 @@ int maincpp() {
     return 0;
 }
 
+int main(void){
+    AutoEstimator autoe{6, 7};
+    autoe.delete_all();
+}

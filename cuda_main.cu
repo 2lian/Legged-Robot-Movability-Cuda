@@ -9,44 +9,44 @@ int thisiscuda() {
 
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
-typedef struct {
-    int width;
-    int height;
-    int stride;
-    float* elements;
-} Matrix;
+//typedef struct {
+//    int width;
+//    int height;
+//    int stride;
+//    float* elements;
+//} Matrix;
 
-struct RobotDimensions {
-public:
-    float pI;
-    float body;
-    float coxa_angle_deg;
-    float coxa_length;
-    float tibia_angle_deg;
-    float tibia_length;
-    float tibia_length_squared;
-    float femur_angle_deg;
-    float femur_length;
-    float max_angle_coxa;
-    float min_angle_coxa;
-    float max_angle_coxa_w_margin;
-    float min_angle_coxa_w_margin;
-    float max_angle_tibia;
-    float min_angle_tibia;
-    float max_angle_femur;
-    float min_angle_femur;
-    float max_angle_femur_w_margin;
-    float min_angle_femur_w_margin;
-    float max_tibia_to_gripper_dist;
-    float positiv_saturated_femur[2];
-    float negativ_saturated_femur[2];
-    float fem_tib_min_host[2];
-    float min_tibia_to_gripper_dist;
-    float middle_TG;
-};
+//struct RobotDimensions {
+//public:
+//    float pI;
+//    float body;
+//    float coxa_angle_deg;
+//    float coxa_length;
+//    float tibia_angle_deg;
+//    float tibia_length;
+//    float tibia_length_squared;
+//    float femur_angle_deg;
+//    float femur_length;
+//    float max_angle_coxa;
+//    float min_angle_coxa;
+//    float max_angle_coxa_w_margin;
+//    float min_angle_coxa_w_margin;
+//    float max_angle_tibia;
+//    float min_angle_tibia;
+//    float max_angle_femur;
+//    float min_angle_femur;
+//    float max_angle_femur_w_margin;
+//    float min_angle_femur_w_margin;
+//    float max_tibia_to_gripper_dist;
+//    float positiv_saturated_femur[2];
+//    float negativ_saturated_femur[2];
+//    float fem_tib_min_host[2];
+//    float min_tibia_to_gripper_dist;
+//    float middle_TG;
+//};
 
 RobotDimensions dim_of_SCARE() {
-    RobotDimensions scare;
+    RobotDimensions scare{};
 
     scare.pI = 3.141592653589793238462643383279502884197169f;
     scare.body = 185.0f;
@@ -87,7 +87,6 @@ RobotDimensions dim_of_SCARE() {
 
 __global__
 void empty_kernel() {
-    return;
 }
 
 // Function to calculate the mean of an array of floats
@@ -263,10 +262,135 @@ void add(Matrix table, RobotDimensions dimensions, Matrix result_table)
     }
 }
 
+class AutoEstimator{
+private:
+    cudaError_t cudaStatus;
+public:
+    int screenWidth;
+    int screenHeight;
+    int rows;
+    RobotDimensions dimensions;
+    Matrix table_input;
+    Matrix table_input_gpu;
+    Matrix result_gpu;
+    Matrix result;
+    int blockSize = 1024;
+    int numBlocks;
 
+    AutoEstimator(int pxWidth, int pxHeight){
+        screenWidth = pxWidth;
+        screenHeight = pxHeight;
+        dimensions = dim_of_SCARE();
+        rows = screenWidth * screenHeight;
 
-int main(void)
+        table_input.width = 3; table_input.height = rows;
+        table_input.elements = new float[table_input.width * table_input.height];
+
+        result.width = 3; result.height = rows;
+        result.elements = new float[table_input.width * table_input.height];
+
+        table_input_gpu.width = table_input.width; table_input_gpu.height = table_input.height;
+        result_gpu.width = table_input_gpu.width; result_gpu.height = table_input_gpu.height;
+
+        numBlocks = (rows + blockSize - 1) / blockSize;
+        error_check();
+        setup_kernel();
+        input_as_grid();
+        alocate_gpu_mem();
+        copy_input_cpu2gpu;
+    }
+
+    void error_check(){
+        cudaStatus = cudaGetLastError();
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
+            // Handle the error or exit the program as needed.
+        }
+    }
+
+    void input_as_grid(){
+        for (int i = 0; i < screenHeight; i++) {
+            for (int j = 0; j < screenWidth; j++) {
+                int row = i * screenWidth + j;
+                // X
+                *(table_input.elements + row * table_input.width + 0)
+                        //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
+                        = (float)(j - screenWidth /2);
+                // Y
+                *(table_input.elements + row * table_input.width + 1)
+                        //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
+                        = -(float)(i - screenHeight / 2);
+                // Z
+                *(table_input.elements + row * table_input.width + 2)
+                        //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
+                        = 0.f;
+            }
+        }
+    }
+
+    void change_zvalue(float zvalue){
+        for (int i = 0; i < screenHeight; i++) {
+            for (int j = 0; j < screenWidth; j++) {
+                int row = i * screenWidth + j;
+                // Z
+                *(table_input.elements + row * table_input.width + 2)
+                        //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
+                        = zvalue;
+            }
+        }
+    }
+
+    void alocate_gpu_mem(void){
+        table_input_gpu.width = table_input.width; table_input_gpu.height = table_input.height;
+        cudaMalloc(&table_input_gpu.elements, table_input_gpu.width * table_input_gpu.height * sizeof(float));
+
+        result_gpu.width = table_input_gpu.width; result_gpu.height = table_input_gpu.height;
+        cudaMalloc(&result_gpu.elements, result_gpu.width * result_gpu.height * sizeof(float));
+        error_check();
+    }
+
+    void copy_input_cpu2gpu(void){
+        cudaMemcpy(table_input_gpu.elements,
+                   table_input.elements,
+                   table_input.width * table_input.height * sizeof(float),
+                   cudaMemcpyHostToDevice);
+        error_check();
+    }
+
+    void setup_kernel(void){
+        std::wcout << "Threads per block: " << blockSize << "\nNumber of blocks: " << numBlocks << std::endl;
+        empty_kernel<<<numBlocks, blockSize >>>();
+        cudaDeviceSynchronize();
+        error_check();
+    }
+
+    void compute_dist(void){
+        add<<<numBlocks, blockSize >>>(table_input_gpu, dimensions, result_gpu);
+        cudaDeviceSynchronize();
+        error_check();
+    }
+
+    void copy_output_gpu2cpu(void){
+        cudaMemcpy(result.elements,
+                   result_gpu.elements,
+                   result_gpu.width * result_gpu.height * sizeof(float),
+                   cudaMemcpyDeviceToHost);
+        error_check();
+    }
+
+    void delete_all(){
+        delete[] table_input.elements;
+        cudaFree(table_input_gpu.elements);
+        cudaFree(result_gpu.elements);
+        delete[] result.elements;
+        error_check();
+    }
+
+};
+
+int main_le_old(void)
 {
+    AutoEstimator autoe{6, 7};
     std::cout << "initializing c++\n";
     //getting scare's dimensions in an object
     const RobotDimensions dimensions = dim_of_SCARE();
