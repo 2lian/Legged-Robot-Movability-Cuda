@@ -1,6 +1,7 @@
 #include <iostream>
+#include "Header.h"
 
-int notmain() {
-    std::cout << "Bye bye" << std::endl;
+int thisiscuda() {
+    std::cout << "Hey I'm cuda!" << std::endl;
     return 0;
 }

@@ -4,9 +4,12 @@
 #pragma once
 #ifndef CUDA_HEADER_H
 #define CUDA_HEADER_H
+#include <driver_types.h>
 
 int thisiscuda();
 
+// Matrices are stored in row-major order:
+// M(row, col) = *(M.elements + row * M.width + col)
 typedef struct {
     int width;
     int height;
@@ -55,8 +58,11 @@ public:
     Matrix table_input_gpu;
     Matrix result_gpu;
     Matrix result;
+    Matrix result_norm;
+    Matrix result_norm_gpu;
     int blockSize;
     int numBlocks;
+    bool verbose;
 
     AutoEstimator(int pxWidth, int pxHeight);
     // Declare other member functions here.
@@ -66,8 +72,10 @@ public:
     void copy_input_cpu2gpu();
     void setup_kernel();
     void compute_dist();
+    void compute_result_norm();
     void copy_output_gpu2cpu();
     void delete_all();
+    void error_check();
 };
 
 #endif //CUDA_HEADER_H

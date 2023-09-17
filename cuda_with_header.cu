@@ -1,48 +1,6 @@
 #include <iostream>
 #include <fstream>
-
-int thisiscuda() {
-    std::cout << "Hello, i'm cuda main" << std::endl;
-    return 0;
-}
-
-// Matrices are stored in row-major order:
-// M(row, col) = *(M.elements + row * M.width + col)
-typedef struct {
-    int width;
-    int height;
-    int stride;
-    float* elements;
-} Matrix;
-
-struct RobotDimensions {
-public:
-    float pI;
-    float body;
-    float coxa_angle_deg;
-    float coxa_length;
-    float tibia_angle_deg;
-    float tibia_length;
-    float tibia_length_squared;
-    float femur_angle_deg;
-    float femur_length;
-    float max_angle_coxa;
-    float min_angle_coxa;
-    float max_angle_coxa_w_margin;
-    float min_angle_coxa_w_margin;
-    float max_angle_tibia;
-    float min_angle_tibia;
-    float max_angle_femur;
-    float min_angle_femur;
-    float max_angle_femur_w_margin;
-    float min_angle_femur_w_margin;
-    float max_tibia_to_gripper_dist;
-    float positiv_saturated_femur[2];
-    float negativ_saturated_femur[2];
-    float fem_tib_min_host[2];
-    float min_tibia_to_gripper_dist;
-    float middle_TG;
-};
+#include "Header.h"
 
 RobotDimensions dim_of_SCARE() {
     struct RobotDimensions scare{};
@@ -246,154 +204,173 @@ void dist_double_sol(float* point, RobotDimensions& dim, float* result_point)
 
 // Kernel launch function
 __global__
-void add(Matrix table, RobotDimensions dimensions, Matrix result_table)
+void dist_kernel(Matrix table, RobotDimensions dimensions, Matrix result_table)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < table.height; i += stride) {
-        // accu += 1;
-        // result_table.elements[i * table.width] = index;
-        // result_table.elements[i * table.width + 1] = stride;
-        // result_table.elements[i * table.width]      = table.elements[i * table.width];
-        // result_table.elements[i * table.width + 1]  = table.elements[i * table.width + 1];
-        // result_table.elements[i * table.width + 2]  = table.elements[i * table.width + 2];
         dist_double_sol((table.elements + i * table.width), dimensions, (result_table.elements + i * result_table.width));
     }
 }
 
-class AutoEstimator{
-private:
-    cudaError_t cudaStatus;
-public:
-    int screenWidth;
-    int screenHeight;
-    int rows;
-    RobotDimensions dimensions;
-    Matrix table_input;
-    Matrix table_input_gpu;
-    Matrix result_gpu;
-    Matrix result;
-    int blockSize = 1024;
-    int numBlocks;
-
-    AutoEstimator(int pxWidth, int pxHeight){
-        screenWidth = pxWidth;
-        screenHeight = pxHeight;
-        dimensions = dim_of_SCARE();
-        rows = screenWidth * screenHeight;
-
-        table_input.width = 3; table_input.height = rows;
-        table_input.elements = new float[table_input.width * table_input.height];
-
-        result.width = 3; result.height = rows;
-        result.elements = new float[table_input.width * table_input.height];
-
-        table_input_gpu.width = table_input.width; table_input_gpu.height = table_input.height;
-        result_gpu.width = table_input_gpu.width; result_gpu.height = table_input_gpu.height;
-
-        numBlocks = (rows + blockSize - 1) / blockSize;
-        error_check();
-        setup_kernel();
-        input_as_grid();
-        alocate_gpu_mem();
-        copy_input_cpu2gpu();
+__global__
+void norm3df_kernel(Matrix table, Matrix result_table)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < table.height; i += stride) {
+        result_table.elements[i] = norm3df(table.elements[i * table.width],
+                                           table.elements[i * table.width+1],
+                                           table.elements[i * table.width+2]);
     }
+}
 
-    void error_check(){
-        cudaStatus = cudaGetLastError();
-        if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-            // Handle the error or exit the program as needed.
+__global__
+void change_z_kernel(Matrix table, float zval)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < table.height; i += stride) {
+        table.elements[i * table.width+2] = zval;
+    }
+}
+
+AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
+    blockSize = 1024;
+    verbose = true;
+    screenWidth = pxWidth;
+    screenHeight = pxHeight;
+    dimensions = dim_of_SCARE();
+    rows = screenWidth * screenHeight;
+
+    table_input.width = 3; table_input.height = rows;
+    table_input.elements = new float[table_input.width * table_input.height];
+
+    result.width = 3; result.height = rows;
+    result.elements = new float[table_input.width * table_input.height];
+
+    result_norm.width = 1; result_norm.height = rows;
+    result_norm.elements = new float[table_input.width * table_input.height];
+
+    table_input_gpu.width = table_input.width; table_input_gpu.height = table_input.height;
+    result_gpu.width = table_input_gpu.width; result_gpu.height = table_input_gpu.height;
+    result_norm_gpu.width = result_norm.width; result_norm_gpu.height = table_input_gpu.height;
+
+    numBlocks = (rows + blockSize - 1) / blockSize;
+    error_check();
+    setup_kernel();
+    input_as_grid();
+    alocate_gpu_mem();
+    copy_input_cpu2gpu();
+}
+
+void AutoEstimator::error_check(){
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
+        // Handle the error or exit the program as needed.
+    }
+}
+
+void AutoEstimator::input_as_grid(){
+    for (int i = 0; i < screenHeight; i++) {
+        for (int j = 0; j < screenWidth; j++) {
+            int row = i * screenWidth + j;
+            // X
+            *(table_input.elements + row * table_input.width + 0)
+                    //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
+                    = (float)(j - screenWidth /2);
+            // Y
+            *(table_input.elements + row * table_input.width + 1)
+                    //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
+                    = -(float)(i - screenHeight / 2);
+            // Z
+            *(table_input.elements + row * table_input.width + 2)
+                    //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
+                    = 0.f;
         }
     }
+    if (verbose) { std::cout << "Host grid generated" << std::endl; }
+}
 
-    void input_as_grid(){
-        for (int i = 0; i < screenHeight; i++) {
-            for (int j = 0; j < screenWidth; j++) {
-                int row = i * screenWidth + j;
-                // X
-                *(table_input.elements + row * table_input.width + 0)
-                        //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                        = (float)(j - screenWidth /2);
-                // Y
-                *(table_input.elements + row * table_input.width + 1)
-                        //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                        = -(float)(i - screenHeight / 2);
-                // Z
-                *(table_input.elements + row * table_input.width + 2)
-                        //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
-                        = 0.f;
-            }
-        }
+void AutoEstimator::change_zvalue(float zvalue){
 
-        std::cout << "Host grid generated" << std::endl;
-    }
+    change_z_kernel<<<numBlocks, blockSize >>>(table_input_gpu, zvalue);
 
-    void change_zvalue(float zvalue){
-        for (int i = 0; i < screenHeight; i++) {
-            for (int j = 0; j < screenWidth; j++) {
-                int row = i * screenWidth + j;
-                // Z
-                *(table_input.elements + row * table_input.width + 2)
-                        //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
-                        = zvalue;
-            }
-        }
-    }
+}
 
-    void alocate_gpu_mem(void){
-        table_input_gpu.width = table_input.width; table_input_gpu.height = table_input.height;
-        cudaMalloc(&table_input_gpu.elements, table_input_gpu.width * table_input_gpu.height * sizeof(float));
+void AutoEstimator::alocate_gpu_mem(){
+    cudaMalloc(&table_input_gpu.elements, table_input_gpu.width * table_input_gpu.height * sizeof(float));
 
-        result_gpu.width = table_input_gpu.width; result_gpu.height = table_input_gpu.height;
-        cudaMalloc(&result_gpu.elements, result_gpu.width * result_gpu.height * sizeof(float));
-        std::cout << "GPU mem allocated" << std::endl;
-        error_check();
-    }
+    cudaMalloc(&result_gpu.elements, result_gpu.width * result_gpu.height * sizeof(float));
 
-    void copy_input_cpu2gpu(void){
-        cudaMemcpy(table_input_gpu.elements,
-                   table_input.elements,
-                   table_input.width * table_input.height * sizeof(float),
-                   cudaMemcpyHostToDevice);
-        std::cout << "Host copied to GPU" << std::endl;
-        error_check();
-    }
+    cudaMalloc(&result_norm_gpu.elements, result_norm_gpu.width * result_norm_gpu.height * sizeof(float));
 
-    void setup_kernel(void){
-        std::wcout << "Kernel setup\nThreads per block: " << blockSize << "\nNumber of blocks: " << numBlocks << std::endl;
-        empty_kernel<<<numBlocks, blockSize >>>();
-        cudaDeviceSynchronize();
-        error_check();
-    }
+    if (verbose) { std::cout << "GPU memory allocated" << std::endl; }
+    error_check();
+}
 
-    void compute_dist(void){
-        add<<<numBlocks, blockSize >>>(table_input_gpu, dimensions, result_gpu);
-        cudaDeviceSynchronize();
-        error_check();
-    }
+void AutoEstimator::copy_input_cpu2gpu(){
+    cudaMemcpy(table_input_gpu.elements,
+               table_input.elements,
+               table_input.width * table_input.height * sizeof(float),
+               cudaMemcpyHostToDevice);
+    if (verbose) { std::cout << "Host data copied to GPU" << std::endl; }
+    error_check();
+}
 
-    void copy_output_gpu2cpu(void){
-        cudaMemcpy(result.elements,
-                   result_gpu.elements,
-                   result_gpu.width * result_gpu.height * sizeof(float),
-                   cudaMemcpyDeviceToHost);
-        error_check();
-    }
+void AutoEstimator::setup_kernel(){
+    std::wcout << "Threads per block: " << blockSize << "\nNumber of blocks: " << numBlocks << std::endl;
+    empty_kernel<<<numBlocks, blockSize >>>();
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Empty kernels started" << std::endl;}
+    error_check();
+}
 
-    void delete_all(){
-        delete[] table_input.elements;
-        cudaFree(table_input_gpu.elements);
-        cudaFree(result_gpu.elements);
-        delete[] result.elements;
-        error_check();
-    }
+void AutoEstimator::compute_dist(){
+    if (verbose) { std::cout << "Compute started" << std::endl;}
+    dist_kernel<<<numBlocks, blockSize >>>(table_input_gpu, dimensions, result_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
 
-};
+void AutoEstimator::compute_result_norm(){
+    if (verbose) { std::cout << "Compute norm started" << std::endl;}
+    norm3df_kernel<<<numBlocks, blockSize >>>(result_gpu, result_norm_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
+void AutoEstimator::copy_output_gpu2cpu(){
+    cudaMemcpy(result.elements,
+               result_gpu.elements,
+               result_gpu.width * result_gpu.height * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_norm.elements,
+               result_norm_gpu.elements,
+               result_norm_gpu.width * result_norm_gpu.height * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    if (verbose) { std::cout << "GPU result copied to host" << std::endl;}
+    cudaDeviceSynchronize();
+    error_check();
+}
+
+void AutoEstimator::delete_all(){
+    delete[] table_input.elements;
+    cudaFree(table_input_gpu.elements);
+    cudaFree(result_gpu.elements);
+    cudaFree(result_norm_gpu.elements);
+    delete[] result.elements;
+    delete[] result_norm.elements;
+    if (verbose) { std::cout << "All pointers deleted" << std::endl;}
+    error_check();
+}
 
 int main_le_old(void)
 {
-//    AutoEstimator autoe{6, 7};
+    AutoEstimator autoe{6, 7};
     std::cout << "initializing c++\n";
     //getting scare's dimensions in an object
     const RobotDimensions dimensions = dim_of_SCARE();
@@ -485,7 +462,7 @@ int main_le_old(void)
         cudaEventRecord(start);
 
         //Compute starts
-        add<<<numBlocks, blockSize >>>(table_input_gpu, dimensions, result_gpu);
+        dist_kernel<<<numBlocks, blockSize >>>(table_input_gpu, dimensions, result_gpu);
 
         // Wait for GPU to finish before accessing on host
         cudaDeviceSynchronize();
