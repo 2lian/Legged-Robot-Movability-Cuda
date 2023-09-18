@@ -18,20 +18,24 @@ int main_simple(void){
 }
 
 int main(void){
-    int windowWidth=1920*1;
-    int windowHeight=1080*1;
+    int windowWidth=1920*1.3;
+    int windowHeight=1080*1.3;
     AutoEstimator autoe{windowWidth, windowHeight};
     autoe.compute_dist();
     autoe.compute_result_norm();
+    autoe.convert_to_virdis();
     autoe.copy_output_gpu2cpu();
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
     window.setVerticalSyncEnabled(false);
 //    window.setFramerateLimit(1000);
 
-    // Create an SFML image
-    sf::Image backgroundImage;
-    backgroundImage.create(windowWidth, windowHeight);
+    sf::Texture texture;
+    texture.create(windowWidth, windowHeight);
+    auto* pixel_table = new sf::Uint8[windowWidth * windowHeight * 4];
+
+    // Create an SFML sprite with the random texture
+    sf::Sprite backSprite(texture);
 
     tinycolormap::Color color = tinycolormap::GetColor(
             *autoe.result_norm.elements,
@@ -63,6 +67,7 @@ int main(void){
         autoe.change_zvalue(relativePosition.y/2);
         autoe.compute_dist();
         autoe.compute_result_norm();
+        autoe.convert_to_virdis();
         autoe.copy_output_gpu2cpu();
 
         deltaTime = clock.restart();
@@ -70,30 +75,29 @@ int main(void){
         clock.restart();
         sf::Color pxcolor;
 
-        // Fill the image with RGB colors
-        for (int y = 0; y < windowHeight; ++y) {
-            for (int x = 0; x < windowWidth; ++x) {
-                int row = y * windowWidth + x;
-                float norm = *(data.elements + row)/400;
-                color = tinycolormap::GetColor(norm,
-                                               tinycolormap::ColormapType::Viridis);
+//        // Fill the image with RGB colors
+//        for (int y = 0; y < windowHeight; ++y) {
+//            for (int x = 0; x < windowWidth; ++x) {
+//                int row = y * windowWidth + x;
+//                float norm = *(data.elements + row)/400;
+//                color = tinycolormap::GetColor(norm,
+//                                               tinycolormap::ColormapType::Viridis);
+//
+//                pixel_table[row*4 + 0] = color.ri();
+//                pixel_table[row*4 + 1] = color.gi();
+//                pixel_table[row*4 + 2] = color.bi();
+//                pixel_table[row*4 + 3] = 255;
+////            float rval = color.r();
+////            float gval = color.g();
+////            float bval = color.b();
+////                pxcolor.r = color.ri();
+////                pxcolor.g = color.gi();
+////                pxcolor.b = color.bi();
+////                backgroundImage.setPixel(x, y, pxcolor);
+//            }
+//        }
 
-//            float rval = color.r();
-//            float gval = color.g();
-//            float bval = color.b();
-                pxcolor.r = color.ri();
-                pxcolor.g = color.gi();
-                pxcolor.b = color.bi();
-                backgroundImage.setPixel(x, y, pxcolor);
-            }
-        }
-
-        // Create an SFML texture from the random image
-        sf::Texture backGroundTexture;
-        backGroundTexture.loadFromImage(backgroundImage);
-
-        // Create an SFML sprite with the random texture
-        sf::Sprite backSprite(backGroundTexture);
+        texture.update(autoe.virdisTexture);
 
         deltaTime = clock.restart();
         std::cout << "pixels: " << deltaTime.asMilliseconds() << std::endl;

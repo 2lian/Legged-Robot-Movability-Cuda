@@ -63,6 +63,8 @@ public:
     int blockSize;
     int numBlocks;
     bool verbose;
+    unsigned char* virdisTexture_gpu;
+    unsigned char* virdisTexture;
 
     AutoEstimator(int pxWidth, int pxHeight);
     // Declare other member functions here.
@@ -73,6 +75,7 @@ public:
     void setup_kernel();
     void compute_dist();
     void compute_result_norm();
+    void AutoEstimator::convert_to_virdis();
     void copy_output_gpu2cpu();
     void delete_all();
     void error_check();
