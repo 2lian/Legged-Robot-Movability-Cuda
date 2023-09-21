@@ -4,11 +4,6 @@
 #include <tinycolormap.hpp>
 #include <random>
 
-int maincpp() {
-    std::cout << "hey that's c++" << std::endl;
-    thisiscuda();
-    return 0;
-}
 int main_simple(void){
     AutoEstimator autoe{6, 7};
     autoe.compute_dist();

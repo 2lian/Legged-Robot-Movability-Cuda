@@ -6,8 +6,6 @@
 #define CUDA_HEADER_H
 #include <driver_types.h>
 
-int thisiscuda();
-
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
 typedef struct {

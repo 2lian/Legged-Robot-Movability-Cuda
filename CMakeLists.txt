@@ -28,8 +28,6 @@ link_directories(${SFML_LIBRARY_DIR})
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-#        cuda_main.cu
-        new_cuda_source.cu
         notcuda.cpp
         Header.h
         cuda_with_header.cu)
