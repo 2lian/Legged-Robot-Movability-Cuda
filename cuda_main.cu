@@ -329,7 +329,7 @@ public:
         std::cout << "Host grid generated" << std::endl;
     }
 
-    void change_zvalue(float zvalue){
+    void change_z_value(float zvalue){
         for (int i = 0; i < screenHeight; i++) {
             for (int j = 0; j < screenWidth; j++) {
                 int row = i * screenWidth + j;

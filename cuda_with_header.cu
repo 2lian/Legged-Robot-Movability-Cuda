@@ -9,11 +9,11 @@ RobotDimensions dim_of_SCARE() {
     scare.body = 185.0f;
     scare.coxa_angle_deg = 60.0f;
     scare.coxa_length = 165.0f;
-    scare.tibia_angle_deg = 120.0f; //90
+    scare.tibia_angle_deg = 90.0f; //90
     scare.tibia_length = 190.0f;
     scare.tibia_length_squared = scare.tibia_length * scare.tibia_length;
-    scare.femur_angle_deg = 150.0f; //120
-    scare.femur_length = 300.0f; //200
+    scare.femur_angle_deg = 120.0f; //120
+    scare.femur_length = 200.0f; //200
     scare.max_angle_coxa = scare.pI / 180.0f * scare.coxa_angle_deg;
     scare.min_angle_coxa = -scare.pI / 180.0f * scare.coxa_angle_deg;
     scare.max_angle_coxa_w_margin = scare.pI / 180.0f * (scare.coxa_angle_deg - 10.0f);
@@ -67,6 +67,9 @@ float calculateStdDev(const float* arr, int size, float mean) {
 
 __device__ float sumOfSquares3df(const float* vector) {
     return vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2];
+}
+__device__ float sumOfSquares2df(const float* vector) {
+    return vector[0] * vector[0] + vector[1] * vector[1];
 }
 
 __device__
@@ -200,6 +203,59 @@ void dist_double_sol(float* point, RobotDimensions& dim, float* result_point)
     result_point[1] = result_to_use[1];
     result_point[2] = result_to_use[2];
 
+}
+
+__device__
+bool reachability(float* point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float result[3];
+    result[0] = point[0] - dim.body;
+    result[1] = point[1];
+    result[2] = point[2];
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result[1], result[0]);
+
+    // flipping angle if above +-90deg
+    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+
+    if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
+        return false;
+    }
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result[0] * sin_angle_cox;
+    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
+    result[1] = buffer + result[1] * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result[0] -= dim.coxa_length;
+
+    float linnorm = norm3df(result[0], result[1], result[2]);
+
+    if ((linnorm < dim.min_tibia_to_gripper_dist) || (linnorm > dim.max_tibia_to_gripper_dist)){
+        return false;
+    }
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result[2], result[0]);
+
+    if ((required_angle_femur > dim.min_angle_femur) && (required_angle_femur < dim.max_angle_femur)) {
+        return true;
+    }
+
+    linnorm = fminf(
+            norm3df(result[0] - dim.positiv_saturated_femur[0], 0, result[2] - dim.positiv_saturated_femur[1])
+            ,
+            norm3df(result[0] - dim.negativ_saturated_femur[0], 0, result[2] - dim.negativ_saturated_femur[1])
+            );
+
+    return linnorm < dim.femur_length;
 }
 
 __constant__ __device__ float data[][3] =
@@ -506,6 +562,18 @@ void dist_kernel(Matrix table, RobotDimensions dimensions, Matrix result_table)
 }
 
 __global__
+void switch_zy_kernel(Matrix table)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < table.height; i += stride) {
+        float buffer = table.elements[i * table.width + 1];
+        table.elements[i * table.width + 1] = table.elements[i * table.width + 2];
+        table.elements[i * table.width + 2] = buffer;
+    }
+}
+
+__global__
 void norm3df_kernel(Matrix table, Matrix result_table)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -524,6 +592,65 @@ void change_z_kernel(Matrix table, float zval)
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < table.height; i += stride) {
         table.elements[i * table.width+2] = zval;
+    }
+}
+
+__global__
+void change_y_kernel(Matrix table, float zval)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < table.height; i += stride) {
+        table.elements[i * table.width+1] = zval;
+    }
+}
+
+__global__
+void dist2virdis_pipeline(Matrix table, RobotDimensions dimensions, unsigned char* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < table.height; i += stride) {
+        float result[3];
+        // dist func
+        dist_double_sol((table.elements + i * table.width), dimensions, result);
+
+        //norm func
+        // norm stored in result[0]
+        result[0] = norm3df(result[0],
+                                           result[1],
+                                           result[2])
+                                                   /2;
+
+        // virdis colormaping
+
+        const int x = (int)
+                floorf(
+                fmaxf(
+                        fminf(255.f, result[0]),
+                        0.f)
+        );
+        const float color[3] = {data[x][0], data[x][1], data[x][2]};
+        pixels[i * 4 + 0] = (unsigned char) floorf(color[0]*255.f);
+        pixels[i * 4 + 1] = (unsigned char) floorf(color[1]*255.f);
+        pixels[i * 4 + 2] = (unsigned char) floorf(color[2]*255.f);
+        pixels[i * 4 + 3] = (unsigned char) (1*255);
+    }
+}
+
+__global__
+void reachability2img_pipeline(Matrix table, RobotDimensions dimensions, unsigned char* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < table.height; i += stride) {
+        bool result = reachability((table.elements + i * table.width), dimensions);
+
+        unsigned char val = (result)? 255 : 0;
+        for (int n=0; n<4; n++){
+            pixels[i * 4 + n] = val;
+        }
+        pixels[i * 4 + 3] = (unsigned char) (1*255);
     }
 }
 
@@ -587,10 +714,22 @@ void AutoEstimator::input_as_grid(){
     if (verbose) { std::cout << "Host grid generated" << std::endl; }
 }
 
-void AutoEstimator::change_zvalue(float zvalue){
+void AutoEstimator::change_z_value(float value){
 
-    change_z_kernel<<<numBlocks, blockSize >>>(table_input_gpu, zvalue);
+    change_z_kernel<<<numBlocks, blockSize >>>(table_input_gpu, value);
+    cudaDeviceSynchronize();
+}
 
+void AutoEstimator::change_y_value(float value){
+
+    change_y_kernel<<<numBlocks, blockSize >>>(table_input_gpu, value);
+    cudaDeviceSynchronize();
+}
+
+void AutoEstimator::switch_zy(){
+
+    switch_zy_kernel<<<numBlocks, blockSize >>>(table_input_gpu);
+    cudaDeviceSynchronize();
 }
 
 void AutoEstimator::alocate_gpu_mem(){
@@ -650,6 +789,24 @@ void AutoEstimator::convert_to_virdis(){
     error_check();
 }
 
+void AutoEstimator::dist_to_virdis_pipeline(){
+    if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
+    dist2virdis_pipeline<<<numBlocks, blockSize >>>(table_input_gpu, dimensions,
+                                                   virdisTexture_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
+void AutoEstimator::reachability_to_img_pipeline(){
+    if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
+    reachability2img_pipeline<<<numBlocks, blockSize >>>(table_input_gpu, dimensions,
+                                                    virdisTexture_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
 void AutoEstimator::copy_output_gpu2cpu(){
     cudaMemcpy(result.elements,
                result_gpu.elements,
@@ -660,6 +817,16 @@ void AutoEstimator::copy_output_gpu2cpu(){
                4 * rows * sizeof(unsigned char),
                cudaMemcpyDeviceToHost);
     if (verbose) { std::cout << "GPU result copied to host" << std::endl;}
+    cudaDeviceSynchronize();
+    error_check();
+}
+
+void AutoEstimator::virdisresult_gpu2cpu(){
+    cudaMemcpy(virdisTexture,
+               virdisTexture_gpu,
+               4 * rows * sizeof(unsigned char),
+               cudaMemcpyDeviceToHost);
+    if (verbose) { std::cout << "virdis result copied to host" << std::endl;}
     cudaDeviceSynchronize();
     error_check();
 }

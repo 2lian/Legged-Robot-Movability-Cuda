@@ -38,10 +38,10 @@ public:
     float min_angle_femur;
     float max_angle_femur_w_margin;
     float min_angle_femur_w_margin;
-    float max_tibia_to_gripper_dist;
     float positiv_saturated_femur[2];
     float negativ_saturated_femur[2];
     float fem_tib_min_host[2];
+    float max_tibia_to_gripper_dist;
     float min_tibia_to_gripper_dist;
     float middle_TG;
 };
@@ -69,7 +69,7 @@ public:
     AutoEstimator(int pxWidth, int pxHeight);
     // Declare other member functions here.
     void input_as_grid();
-    void change_zvalue(float zvalue);
+    void change_z_value(float zvalue);
     void alocate_gpu_mem();
     void copy_input_cpu2gpu();
     void setup_kernel();
@@ -79,6 +79,15 @@ public:
     void copy_output_gpu2cpu();
     void delete_all();
     void error_check();
+    void AutoEstimator::virdisresult_gpu2cpu();
+
+    void dist_to_virdis_pipeline();
+
+    void reachability_to_img_pipeline();
+
+    void switch_zy();
+
+    void change_y_value(float value);
 };
 
 #endif //CUDA_HEADER_H

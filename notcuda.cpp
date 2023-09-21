@@ -18,8 +18,8 @@ int main_simple(void){
 }
 
 int main(void){
-    int windowWidth=1920*1.3;
-    int windowHeight=1080*1.3;
+    int windowWidth=1920*1;
+    int windowHeight=1080*1;
     AutoEstimator autoe{windowWidth, windowHeight};
     autoe.compute_dist();
     autoe.compute_result_norm();
@@ -27,10 +27,12 @@ int main(void){
     autoe.copy_output_gpu2cpu();
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
-    window.setVerticalSyncEnabled(false);
+    window.setVerticalSyncEnabled(true);
 //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
+    // bind the texture to OpenGL
+    sf::Texture::bind(&texture);
     texture.create(windowWidth, windowHeight);
     auto* pixel_table = new sf::Uint8[windowWidth * windowHeight * 4];
 
@@ -45,12 +47,38 @@ int main(void){
 
     autoe.verbose = false;
     sf::Time deltaTime; sf::Clock clock;
+    sf::Time value_change;
+    sf::Time compute;
+    sf::Time copying;
+
+    bool computation_toggle = true;
+    bool view_toggle = true;
+    bool run_toggle = true;
 
     while (window.isOpen()) {
-        sf::Event event;
+        sf::Event event{};
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 window.close();
+            }
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Space)
+                {// Space bar is pressed
+                    run_toggle = !run_toggle;
+                }
+            }
+            if (event.type == sf::Event::MouseButtonPressed)
+            {// Check which mouse button was pressed
+                if (event.mouseButton.button == sf::Mouse::Left)
+                {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
+                    computation_toggle = !computation_toggle;
+                }
+                if (event.mouseButton.button == sf::Mouse::Right)
+                {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
+                    view_toggle = !view_toggle;
+                    autoe.switch_zy();
+                }
             }
         }
 
@@ -63,49 +91,40 @@ int main(void){
         // Other game logic and updates here
 
         clock.restart();
+        if(run_toggle){
+        if (view_toggle){
+            autoe.change_z_value((float) relativePosition.y / 2.f);
+        } else {
+            autoe.change_y_value((float) relativePosition.y / 2.f);
+        }}
+        value_change = clock.restart();
+        if (computation_toggle){
+            autoe.dist_to_virdis_pipeline();
+        } else {
+            autoe.reachability_to_img_pipeline();
+        }
+        compute = clock.restart();
+        autoe.virdisresult_gpu2cpu();
+        copying = clock.restart();
 
-        autoe.change_zvalue(relativePosition.y/2);
-        autoe.compute_dist();
-        autoe.compute_result_norm();
-        autoe.convert_to_virdis();
-        autoe.copy_output_gpu2cpu();
+        std::cout
+        << " value change: " << value_change.asMicroseconds()
+        << "\n compute: " << compute.asMicroseconds()
+        << "\n copying: " << copying.asMicroseconds()
+                << std::endl;
+        std::cout << "GPUop total: " << (value_change+compute+copying).asMicroseconds() << " mirco sec" << std::endl;
 
-        deltaTime = clock.restart();
-        std::cout << "compute: " << deltaTime.asMilliseconds() << std::endl;
         clock.restart();
-        sf::Color pxcolor;
-
-//        // Fill the image with RGB colors
-//        for (int y = 0; y < windowHeight; ++y) {
-//            for (int x = 0; x < windowWidth; ++x) {
-//                int row = y * windowWidth + x;
-//                float norm = *(data.elements + row)/400;
-//                color = tinycolormap::GetColor(norm,
-//                                               tinycolormap::ColormapType::Viridis);
-//
-//                pixel_table[row*4 + 0] = color.ri();
-//                pixel_table[row*4 + 1] = color.gi();
-//                pixel_table[row*4 + 2] = color.bi();
-//                pixel_table[row*4 + 3] = 255;
-////            float rval = color.r();
-////            float gval = color.g();
-////            float bval = color.b();
-////                pxcolor.r = color.ri();
-////                pxcolor.g = color.gi();
-////                pxcolor.b = color.bi();
-////                backgroundImage.setPixel(x, y, pxcolor);
-//            }
-//        }
 
         texture.update(autoe.virdisTexture);
 
         deltaTime = clock.restart();
-        std::cout << "pixels: " << deltaTime.asMilliseconds() << std::endl;
+        std::cout << "Pixels update: " << deltaTime.asMicroseconds() << " mirco sec\n" << std::endl;
 
         // Clear the window
         window.clear();
 
-        // Draw the background image first
+        // Draw the background image
         window.draw(backSprite);
 
         // Draw other game elements here
@@ -113,7 +132,6 @@ int main(void){
         // Display everything
         window.display();
     }
-
 
     autoe.delete_all();
     return 0;
