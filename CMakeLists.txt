@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.26)
 project(cuda LANGUAGES CUDA CXX)
 
+# Copy font file to the build directory
+configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYONLY)
+
 include_directories("C:/Users/2lian/source/cuda_include")
 include_directories("C:/Users/2lian/source/include")
 

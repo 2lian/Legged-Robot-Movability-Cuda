@@ -32,18 +32,45 @@ int main(void){
 
     sf::Texture texture;
     // bind the texture to OpenGL
-    sf::Texture::bind(&texture);
+//    sf::Texture::bind(&texture);
     texture.create(windowWidth, windowHeight);
-    auto* pixel_table = new sf::Uint8[windowWidth * windowHeight * 4];
 
-    // Create an SFML sprite with the random texture
+    // Create an SFML sprite with the texture
     sf::Sprite backSprite(texture);
 
-    tinycolormap::Color color = tinycolormap::GetColor(
-            *autoe.result_norm.elements,
-            tinycolormap::ColormapType::Viridis);
+    sf::Font font;
+    if (!font.loadFromFile("arial.ttf")) {
+        // Handle font loading error
+    }
 
-    Matrix data = autoe.result_norm;
+    sf::Text textBox1;
+    sf::Text textBox2;
+    sf::Text textBox3;
+
+// Set the font
+    textBox1.setFont(font);
+    textBox2.setFont(font);
+    textBox3.setFont(font);
+
+// Set the text content
+    textBox1.setString("Top view");
+    textBox2.setString("Gradient");
+    textBox3.setString("");
+
+// Set the position
+    textBox1.setPosition(10, 5);  // Adjust these coordinates as needed
+    textBox2.setPosition(10, 60);  // Adjust these coordinates as needed
+    textBox3.setPosition(10, 110);  // Adjust these coordinates as needed
+
+// Set the text color
+    textBox1.setFillColor(sf::Color::Black);
+    textBox2.setFillColor(sf::Color::Black);
+    textBox3.setFillColor(sf::Color::Black);
+
+// Set the character size
+    textBox1.setCharacterSize(50);  // Adjust the size as needed
+    textBox2.setCharacterSize(50);  // Adjust the size as needed
+    textBox3.setCharacterSize(50);  // Adjust the size as needed
 
     autoe.verbose = false;
     sf::Time deltaTime; sf::Clock clock;
@@ -66,6 +93,8 @@ int main(void){
                 if (event.key.code == sf::Keyboard::Space)
                 {// Space bar is pressed
                     run_toggle = !run_toggle;
+                    if (run_toggle){textBox3.setString("");}
+                    else {textBox3.setString("PAUSED");}
                 }
             }
             if (event.type == sf::Event::MouseButtonPressed)
@@ -73,11 +102,15 @@ int main(void){
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
                     computation_toggle = !computation_toggle;
+                    if (computation_toggle){textBox2.setString("Gradient");}
+                    else {textBox2.setString("Reachability");}
                 }
                 if (event.mouseButton.button == sf::Mouse::Right)
                 {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
                     view_toggle = !view_toggle;
                     autoe.switch_zy();
+                    if (view_toggle){textBox1.setString("Top view");}
+                    else {textBox1.setString("Side view");}
                 }
             }
         }
@@ -126,8 +159,9 @@ int main(void){
 
         // Draw the background image
         window.draw(backSprite);
-
-        // Draw other game elements here
+        window.draw(textBox1);
+        window.draw(textBox2);
+        window.draw(textBox3);
 
         // Display everything
         window.display();

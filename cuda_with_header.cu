@@ -26,11 +26,11 @@ RobotDimensions dim_of_SCARE() {
     scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.tibia_angle_deg + 20.0f);
     scare.max_tibia_to_gripper_dist = scare.tibia_length + scare.femur_length;
 
-    scare.positiv_saturated_femur[0] = cos(scare.max_angle_femur) * scare.femur_length;
-    scare.positiv_saturated_femur[1] = sin(scare.max_angle_femur) * scare.femur_length;
+    scare.positiv_saturated_femur[0] = cos(scare.max_angle_femur) * scare.tibia_length;
+    scare.positiv_saturated_femur[1] = sin(scare.max_angle_femur) * scare.tibia_length;
 
-    scare.negativ_saturated_femur[0] = cos(scare.min_angle_femur) * scare.femur_length;
-    scare.negativ_saturated_femur[1] = sin(scare.min_angle_femur) * scare.femur_length;
+    scare.negativ_saturated_femur[0] = cos(scare.min_angle_femur) * scare.tibia_length;
+    scare.negativ_saturated_femur[1] = sin(scare.min_angle_femur) * scare.tibia_length;
 
     scare.fem_tib_min_host[0] = scare.tibia_length + scare.femur_length * cos(scare.pI / 180.0f * scare.femur_angle_deg);
     scare.fem_tib_min_host[1] = scare.femur_length * sin(scare.pI / 180.0f * scare.femur_angle_deg);
@@ -646,7 +646,7 @@ void reachability2img_pipeline(Matrix table, RobotDimensions dimensions, unsigne
     for (int i = index; i < table.height; i += stride) {
         bool result = reachability((table.elements + i * table.width), dimensions);
 
-        unsigned char val = (result)? 255 : 0;
+        unsigned char val = (result)? 0 : 255;
         for (int n=0; n<4; n++){
             pixels[i * 4 + n] = val;
         }
