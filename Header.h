@@ -73,11 +73,11 @@ public:
     void setup_kernel();
     void compute_dist();
     void compute_result_norm();
-    void AutoEstimator::convert_to_virdis();
+    void convert_to_virdis();
     void copy_output_gpu2cpu();
     void delete_all();
     void error_check();
-    void AutoEstimator::virdisresult_gpu2cpu();
+    void virdisresult_gpu2cpu();
 
     void dist_to_virdis_pipeline();
 
