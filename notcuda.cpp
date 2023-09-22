@@ -21,12 +21,12 @@ int CalculateMedian(const Eigen::VectorXi& data) {
 }
 
 int main(){
-    int windowWidth=1920*1;
-    int windowHeight=1080*1;
+    int windowWidth   = 1920;
+    int windowHeight  = 1080;
     std::cout << "let's go!";
     AutoEstimator autoe{windowWidth, windowHeight};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
-    window.setVerticalSyncEnabled(true);
+    window.setVerticalSyncEnabled(false);
 //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
