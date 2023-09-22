@@ -5,30 +5,31 @@
 #include <random>
 #include <Eigen/Dense>
 
-int main_simple(void){
-    AutoEstimator autoe{6, 7};
-    autoe.compute_dist();
-    autoe.copy_output_gpu2cpu();
-    autoe.delete_all();
-    return 0;
+int CalculateMedian(const Eigen::VectorXi& data) {
+    // Convert the Eigen vector to a std::vector for sorting
+    std::vector<int> stdVector(data.data(), data.data() + data.size());
+
+    // Sort the std::vector
+    std::sort(stdVector.begin(), stdVector.end());
+
+    // Calculate the median
+    int median;
+    size_t size = stdVector.size();
+    median = stdVector[size / 2]; // not very true but I don't care
+
+    return median;
 }
 
-int main(void){
+int main(){
     int windowWidth=1920*1;
     int windowHeight=1080*1;
     std::cout << "let's go!";
     AutoEstimator autoe{windowWidth, windowHeight};
-//    autoe.compute_dist();
-//    autoe.compute_result_norm();
-//    autoe.convert_to_virdis();
-//    autoe.copy_output_gpu2cpu();
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
     window.setVerticalSyncEnabled(true);
 //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
-    // bind the texture to OpenGL
-//    sf::Texture::bind(&texture);
     texture.create(windowWidth, windowHeight);
 
     // Create an SFML sprite with the texture
@@ -126,8 +127,8 @@ int main(void){
         clock.restart();
         if(run_toggle){
             avg_counter = (avg_counter+1) % avg_size;
-            vect_for_avg[avg_counter] = compute.asMicroseconds();
-            textBox3.setString(std::to_string(vect_for_avg.mean()) + " us");
+            vect_for_avg[avg_counter] = (int)compute.asMicroseconds();
+            textBox3.setString(std::to_string(CalculateMedian(vect_for_avg)) + " us");
             if (view_toggle){
                 autoe.change_z_value((float) relativePosition.y / 2.f);
             } else {

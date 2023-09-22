@@ -655,7 +655,7 @@ void reachability2img_pipeline(Matrix table, RobotDimensions dimensions, unsigne
 }
 
 AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
-    blockSize = 1024;
+    blockSize = 256;
     verbose = true;
     screenWidth = pxWidth;
     screenHeight = pxHeight;
