@@ -20,6 +20,7 @@ configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYO
 
 include_directories("${CUDA_DIR}/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/tinycolormap-master/include")
+include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
 
 set(CMAKE_CUDA_STANDARD 17)
 

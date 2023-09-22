@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 #include <tinycolormap.hpp>
 #include <random>
+#include <Eigen/Dense>
 
 int main_simple(void){
     AutoEstimator autoe{6, 7};
@@ -15,12 +16,12 @@ int main_simple(void){
 int main(void){
     int windowWidth=1920*1;
     int windowHeight=1080*1;
+    std::cout << "let's go!";
     AutoEstimator autoe{windowWidth, windowHeight};
-    autoe.compute_dist();
-    autoe.compute_result_norm();
-    autoe.convert_to_virdis();
-    autoe.copy_output_gpu2cpu();
-
+//    autoe.compute_dist();
+//    autoe.compute_result_norm();
+//    autoe.convert_to_virdis();
+//    autoe.copy_output_gpu2cpu();
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
     window.setVerticalSyncEnabled(true);
 //    window.setFramerateLimit(1000);
@@ -77,6 +78,10 @@ int main(void){
     bool view_toggle = true;
     bool run_toggle = true;
 
+    int avg_size = 60*1;
+    int avg_counter = 0;
+    Eigen::VectorXi vect_for_avg = Eigen::VectorXi::Zero(avg_size);
+
     while (window.isOpen()) {
         sf::Event event{};
         while (window.pollEvent(event)) {
@@ -120,10 +125,13 @@ int main(void){
 
         clock.restart();
         if(run_toggle){
-        if (view_toggle){
-            autoe.change_z_value((float) relativePosition.y / 2.f);
-        } else {
-            autoe.change_y_value((float) relativePosition.y / 2.f);
+            avg_counter = (avg_counter+1) % avg_size;
+            vect_for_avg[avg_counter] = compute.asMicroseconds();
+            textBox3.setString(std::to_string(vect_for_avg.mean()) + " us");
+            if (view_toggle){
+                autoe.change_z_value((float) relativePosition.y / 2.f);
+            } else {
+                autoe.change_y_value((float) relativePosition.y / 2.f);
         }}
         value_change = clock.restart();
         if (computation_toggle){
