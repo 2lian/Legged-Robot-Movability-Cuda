@@ -13,7 +13,14 @@ typedef struct {
     int height;
     int stride;
     float* elements;
-} Matrix;
+} Matrixf;
+
+typedef struct {
+    int width;
+    int height;
+    int stride;
+    bool* elements;
+} Matrixb;
 
 struct RobotDimensions {
 public:
@@ -52,14 +59,14 @@ public:
     int screenHeight;
     int rows;
     RobotDimensions dimensions;
-    Matrix table_input;
-    Matrix table_input_gpu;
-    Matrix result_gpu;
-    Matrix result;
-    Matrix result_norm;
-    Matrix result_norm_gpu;
-    Matrix targetset;
-    Matrix targetset_gpu;
+    Matrixf table_input;
+    Matrixf table_input_gpu;
+    Matrixf result_gpu;
+    Matrixf result;
+    Matrixf result_norm;
+    Matrixf result_norm_gpu;
+    Matrixf targetset;
+    Matrixf targetset_gpu;
     int blockSize;
     int numBlocks;
     bool verbose;

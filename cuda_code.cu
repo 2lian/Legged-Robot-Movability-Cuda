@@ -532,7 +532,7 @@ __device__ void linearInterp(float* x, float* result, float** colorMap)
     result[3] = 1;
 }
 
-__global__ void toVirdisUint_kernel(Matrix table, unsigned char* pixels) {
+__global__ void toVirdisUint_kernel(Matrixf table, unsigned char* pixels) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
@@ -552,7 +552,7 @@ __global__ void toVirdisUint_kernel(Matrix table, unsigned char* pixels) {
 
 // Kernel launch function
 __global__
-void dist_kernel(Matrix table, RobotDimensions dimensions, Matrix result_table)
+void dist_kernel(Matrixf table, RobotDimensions dimensions, Matrixf result_table)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -562,7 +562,7 @@ void dist_kernel(Matrix table, RobotDimensions dimensions, Matrix result_table)
 }
 
 __global__
-void switch_zy_kernel(Matrix table)
+void switch_zy_kernel(Matrixf table)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -574,7 +574,7 @@ void switch_zy_kernel(Matrix table)
 }
 
 __global__
-void norm3df_kernel(Matrix table, Matrix result_table)
+void norm3df_kernel(Matrixf table, Matrixf result_table)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -586,7 +586,7 @@ void norm3df_kernel(Matrix table, Matrix result_table)
 }
 
 __global__
-void change_z_kernel(Matrix table, float zval)
+void change_z_kernel(Matrixf table, float zval)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -596,7 +596,7 @@ void change_z_kernel(Matrix table, float zval)
 }
 
 __global__
-void change_y_kernel(Matrix table, float zval)
+void change_y_kernel(Matrixf table, float zval)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -606,7 +606,7 @@ void change_y_kernel(Matrix table, float zval)
 }
 
 __global__
-void dist2virdis_pipeline(Matrix table, RobotDimensions dimensions, unsigned char* pixels)
+void dist2virdis_pipeline(Matrixf table, RobotDimensions dimensions, unsigned char* pixels)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -639,7 +639,7 @@ void dist2virdis_pipeline(Matrix table, RobotDimensions dimensions, unsigned cha
 }
 
 __global__
-void reachability2img_pipeline(Matrix table, RobotDimensions dimensions, unsigned char* pixels)
+void reachability2img_pipeline(Matrixf table, RobotDimensions dimensions, unsigned char* pixels)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -655,7 +655,7 @@ void reachability2img_pipeline(Matrix table, RobotDimensions dimensions, unsigne
 }
 
 __global__
-void all_reachable(Matrix body_pos_table, RobotDimensions dimensions, Matrix target_set, unsigned char* pixels)
+void all5_reachable(Matrixf body_pos_table, RobotDimensions dimensions, Matrixf target_set, unsigned char* pixels)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -690,6 +690,36 @@ void all_reachable(Matrix body_pos_table, RobotDimensions dimensions, Matrix tar
         }
         pixels[i * 4 + 3] = (unsigned char) (1*255);
     }
+}
+
+__global__
+void leg1_movable(Matrixf body_pos_table, Matrixf output_pos_table, RobotDimensions dimensions, unsigned int* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    float point_relativ_to_body[3];
+    float* leg_target;
+    float* body_pos;
+    for (int i = index; i < body_pos_table.height * output_pos_table.height; i += stride) {
+        int body_index = i % body_pos_table.height;
+        int out_index = i / body_pos_table.height;
+
+        leg_target = output_pos_table.elements + out_index;
+        body_pos = body_pos_table.elements + body_index;
+
+        point_relativ_to_body[0] = leg_target[0] - body_pos[0];
+        point_relativ_to_body[1] = leg_target[1] - body_pos[1];
+        point_relativ_to_body[2] = leg_target[2] - body_pos[2];
+
+        bool result = reachability(point_relativ_to_body, dimensions);
+
+        unsigned int val = (result)? 0 : 255; // nonono
+        for (int n=0; n<4; n++){
+            //pixels[out_index * 4 + n] = val;
+            atomicExch(&pixels[out_index * 4 + n], val);
+        }
+        atomicExch(&pixels[out_index * 4 + 3], (unsigned int) (255));
+
 }
 
 AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
@@ -865,10 +895,10 @@ void AutoEstimator::reachability_to_img_pipeline(){
 
 void AutoEstimator::all_reachable_default_to_image(){
     if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
-    all_reachable<<<numBlocks, blockSize >>>(table_input_gpu,
-                                             dimensions,
-                                             targetset_gpu,
-                                             virdisTexture_gpu);
+    all5_reachable<<<numBlocks, blockSize >>>(table_input_gpu,
+                                              dimensions,
+                                              targetset_gpu,
+                                              virdisTexture_gpu);
     cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();
