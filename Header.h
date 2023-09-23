@@ -68,7 +68,7 @@ public:
     // Declare other member functions here.
     void input_as_grid();
     void change_z_value(float zvalue);
-    void alocate_gpu_mem();
+    void allocate_gpu_mem();
     void copy_input_cpu2gpu();
     void setup_kernel();
     void compute_dist();

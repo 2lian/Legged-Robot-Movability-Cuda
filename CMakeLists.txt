@@ -15,22 +15,26 @@ else()
     message(FATAL_ERROR "Unsupported operating system")
 endif()
 
-# Copy font file to the build directory
-configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYONLY)
-
 include_directories("${CUDA_DIR}/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/tinycolormap-master/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
+if(WIN32)
+    include_directories("${SFML_DIR}/include")
+    link_directories("${SFML_DIR}/lib")
+endif()
 
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-        notcuda.cpp
+        cpp_code.cpp
         Header.h
-        cuda_with_header.cu)
+        cuda_code.cu)
 
 target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
 target_include_directories(cuda PRIVATE "${CUDA_DIR}/include")
+
+# Copy font file to the build directory
+configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYONLY)
 
 set_target_properties(cuda PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
