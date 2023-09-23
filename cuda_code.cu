@@ -654,6 +654,44 @@ void reachability2img_pipeline(Matrix table, RobotDimensions dimensions, unsigne
     }
 }
 
+__global__
+void all_reachable(Matrix body_pos_table, RobotDimensions dimensions, Matrix target_set, unsigned char* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < body_pos_table.height; i += stride) {
+
+        float* body_pos = (body_pos_table.elements + i * body_pos_table.width);
+        float point_relativ_to_body[3];
+        bool result = true;
+
+        for (int leg = 0; ((leg < 6) && result); leg ++) {
+            float* leg_target = (target_set.elements + leg * 3);
+
+            point_relativ_to_body[0] = leg_target[0] - body_pos[0];
+            point_relativ_to_body[1] = leg_target[1] - body_pos[1];
+            point_relativ_to_body[2] = leg_target[2] - body_pos[2];
+
+            float rot_angle = -dimensions.pI/3.f * (float)leg;
+            float sin_buffer = sin(rot_angle) * point_relativ_to_body[0];
+            point_relativ_to_body[0] =
+                    cos(rot_angle) * point_relativ_to_body[0] -
+                    sin(rot_angle) * point_relativ_to_body[1];
+            point_relativ_to_body[1] =
+                    sin_buffer +
+                    cos(rot_angle) * point_relativ_to_body[1];
+
+            result = reachability(point_relativ_to_body, dimensions);
+        }
+
+        unsigned char val = (result)? 0 : 255;
+        for (int n=0; n<4; n++){
+            pixels[i * 4 + n] = val;
+        }
+        pixels[i * 4 + 3] = (unsigned char) (1*255);
+    }
+}
+
 AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
     blockSize = 1024;
     verbose = true;
@@ -666,16 +704,26 @@ AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
     table_input.elements = new float[table_input.width * table_input.height];
 
     result.width = 3; result.height = rows;
-    result.elements = new float[table_input.width * table_input.height];
+    result.elements = new float[result.width * result.height];
 
     result_norm.width = 1; result_norm.height = rows;
-    result_norm.elements = new float[table_input.width * table_input.height];
+    result_norm.elements = new float[result_norm.width * result_norm.height];
 
     virdisTexture = new unsigned char [4 * rows];
+
+    targetset.width = 3; targetset.height = 6;
+    targetset.elements = new float[targetset.width * targetset.height];
+
+    for (int leg=0; leg < 6; leg++) {
+        targetset.elements[leg*3 + 0] = cos(3.14159f/3.f * (float)leg) * 420;
+        targetset.elements[leg*3 + 1] = sin(3.14159f/3.f * (float)leg) * 420;
+        targetset.elements[leg*3 + 2] = 0.f;
+    }
 
     table_input_gpu.width = table_input.width; table_input_gpu.height = table_input.height;
     result_gpu.width = table_input_gpu.width; result_gpu.height = table_input_gpu.height;
     result_norm_gpu.width = result_norm.width; result_norm_gpu.height = table_input_gpu.height;
+    targetset_gpu.width = 3; targetset_gpu.height = 6;
 
     numBlocks = (rows + blockSize - 1) / blockSize;
     error_check();
@@ -717,19 +765,19 @@ void AutoEstimator::input_as_grid(){
 void AutoEstimator::change_z_value(float value){
 
     change_z_kernel<<<numBlocks, blockSize >>>(table_input_gpu, value);
-    cudaDeviceSynchronize();
+    cudaDeviceSynchronize(); error_check();
 }
 
 void AutoEstimator::change_y_value(float value){
 
     change_y_kernel<<<numBlocks, blockSize >>>(table_input_gpu, value);
-    cudaDeviceSynchronize();
+    cudaDeviceSynchronize(); error_check();
 }
 
 void AutoEstimator::switch_zy(){
 
     switch_zy_kernel<<<numBlocks, blockSize >>>(table_input_gpu);
-    cudaDeviceSynchronize();
+    cudaDeviceSynchronize(); error_check();
 }
 
 void AutoEstimator::allocate_gpu_mem(){
@@ -741,6 +789,8 @@ void AutoEstimator::allocate_gpu_mem(){
 
     cudaMalloc(&virdisTexture_gpu, 4 * rows * sizeof(unsigned char));
 
+    cudaMalloc(&targetset_gpu.elements, targetset_gpu.width * targetset_gpu.height * sizeof(float));
+
     if (verbose) { std::cout << "GPU memory allocated" << std::endl; }
     error_check();
 }
@@ -750,6 +800,12 @@ void AutoEstimator::copy_input_cpu2gpu(){
                table_input.elements,
                table_input.width * table_input.height * sizeof(float),
                cudaMemcpyHostToDevice);
+
+    cudaMemcpy(targetset_gpu.elements,
+               targetset.elements,
+               targetset.width * targetset.height * sizeof(float),
+               cudaMemcpyHostToDevice);
+
     if (verbose) { std::cout << "Host data copied to GPU" << std::endl; }
     error_check();
 }
@@ -802,6 +858,17 @@ void AutoEstimator::reachability_to_img_pipeline(){
     if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
     reachability2img_pipeline<<<numBlocks, blockSize >>>(table_input_gpu, dimensions,
                                                     virdisTexture_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
+void AutoEstimator::all_reachable_default_to_image(){
+    if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
+    all_reachable<<<numBlocks, blockSize >>>(table_input_gpu,
+                                             dimensions,
+                                             targetset_gpu,
+                                             virdisTexture_gpu);
     cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();

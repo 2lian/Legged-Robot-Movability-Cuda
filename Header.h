@@ -58,6 +58,8 @@ public:
     Matrix result;
     Matrix result_norm;
     Matrix result_norm_gpu;
+    Matrix targetset;
+    Matrix targetset_gpu;
     int blockSize;
     int numBlocks;
     bool verbose;
@@ -86,6 +88,8 @@ public:
     void switch_zy();
 
     void change_y_value(float value);
+
+    void all_reachable_default_to_image();
 };
 
 #endif //CUDA_HEADER_H

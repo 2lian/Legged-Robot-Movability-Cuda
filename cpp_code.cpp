@@ -136,7 +136,7 @@ int main(){
         }}
         value_change = clock.restart();
         if (computation_toggle){
-            autoe.dist_to_virdis_pipeline();
+            autoe.all_reachable_default_to_image();
         } else {
             autoe.reachability_to_img_pipeline();
         }
