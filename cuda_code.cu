@@ -654,6 +654,37 @@ void reachability2img_pipeline(Matrixf table, RobotDimensions dimensions, unsign
     }
 }
 
+__device__
+bool legs_reachable(float* body_position, Matrixf target_set, RobotDimensions dimensions){
+//    return true;
+    float point_relativ_to_body[3];
+    bool result = true;
+    float sin_buffer;
+    float rot_angle;
+    float* leg_target;
+
+    for (int leg = 0; ((leg < 6) && result); leg ++) {
+        leg_target = (target_set.elements + leg * 3);
+
+        point_relativ_to_body[0] = leg_target[0] - body_position[0];
+        point_relativ_to_body[1] = leg_target[1] - body_position[1];
+        point_relativ_to_body[2] = leg_target[2] - body_position[2];
+
+        rot_angle = -dimensions.pI/3.f * (float)leg;
+        sin_buffer = sin(rot_angle) * point_relativ_to_body[0];
+
+        point_relativ_to_body[0] =
+                cos(rot_angle) * point_relativ_to_body[0] -
+                sin(rot_angle) * point_relativ_to_body[1];
+        point_relativ_to_body[1] =
+                sin_buffer +
+                cos(rot_angle) * point_relativ_to_body[1];
+
+        result = reachability(point_relativ_to_body, dimensions);
+    }
+    return result;
+}
+
 __global__
 void all5_reachable(Matrixf body_pos_table, RobotDimensions dimensions, Matrixf target_set, unsigned char* pixels)
 {
@@ -665,7 +696,7 @@ void all5_reachable(Matrixf body_pos_table, RobotDimensions dimensions, Matrixf 
         float point_relativ_to_body[3];
         bool result = true;
 
-        for (int leg = 0; ((leg < 6) && result); leg ++) {
+        for (int leg = 1; ((leg < 6) && result); leg ++) {
             float* leg_target = (target_set.elements + leg * 3);
 
             point_relativ_to_body[0] = leg_target[0] - body_pos[0];
@@ -693,32 +724,100 @@ void all5_reachable(Matrixf body_pos_table, RobotDimensions dimensions, Matrixf 
 }
 
 __global__
-void leg1_movable(Matrixf body_pos_table, Matrixf output_pos_table, RobotDimensions dimensions, unsigned int* pixels)
+void accumulate_leg0_movable(Matrixf body_pos_table,
+                             Matrixf output_pos_table,
+                             Matrixf target_set,
+                             int* accumulator,
+                             RobotDimensions dimensions)
+{
+    int index = (int)blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = (int)blockDim.x * gridDim.x;
+    float* leg_target;
+    float* body_pos;
+    Matrixf local_target_set;
+    local_target_set.width = 3; local_target_set.height = 6;
+    float test[18];
+    local_target_set.elements = test;
+    for (int i = 0; i < 18; i ++){
+        local_target_set.elements[i] = target_set.elements[i];
+    }
+
+    for (int i = index; i < (body_pos_table.height * output_pos_table.height); i += stride) {
+        int body_index = i % (body_pos_table.height);
+        int out_index = i / output_pos_table.height;
+        atomicExch(&accumulator[out_index], 255);
+
+//        leg_target = output_pos_table.elements + out_index * 3;
+//        body_pos = body_pos_table.elements + body_index * 3;
+//
+//        local_target_set.elements[0] = leg_target[0];
+//        local_target_set.elements[1] = leg_target[1];
+//        local_target_set.elements[2] = 0;
+//
+//        bool result = legs_reachable(body_pos, local_target_set, dimensions);
+//
+//        if (result){
+//            atomicAdd(&accumulator[out_index], 1);
+//        }
+    }
+}
+
+__global__
+void accumulate_leg0_movablev2(Matrixf body_pos_table,
+                             Matrixf output_pos_table,
+                             Matrixf target_set,
+                             int* accumulator,
+                             RobotDimensions dimensions)
+{
+    int indexA = blockIdx.x * blockDim.x + threadIdx.x;
+    int indexB = blockIdx.y * blockDim.y + threadIdx.y;
+    int strideA = blockDim.x * gridDim.x;
+    int strideB = blockDim.y * gridDim.y;
+    float* leg_target;
+    float* body_pos;
+    Matrixf local_target_set;
+    local_target_set.width = 3; local_target_set.height = 6;
+    float test[18];
+    local_target_set.elements = test;
+    for (int i = 0; i < 18; i ++){
+        local_target_set.elements[i] = target_set.elements[i];
+    }
+
+    for (int a = indexA; a < (body_pos_table.height); a += strideA) {
+        for (int b = indexB; b < (output_pos_table.height); b += strideB) {
+
+            leg_target = output_pos_table.elements + b * 3;
+            body_pos = body_pos_table.elements + a * 3;
+            local_target_set.elements[0] = leg_target[0];
+            local_target_set.elements[1] = leg_target[1];
+            local_target_set.elements[2] = 0;
+            bool result = legs_reachable(body_pos, local_target_set, dimensions);
+
+            if (result){
+//                atomicAdd(&accumulator[out_index], 1);
+                atomicAdd(&accumulator[b], 1);
+            }
+
+
+        }
+    }
+}
+
+__global__
+void accumulator_to_pixel(int* accumulator, unsigned char* pixels, int number_of_pixels)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
-    float point_relativ_to_body[3];
-    float* leg_target;
-    float* body_pos;
-    for (int i = index; i < body_pos_table.height * output_pos_table.height; i += stride) {
-        int body_index = i % body_pos_table.height;
-        int out_index = i / body_pos_table.height;
 
-        leg_target = output_pos_table.elements + out_index;
-        body_pos = body_pos_table.elements + body_index;
+    for (int i = index; i < number_of_pixels; i += stride) {
+        auto val = (unsigned char) min(max(accumulator[i], 0), 255);
+//        auto val = (unsigned char) min(max(i, 0), 255);
 
-        point_relativ_to_body[0] = leg_target[0] - body_pos[0];
-        point_relativ_to_body[1] = leg_target[1] - body_pos[1];
-        point_relativ_to_body[2] = leg_target[2] - body_pos[2];
-
-        bool result = reachability(point_relativ_to_body, dimensions);
-
-        unsigned int val = (result)? 0 : 255; // nonono
         for (int n=0; n<4; n++){
-            //pixels[out_index * 4 + n] = val;
-            atomicExch(&pixels[out_index * 4 + n], val);
+            pixels[i * 4 + n] = val;
         }
-        atomicExch(&pixels[out_index * 4 + 3], (unsigned int) (255));
+        pixels[i * 4 + 3] = (unsigned char) (255);
+    }
 
 }
 
@@ -766,7 +865,7 @@ AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
 void AutoEstimator::error_check(){
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
+        fprintf(stderr, "cuda error: %s\n", cudaGetErrorString(cudaStatus));
         // Handle the error or exit the program as needed.
     }
 }
@@ -778,11 +877,11 @@ void AutoEstimator::input_as_grid(){
             // X
             *(table_input.elements + row * table_input.width + 0)
                     //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                    = (float)(j - screenWidth /2);
+                    = (float)(j - screenWidth /2)*20;
             // Y
             *(table_input.elements + row * table_input.width + 1)
                     //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                    = -(float)(i - screenHeight / 2);
+                    = -(float)(i - screenHeight / 2)*20;
             // Z
             *(table_input.elements + row * table_input.width + 2)
                     //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
@@ -814,12 +913,16 @@ void AutoEstimator::allocate_gpu_mem(){
     cudaMalloc(&table_input_gpu.elements, table_input_gpu.width * table_input_gpu.height * sizeof(float));
 
     cudaMalloc(&result_gpu.elements, result_gpu.width * result_gpu.height * sizeof(float));
+    cudaMemset(result_gpu.elements, 0, rows * sizeof(int));
 
     cudaMalloc(&result_norm_gpu.elements, result_norm_gpu.width * result_norm_gpu.height * sizeof(float));
 
     cudaMalloc(&virdisTexture_gpu, 4 * rows * sizeof(unsigned char));
 
     cudaMalloc(&targetset_gpu.elements, targetset_gpu.width * targetset_gpu.height * sizeof(float));
+
+    cudaMalloc(&gpu_accumulator, rows * sizeof(int));
+    cudaMemset(gpu_accumulator, 0, rows * sizeof(int));
 
     if (verbose) { std::cout << "GPU memory allocated" << std::endl; }
     error_check();
@@ -902,6 +1005,32 @@ void AutoEstimator::all_reachable_default_to_image(){
     cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();
+}
+
+void AutoEstimator::compute_leg0_by_accumulation(){
+    if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
+    // (rows*rows + blockSize - 1) / blockSize
+    dim3 blockDim2d(16, 16);
+    dim3 gridDim2d((rows + blockDim2d.x - 1) / blockDim2d.x, (rows + blockDim2d.y - 1) / blockDim2d.y);
+    accumulate_leg0_movablev2<<<gridDim2d, blockDim2d >>>(
+            table_input_gpu,
+            table_input_gpu,
+            targetset_gpu,
+            gpu_accumulator,
+            dimensions);
+    cudaDeviceSynchronize();
+    error_check();
+//    throw std::runtime_error("stopped");
+    accumulator_to_pixel<<<numBlocks, blockSize >>>(
+            gpu_accumulator,
+            virdisTexture_gpu,
+            rows);
+    cudaDeviceSynchronize();
+    cudaMemset(gpu_accumulator, 0, rows * sizeof(int));
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+//    throw std::runtime_error("stopped");
 }
 
 void AutoEstimator::copy_output_gpu2cpu(){

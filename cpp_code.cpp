@@ -21,8 +21,8 @@ int CalculateMedian(const Eigen::VectorXi& data) {
 }
 
 int main(){
-    int windowWidth   = 1920;
-    int windowHeight  = 1080;
+    int windowWidth   = 192*1;
+    int windowHeight  = 108*1;
     std::cout << "let's go!";
     AutoEstimator autoe{windowWidth, windowHeight};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
@@ -120,7 +120,7 @@ int main(){
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
         sf::Vector2u windowSize = window.getSize();
         sf::Vector2i windowCenter(windowSize.x / 2, windowSize.y / 2);
-        sf::Vector2i relativePosition = mousePosition - windowCenter;
+        sf::Vector2i relativePosition = (mousePosition - windowCenter)*2;
 
         // Other game logic and updates here
 
@@ -135,10 +135,10 @@ int main(){
                 autoe.change_y_value((float) relativePosition.y / 2.f);
         }}
         value_change = clock.restart();
-        if (computation_toggle){
+        if (!computation_toggle){
             autoe.all_reachable_default_to_image();
         } else {
-            autoe.reachability_to_img_pipeline();
+            autoe.compute_leg0_by_accumulation();
         }
         compute = clock.restart();
         autoe.virdisresult_gpu2cpu();
@@ -163,9 +163,9 @@ int main(){
 
         // Draw the background image
         window.draw(backSprite);
-        window.draw(textBox1);
-        window.draw(textBox2);
-        window.draw(textBox3);
+//        window.draw(textBox1);
+//        window.draw(textBox2);
+//        window.draw(textBox3);
 
         // Display everything
         window.display();

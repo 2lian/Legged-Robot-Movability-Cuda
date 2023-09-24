@@ -72,6 +72,7 @@ public:
     bool verbose;
     unsigned char* virdisTexture_gpu;
     unsigned char* virdisTexture;
+    int* gpu_accumulator;
 
     AutoEstimator(int pxWidth, int pxHeight);
     // Declare other member functions here.
@@ -97,6 +98,8 @@ public:
     void change_y_value(float value);
 
     void all_reachable_default_to_image();
+
+    void compute_leg0_by_accumulation();
 };
 
 #endif //CUDA_HEADER_H
