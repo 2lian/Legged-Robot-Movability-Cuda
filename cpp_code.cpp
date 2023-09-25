@@ -21,8 +21,8 @@ int CalculateMedian(const Eigen::VectorXi& data) {
 }
 
 int main(){
-    int windowWidth   = 192*1;
-    int windowHeight  = 108*1;
+    int windowWidth   = 192*2;
+    int windowHeight  = 108*2;
     std::cout << "let's go!";
     AutoEstimator autoe{windowWidth, windowHeight};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
@@ -135,7 +135,7 @@ int main(){
                 autoe.change_y_value((float) relativePosition.y / 2.f);
         }}
         value_change = clock.restart();
-        if (!computation_toggle){
+        if (computation_toggle){
             autoe.all_reachable_default_to_image();
         } else {
             autoe.compute_leg0_by_accumulation();

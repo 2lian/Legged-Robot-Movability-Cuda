@@ -887,11 +887,11 @@ void AutoEstimator::input_as_grid(){
             // X
             *(table_input.elements + row * table_input.width + 0)
                     //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                    = (float)(j - screenWidth /2)*20;
+                    = (float)(j - screenWidth /2)*10;
             // Y
             *(table_input.elements + row * table_input.width + 1)
                     //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                    = -(float)(i - screenHeight / 2)*20;
+                    = -(float)(i - screenHeight / 2)*10;
             // Z
             *(table_input.elements + row * table_input.width + 2)
                     //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
