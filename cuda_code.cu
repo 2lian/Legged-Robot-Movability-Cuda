@@ -804,19 +804,29 @@ void accumulate_leg0_movablev2(Matrixf body_pos_table,
 }
 
 __global__
-void accumulator_to_pixel(int* accumulator, unsigned char* pixels, int number_of_pixels)
+void accumulator_to_pixel(const int* accumulator, unsigned char* pixels, const int number_of_pixels)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    const int stride = blockDim.x * gridDim.x;
 
     for (int i = index; i < number_of_pixels; i += stride) {
-        auto val = (unsigned char) min(max(accumulator[i], 0), 255);
-//        auto val = (unsigned char) min(max(i, 0), 255);
+        const auto val = (unsigned char) min(max(accumulator[i], 0), 255);
 
-        for (int n=0; n<4; n++){
-            pixels[i * 4 + n] = val;
+        float color[3];
+        if (val != 0) {
+            color[0] = data[val][0];
+            color[1] = data[val][1];
+            color[2] = data[val][2];
+        } else {
+            color[0] = 0;
+            color[1] = 0;
+            color[2] = 0;
         }
+        pixels[i * 4 + 0] = (unsigned char) floorf(color[0]*255.f);
+        pixels[i * 4 + 1] = (unsigned char) floorf(color[1]*255.f);
+        pixels[i * 4 + 2] = (unsigned char) floorf(color[2]*255.f);
         pixels[i * 4 + 3] = (unsigned char) (255);
+
     }
 
 }
