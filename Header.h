@@ -22,6 +22,11 @@ typedef struct {
     bool* elements;
 } Matrixb;
 
+typedef struct {
+    int length;
+    float3* elements;
+} Arrayf3;
+
 struct RobotDimensions {
 public:
     float pI;
@@ -49,6 +54,8 @@ public:
     float max_tibia_to_gripper_dist;
     float min_tibia_to_gripper_dist;
     float middle_TG;
+    float middle_TG_radius;
+    float middle_TG_radius_w_margin;
 };
 
 class AutoEstimator {
@@ -58,25 +65,30 @@ public:
     int screenWidth;
     int screenHeight;
     int rows;
-    RobotDimensions dimensions;
-    Matrixf table_input;
-    Matrixf table_input_gpu;
-    Matrixf result_gpu;
-    Matrixf result;
-    Matrixf result_norm;
-    Matrixf result_norm_gpu;
-    Matrixf targetset;
-    Matrixf targetset_gpu;
+
+    RobotDimensions dimensions{};
+    Matrixf table_input{};
+    Matrixf table_input_gpu{};
+    Matrixf result_gpu{};
+    Matrixf result{};
+    Matrixf result_norm{};
+    Matrixf result_norm_gpu{};
+    Matrixf targetset{};
+    Matrixf targetset_gpu{};
+
+    Arrayf3 arr_input{};
+    Arrayf3 arr_input_gpu{};
+
     int blockSize;
     int numBlocks;
     bool verbose;
-    unsigned char* virdisTexture_gpu;
+    unsigned char* virdisTexture_gpu{};
     unsigned char* virdisTexture;
-    int* gpu_accumulator;
+    int* gpu_accumulator{};
 
-    AutoEstimator(int pxWidth, int pxHeight);
+    AutoEstimator(int pxWidth, int pxHeight, float scale);
     // Declare other member functions here.
-    void input_as_grid();
+    void input_as_grid(const float scale_factor) const;
     void change_z_value(float zvalue);
     void allocate_gpu_mem();
     void copy_input_cpu2gpu();
@@ -92,6 +104,7 @@ public:
     void dist_to_virdis_pipeline();
 
     void reachability_to_img_pipeline();
+    void reachability_to_img_pipelinef3();
 
     void switch_zy();
 
@@ -100,6 +113,8 @@ public:
     void all_reachable_default_to_image();
 
     void compute_leg0_by_accumulation();
+
+    void dist_to_virdis_pipelinef3();
 };
 
 #endif //CUDA_HEADER_H

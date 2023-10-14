@@ -16,14 +16,14 @@ RobotDimensions dim_of_SCARE() {
     scare.femur_length = 200.0f; //200
     scare.max_angle_coxa = scare.pI / 180.0f * scare.coxa_angle_deg;
     scare.min_angle_coxa = -scare.pI / 180.0f * scare.coxa_angle_deg;
-    scare.max_angle_coxa_w_margin = scare.pI / 180.0f * (scare.coxa_angle_deg - 10.0f);
-    scare.min_angle_coxa_w_margin = -scare.pI / 180.0f * (scare.coxa_angle_deg - 10.0f);
+    scare.max_angle_coxa_w_margin = scare.pI / 180.0f * (scare.coxa_angle_deg - 5.0f);
+    scare.min_angle_coxa_w_margin = -scare.pI / 180.0f * (scare.coxa_angle_deg - 5.0f);
     scare.max_angle_tibia = scare.pI / 180.0f * scare.tibia_angle_deg;
     scare.min_angle_tibia = -scare.pI / 180.0f * scare.tibia_angle_deg;
     scare.max_angle_femur = scare.max_angle_tibia;
     scare.min_angle_femur = scare.min_angle_tibia;
-    scare.max_angle_femur_w_margin = scare.pI / 180.0f * (scare.tibia_angle_deg + 20.0f);
-    scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.tibia_angle_deg + 20.0f);
+    scare.max_angle_femur_w_margin = scare.pI / 180.0f * (scare.tibia_angle_deg + 10.0f);
+    scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.tibia_angle_deg + 10.0f);
     scare.max_tibia_to_gripper_dist = scare.tibia_length + scare.femur_length;
 
     scare.positiv_saturated_femur[0] = cos(scare.max_angle_femur) * scare.tibia_length;
@@ -38,6 +38,8 @@ RobotDimensions dim_of_SCARE() {
     scare.min_tibia_to_gripper_dist = sqrt(scare.fem_tib_min_host[0] * scare.fem_tib_min_host[0]
                                            + scare.fem_tib_min_host[1] * scare.fem_tib_min_host[1]);
     scare.middle_TG = (scare.max_tibia_to_gripper_dist + scare.min_tibia_to_gripper_dist) / 2.0f;
+    scare.middle_TG_radius = (scare.max_tibia_to_gripper_dist - scare.min_tibia_to_gripper_dist)/2;
+    scare.middle_TG_radius_w_margin = scare.middle_TG_radius-10.f;
 
     return scare;
 }
@@ -73,7 +75,7 @@ __device__ float sumOfSquares2df(const float* vector) {
 }
 
 __device__
-void dist_noflip(float* point, RobotDimensions& dim, float* result_point)
+void dist_noflip(const float* point, RobotDimensions& dim, float* result_point)
 // no angle flipping
 {
     // Coxa as the frame of reference without rotation
@@ -125,12 +127,58 @@ void dist_noflip(float* point, RobotDimensions& dim, float* result_point)
     result_point[0] = result[0];
     result_point[1] = result[1];
     result_point[2] = result[2];
-
-    return;
 }
 
 __device__
-void dist_flip(float* point, RobotDimensions& dim, float* result_point)
+float3 dist_noflipf3(float3& point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float3 result = point;
+    result.x -= dim.body;
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result.y, result.x);
+
+    // saturating coxa angle for dist
+    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result.x * sin_angle_cox;
+    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
+    result.y = buffer + result.y * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result.x -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result.z, result.x);
+
+    // saturating coxa angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem = cosf(required_angle_femur);
+    float sin_angle_fem = sinf(required_angle_femur);
+
+    // middle_TG as the frame of reference
+    result.x -= dim.middle_TG * cos_angle_fem;
+    result.z -= dim.middle_TG * sin_angle_fem;
+
+    // rotating back to default xyz, but staying on middle_TG
+
+    buffer = result.y * sin_angle_cox;
+    result.y = -result.x * sin_angle_cox + result.y * cos_angle_cox;
+    result.x = result.x * cos_angle_cox + buffer;
+
+    return result;
+}
+
+__device__
+void dist_flip(const float* point, RobotDimensions& dim, float* result_point)
 // with angle flipping
 {
     // Coxa as the frame of reference without rotation
@@ -182,13 +230,121 @@ void dist_flip(float* point, RobotDimensions& dim, float* result_point)
     result_point[0] = result[0];
     result_point[1] = result[1];
     result_point[2] = result[2];
-
-    return;
 }
 
 __device__
-void dist_double_sol(float* point, RobotDimensions& dim, float* result_point)
-//
+float3 dist_flipf3(float3& point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float3 result = point;
+    result.x -= dim.body;
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(-result.y, -result.x);
+
+    // saturating coxa angle for dist
+    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result.x * sin_angle_cox;
+    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
+    result.y = buffer + result.y * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result.x -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result.z, result.x);
+
+    // saturating coxa angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem = cosf(required_angle_femur);
+    float sin_angle_fem = sinf(required_angle_femur);
+
+    // middle_TG as the frame of reference
+    result.x -= dim.middle_TG * cos_angle_fem;
+    result.z -= dim.middle_TG * sin_angle_fem;
+
+    // rotating back to default xyz, but staying on middle_TG
+
+    buffer = result.y * sin_angle_cox;
+    result.y = -result.x * sin_angle_cox + result.y * cos_angle_cox;
+    result.x = result.x * cos_angle_cox + buffer;
+
+    return result;
+}
+
+__device__
+float place_over_coxa(float3& coordinates, RobotDimensions& dim)
+{
+    // Coxa as the frame of reference without rotation
+    coordinates.x -= dim.body;
+}
+
+__device__
+float find_coxa_angle(float3& coordinates)
+{
+    // finding coxa angle
+    return atan2f(coordinates.y, coordinates.x);
+}
+
+__device__
+void find_vert_plane_dist(float& x, float& z, RobotDimensions& dim)
+{
+    // Femur as the frame of reference witout rotation
+    x -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(z, x);
+
+    // saturating femur angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem;
+    float sin_angle_fem;
+    sincosf(required_angle_femur, &sin_angle_fem, &cos_angle_fem);
+
+    // middle_TG as the frame of reference
+    x -= dim.middle_TG * cos_angle_fem;
+    z -= dim.middle_TG * sin_angle_fem;
+
+    float magnitude = fmax(norm3df(x, z, 0.f), dim.middle_TG_radius_w_margin);
+
+    x -= dim.middle_TG_radius_w_margin*x/magnitude;
+    z -= dim.middle_TG_radius_w_margin*z/magnitude;
+}
+
+__device__
+void finish_finding_dist(float3& coordinates, RobotDimensions& dim, const float coxa_angle)
+{
+    // saturating coxa angle for dist
+    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox;
+    float sin_angle_cox;
+    sincosf(-saturated_coxa_angle, &sin_angle_cox, &cos_angle_cox);
+    float buffer = coordinates.x * sin_angle_cox;
+    coordinates.x = coordinates.x * cos_angle_cox - coordinates.y * sin_angle_cox;
+    coordinates.y = buffer + coordinates.y * cos_angle_cox;
+
+    find_vert_plane_dist(coordinates.x, coordinates.z, dim);
+
+    buffer = coordinates.y * sin_angle_cox;
+    coordinates.y = -coordinates.x * sin_angle_cox + coordinates.y * cos_angle_cox;
+    coordinates.x = coordinates.x * cos_angle_cox + buffer;
+}
+
+__device__
+void dist_double_sol(const float* point, RobotDimensions& dim, float* result_point)
 {
     // Coxa as the frame of reference without rotation
     float result_noflip[3];
@@ -197,7 +353,9 @@ void dist_double_sol(float* point, RobotDimensions& dim, float* result_point)
     dist_noflip(point, dim, result_noflip);
     dist_flip(point, dim, result_flip);
 
-    float* result_to_use = (sumOfSquares3df(result_noflip) < sumOfSquares3df(result_flip)) ? result_noflip : result_flip;
+    float* result_to_use = (sumOfSquares3df(result_noflip) < sumOfSquares3df(result_flip))
+            ? result_noflip : result_flip;
+
     // result_to_use = result_flip;
     result_point[0] = result_to_use[0];
     result_point[1] = result_to_use[1];
@@ -206,7 +364,35 @@ void dist_double_sol(float* point, RobotDimensions& dim, float* result_point)
 }
 
 __device__
-bool reachability(float* point, RobotDimensions& dim)
+float3 dist_double_solf3(float3 point, RobotDimensions& dim)
+//
+{
+    float3 coordinate_noflip = point;
+    place_over_coxa(coordinate_noflip, dim);
+    float3 coordinate_flip = coordinate_noflip;
+
+    float coxangle = find_coxa_angle(coordinate_noflip);
+
+    finish_finding_dist(coordinate_noflip,
+                        dim,
+                        coxangle);
+    finish_finding_dist(coordinate_flip,
+                        dim,
+                        ((coxangle > 0)? coxangle - dim.pI : coxangle + dim.pI));
+
+    float3* result_to_use = (
+            norm3df(coordinate_noflip.x, coordinate_noflip.y, coordinate_noflip.z)
+            <
+            norm3df(coordinate_flip.x, coordinate_flip.y, coordinate_flip.z)
+                            ) ? &coordinate_noflip : &coordinate_flip;
+
+    // result_to_use = result_flip;
+    return *result_to_use;
+
+}
+
+__device__
+bool reachability(const float* point, RobotDimensions& dim)
 // no angle flipping
 {
     // Coxa as the frame of reference without rotation
@@ -253,14 +439,67 @@ bool reachability(float* point, RobotDimensions& dim)
             norm3df(result[0] - dim.positiv_saturated_femur[0], 0, result[2] - dim.positiv_saturated_femur[1])
             ,
             norm3df(result[0] - dim.negativ_saturated_femur[0], 0, result[2] - dim.negativ_saturated_femur[1])
-            );
+    );
 
     return linnorm < dim.femur_length;
 }
 
-__constant__ __device__ float data[][3] =
+__device__
+bool reachability_vect(const float3& point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float3 result;
+    result = point;
+    result.x -= dim.body;
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result.y, result.x);
+
+    // flipping angle if above +-90deg
+    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+
+    if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
+        return false;
+    }
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result.x * sin_angle_cox;
+    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
+    result.y = buffer + result.y * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result.x -= dim.coxa_length;
+
+    float linnorm = norm3df(result.x, result.y, result.z);
+
+    if ((linnorm < dim.min_tibia_to_gripper_dist) || (linnorm > dim.max_tibia_to_gripper_dist)){
+        return false;
+    }
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result.z, result.x);
+
+    if ((required_angle_femur > dim.min_angle_femur) && (required_angle_femur < dim.max_angle_femur)) {
+        return true;
+    }
+
+    linnorm = fminf(
+            norm3df(result.x - dim.positiv_saturated_femur[0], 0, result.z - dim.positiv_saturated_femur[1])
+            ,
+            norm3df(result.x - dim.negativ_saturated_femur[0], 0, result.z - dim.negativ_saturated_femur[1])
+    );
+
+    return linnorm < dim.femur_length;
+}
+
+__constant__ __device__ float VirdisColorMapData[256][3] =
         {
-                { 0.267004, 0.004874, 0.329415 },
+                { 0.f, 0.f, 0.f },
+//                { 0.267004, 0.004874, 0.329415 },
                 { 0.268510, 0.009605, 0.335427 },
                 { 0.269944, 0.014625, 0.341379 },
                 { 0.271305, 0.019942, 0.347269 },
@@ -542,7 +781,7 @@ __global__ void toVirdisUint_kernel(Matrixf table, unsigned char* pixels) {
                         fminf(255.f, table.elements[i]),
                         0.f)
         );
-        const float color[3] = {data[x][0], data[x][1], data[x][2]};
+        const float color[3] = {VirdisColorMapData[x][0], VirdisColorMapData[x][1], VirdisColorMapData[x][2]};
         pixels[i * 4 + 0] = (unsigned char) floorf(color[0]*255.f);
         pixels[i * 4 + 1] = (unsigned char) floorf(color[1]*255.f);
         pixels[i * 4 + 2] = (unsigned char) floorf(color[2]*255.f);
@@ -570,6 +809,18 @@ void switch_zy_kernel(Matrixf table)
         float buffer = table.elements[i * table.width + 1];
         table.elements[i * table.width + 1] = table.elements[i * table.width + 2];
         table.elements[i * table.width + 2] = buffer;
+    }
+}
+
+__global__
+void switch_zy_kernelf3(Arrayf3 arr)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < arr.length; i += stride) {
+        const float buffer = arr.elements[i].y;
+        arr.elements[i].y = arr.elements[i].z;
+        arr.elements[i].z = buffer;
     }
 }
 
@@ -606,6 +857,26 @@ void change_y_kernel(Matrixf table, float zval)
 }
 
 __global__
+void change_z_kernelf3(Arrayf3 arr, float zval)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < arr.length; i += stride) {
+        arr.elements[i].z = zval;
+    }
+}
+
+__global__
+void change_y_kernelf3(Arrayf3 arr, float zval)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < arr.length; i += stride) {
+        arr.elements[i].y = zval;
+    }
+}
+
+__global__
 void dist2virdis_pipeline(Matrixf table, RobotDimensions dimensions, unsigned char* pixels)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -630,7 +901,40 @@ void dist2virdis_pipeline(Matrixf table, RobotDimensions dimensions, unsigned ch
                         fminf(255.f, result[0]),
                         0.f)
         );
-        const float color[3] = {data[x][0], data[x][1], data[x][2]};
+        const float color[3] = {VirdisColorMapData[x][0], VirdisColorMapData[x][1], VirdisColorMapData[x][2]};
+        pixels[i * 4 + 0] = (unsigned char) floorf(color[0]*255.f);
+        pixels[i * 4 + 1] = (unsigned char) floorf(color[1]*255.f);
+        pixels[i * 4 + 2] = (unsigned char) floorf(color[2]*255.f);
+        pixels[i * 4 + 3] = (unsigned char) (1*255);
+    }
+}
+
+__global__
+void dist2virdis_pipelinef3(Arrayf3 arr, RobotDimensions dimensions, unsigned char* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < arr.length; i += stride) {
+
+        // dist func
+        float3 result = dist_double_solf3(arr.elements[i], dimensions);
+
+        //norm func
+        // norm stored in result[0]
+        result.x = norm3df(result.x,
+                            result.y,
+                            result.z)
+                    /2;
+
+        // virdis colormaping
+
+        const int x = (int)
+                floorf(
+                        fmaxf(
+                                fminf(255.f, result.x),
+                                0.f)
+                );
+        const float color[3] = {VirdisColorMapData[x][0], VirdisColorMapData[x][1], VirdisColorMapData[x][2]};
         pixels[i * 4 + 0] = (unsigned char) floorf(color[0]*255.f);
         pixels[i * 4 + 1] = (unsigned char) floorf(color[1]*255.f);
         pixels[i * 4 + 2] = (unsigned char) floorf(color[2]*255.f);
@@ -654,6 +958,65 @@ void reachability2img_pipeline(Matrixf table, RobotDimensions dimensions, unsign
     }
 }
 
+__global__
+void reachability2img_vect_pipeline(Arrayf3 arr, RobotDimensions dimensions, unsigned char* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int i = index; i < arr.length; i += stride) {
+        bool result = reachability_vect(arr.elements[i], dimensions);
+
+        unsigned char val = (result)? 0 : 255;
+        for (int n=0; n<4; n++){
+            pixels[i * 4 + n] = val;
+        }
+        pixels[i * 4 + 3] = (unsigned char) (1*255);
+    }
+}
+
+__global__
+void reachability2transpborder_vect_pipeline(Arrayf3 arr, RobotDimensions dimensions, unsigned char* pixels)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int i = index; i < arr.length; i += stride) {
+        bool result = reachability_vect(arr.elements[i], dimensions);
+
+        unsigned char val = (result)? 0 : 255;
+        pixels[i * 4 + 0] = val;
+        pixels[i * 4 + 3] = (unsigned char) (1*255);
+    }
+}
+
+__global__ void compute_diff(const unsigned char* pixels, unsigned char* outputImage, int imageWidth, int imageHeight) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int i = index; i < imageWidth * imageHeight; i += stride) {
+        int centerX = i % imageWidth;
+        int centerY = i / imageWidth;
+        unsigned char sum1 = pixels[i*4+0];
+        unsigned char sum2 = 0.0f;
+
+        for (int j = -1; j <= 1; j++) {
+            for (int i = -1; i <= 1; i++) {
+                int pixelX = centerX + i;
+                int pixelY = centerY + j;
+                int kernelIndex = (j + 1) * 3 + (i + 1);
+
+                if (pixelX >= 0 && pixelX < imageWidth && pixelY >= 0 && pixelY < imageHeight) {
+                    unsigned char pixelValue = pixels[pixelY * imageWidth + pixelX];
+//                    sum1 += pixelValue * gaussianKernel1[kernelIndex];
+                    sum2 += pixelValue / 9;
+                }
+            }
+        }
+
+        outputImage[centerY * imageWidth + centerX] = sum1 - sum2;
+    }
+}
 __device__
 bool legs_reachable(float* body_position, Matrixf target_set, RobotDimensions dimensions){
 //    return true;
@@ -732,8 +1095,6 @@ void accumulate_leg0_movable(Matrixf body_pos_table,
 {
     int index = (int)blockIdx.x * blockDim.x + threadIdx.x;
     int stride = (int)blockDim.x * gridDim.x;
-    float* leg_target;
-    float* body_pos;
     Matrixf local_target_set;
     local_target_set.width = 3; local_target_set.height = 6;
     float test[18];
@@ -743,22 +1104,8 @@ void accumulate_leg0_movable(Matrixf body_pos_table,
     }
 
     for (int i = index; i < (body_pos_table.height * output_pos_table.height); i += stride) {
-        int body_index = i % (body_pos_table.height);
         int out_index = i / output_pos_table.height;
         atomicExch(&accumulator[out_index], 255);
-
-//        leg_target = output_pos_table.elements + out_index * 3;
-//        body_pos = body_pos_table.elements + body_index * 3;
-//
-//        local_target_set.elements[0] = leg_target[0];
-//        local_target_set.elements[1] = leg_target[1];
-//        local_target_set.elements[2] = 0;
-//
-//        bool result = legs_reachable(body_pos, local_target_set, dimensions);
-//
-//        if (result){
-//            atomicAdd(&accumulator[out_index], 1);
-//        }
     }
 }
 
@@ -814,9 +1161,9 @@ void accumulator_to_pixel(const int* accumulator, unsigned char* pixels, const i
 
         float color[3];
         if (val != 0) {
-            color[0] = data[val][0];
-            color[1] = data[val][1];
-            color[2] = data[val][2];
+            color[0] = VirdisColorMapData[val][0];
+            color[1] = VirdisColorMapData[val][1];
+            color[2] = VirdisColorMapData[val][2];
         } else {
             color[0] = 0;
             color[1] = 0;
@@ -831,7 +1178,7 @@ void accumulator_to_pixel(const int* accumulator, unsigned char* pixels, const i
 
 }
 
-AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
+AutoEstimator::AutoEstimator(int pxWidth, int pxHeight, float scale) {
     blockSize = 1024;
     verbose = true;
     screenWidth = pxWidth;
@@ -841,6 +1188,9 @@ AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
 
     table_input.width = 3; table_input.height = rows;
     table_input.elements = new float[table_input.width * table_input.height];
+
+    arr_input.length = rows;
+    arr_input.elements = new float3[arr_input.length];
 
     result.width = 3; result.height = rows;
     result.elements = new float[result.width * result.height];
@@ -864,10 +1214,12 @@ AutoEstimator::AutoEstimator(int pxWidth, int pxHeight) {
     result_norm_gpu.width = result_norm.width; result_norm_gpu.height = table_input_gpu.height;
     targetset_gpu.width = 3; targetset_gpu.height = 6;
 
+    arr_input_gpu.length = screenWidth * screenHeight;
+
     numBlocks = (rows + blockSize - 1) / blockSize;
     error_check();
     setup_kernel();
-    input_as_grid();
+    input_as_grid(scale);
     allocate_gpu_mem();
     copy_input_cpu2gpu();
 }
@@ -880,22 +1232,30 @@ void AutoEstimator::error_check(){
     }
 }
 
-void AutoEstimator::input_as_grid(){
+void AutoEstimator::input_as_grid(const float scale_factor) const{
     for (int i = 0; i < screenHeight; i++) {
         for (int j = 0; j < screenWidth; j++) {
             int row = i * screenWidth + j;
+
+            float x = (float)(j - screenWidth /2)*scale_factor;
+            float y = -(float)(i - screenHeight / 2)*scale_factor;
+            float z = 0.f * scale_factor;
+
             // X
             *(table_input.elements + row * table_input.width + 0)
                     //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                    = (float)(j - screenWidth /2)*10;
+                    = x;
+            arr_input.elements[row].x = x;
             // Y
             *(table_input.elements + row * table_input.width + 1)
                     //= -1000.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2000.0f;
-                    = -(float)(i - screenHeight / 2)*10;
+                    = y;
+            arr_input.elements[row].y = y;
             // Z
             *(table_input.elements + row * table_input.width + 2)
                     //= -500.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1000.0f;
-                    = 0.f;
+                    = z;
+            arr_input.elements[row].z = z;
         }
     }
     if (verbose) { std::cout << "Host grid generated" << std::endl; }
@@ -904,23 +1264,27 @@ void AutoEstimator::input_as_grid(){
 void AutoEstimator::change_z_value(float value){
 
     change_z_kernel<<<numBlocks, blockSize >>>(table_input_gpu, value);
+    change_z_kernelf3<<<numBlocks, blockSize >>>(arr_input_gpu, value);
     cudaDeviceSynchronize(); error_check();
 }
 
 void AutoEstimator::change_y_value(float value){
 
     change_y_kernel<<<numBlocks, blockSize >>>(table_input_gpu, value);
+    change_y_kernelf3<<<numBlocks, blockSize >>>(arr_input_gpu, value);
     cudaDeviceSynchronize(); error_check();
 }
 
 void AutoEstimator::switch_zy(){
 
     switch_zy_kernel<<<numBlocks, blockSize >>>(table_input_gpu);
+    switch_zy_kernelf3<<<numBlocks, blockSize >>>(arr_input_gpu);
     cudaDeviceSynchronize(); error_check();
 }
 
 void AutoEstimator::allocate_gpu_mem(){
     cudaMalloc(&table_input_gpu.elements, table_input_gpu.width * table_input_gpu.height * sizeof(float));
+    cudaMalloc(&arr_input_gpu.elements, arr_input_gpu.length * sizeof(float3));
 
     cudaMalloc(&result_gpu.elements, result_gpu.width * result_gpu.height * sizeof(float));
     cudaMemset(result_gpu.elements, 0, rows * sizeof(int));
@@ -942,6 +1306,11 @@ void AutoEstimator::copy_input_cpu2gpu(){
     cudaMemcpy(table_input_gpu.elements,
                table_input.elements,
                table_input.width * table_input.height * sizeof(float),
+               cudaMemcpyHostToDevice);
+
+    cudaMemcpy(arr_input_gpu.elements,
+               arr_input.elements,
+               arr_input.length * sizeof(float3),
                cudaMemcpyHostToDevice);
 
     cudaMemcpy(targetset_gpu.elements,
@@ -997,10 +1366,28 @@ void AutoEstimator::dist_to_virdis_pipeline(){
     error_check();
 }
 
+void AutoEstimator::dist_to_virdis_pipelinef3(){
+    if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
+    dist2virdis_pipelinef3<<<numBlocks, blockSize >>>(arr_input_gpu, dimensions,
+                                                    virdisTexture_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
 void AutoEstimator::reachability_to_img_pipeline(){
     if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
     reachability2img_pipeline<<<numBlocks, blockSize >>>(table_input_gpu, dimensions,
                                                     virdisTexture_gpu);
+    cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
+void AutoEstimator::reachability_to_img_pipelinef3(){
+    if (verbose) { std::cout << "dist_to_virdis_pipeline started" << std::endl;}
+    reachability2img_vect_pipeline<<<numBlocks, blockSize >>>(arr_input_gpu, dimensions,
+                                                         virdisTexture_gpu);
     cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();

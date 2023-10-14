@@ -21,19 +21,22 @@ int CalculateMedian(const Eigen::VectorXi& data) {
 }
 
 int main(){
-    int windowWidth   = 192*2;
-    int windowHeight  = 108*2;
+    float pixel_density = 1; // sample/pixel
+    float pix_size = 1; // mm between each screen pixel
+    int windowWidth   = 1920;
+    int windowHeight  = 1080;
     std::cout << "let's go!";
-    AutoEstimator autoe{windowWidth, windowHeight};
+    AutoEstimator autoe{(int)(pixel_density*windowWidth), (int)(pixel_density*windowHeight), 1 / pix_size / pixel_density};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
     window.setVerticalSyncEnabled(false);
 //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
-    texture.create(windowWidth, windowHeight);
+    texture.create((int)(pixel_density*windowWidth), (int)(pixel_density*windowHeight));
 
     // Create an SFML sprite with the texture
     sf::Sprite backSprite(texture);
+    backSprite.setScale(1/pixel_density,1/pixel_density);
 
     sf::Font font;
     if (!font.loadFromFile("arial.ttf")) {
@@ -103,8 +106,8 @@ int main(){
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
                     computation_toggle = !computation_toggle;
-                    if (computation_toggle){textBox2.setString("Gradient");}
-                    else {textBox2.setString("Reachability");}
+                    if (computation_toggle){textBox2.setString("reachability_to_img_pipelinef3");}
+                    else {textBox2.setString("dist_to_virdis_pipelinef3");}
                 }
                 if (event.mouseButton.button == sf::Mouse::Right)
                 {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
@@ -134,11 +137,12 @@ int main(){
             } else {
                 autoe.change_y_value((float) relativePosition.y / 2.f);
         }}
+
         value_change = clock.restart();
         if (computation_toggle){
-            autoe.all_reachable_default_to_image();
+            autoe.reachability_to_img_pipelinef3();
         } else {
-            autoe.compute_leg0_by_accumulation();
+            autoe.dist_to_virdis_pipelinef3();
         }
         compute = clock.restart();
         autoe.virdisresult_gpu2cpu();
@@ -163,9 +167,9 @@ int main(){
 
         // Draw the background image
         window.draw(backSprite);
-//        window.draw(textBox1);
-//        window.draw(textBox2);
-//        window.draw(textBox3);
+        window.draw(textBox1);
+        window.draw(textBox2);
+        window.draw(textBox3);
 
         // Display everything
         window.display();
