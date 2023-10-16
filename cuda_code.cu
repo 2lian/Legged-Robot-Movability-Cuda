@@ -41,476 +41,17 @@ RobotDimensions dim_of_SCARE() {
     scare.middle_TG_radius = (scare.max_tibia_to_gripper_dist - scare.min_tibia_to_gripper_dist)/2;
     scare.middle_TG_radius_w_margin = scare.middle_TG_radius-10.f;
 
+    scare.femur_overmargin = -scare.max_angle_femur + atan2f(
+            scare.femur_length * sinf(scare.max_angle_femur) +
+            (scare.tibia_length - 10) * sinf(scare.max_angle_femur + scare.max_angle_tibia)
+            ,
+            scare.femur_length * cosf(scare.max_angle_femur) +
+            (scare.tibia_length - 10) * cosf(scare.max_angle_femur + scare.max_angle_tibia)
+            );
+
     return scare;
 }
 
-__global__
-void empty_kernel() {
-}
-
-// Function to calculate the mean of an array of floats
-float calculateMean(const float* arr, int size) {
-    float sum = 0.0f;
-    for (int i = 0; i < size; ++i) {
-        sum += arr[i];
-    }
-    return sum / size;
-}
-
-// Function to calculate the standard deviation of an array of floats
-float calculateStdDev(const float* arr, int size, float mean) {
-    float sum = 0.0f;
-    for (int i = 0; i < size; ++i) {
-        float diff = arr[i] - mean;
-        sum += diff * diff;
-    }
-    return std::sqrt(sum / (size - 1));
-}
-
-__device__ float sumOfSquares3df(const float* vector) {
-    return vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2];
-}
-__device__ float sumOfSquares2df(const float* vector) {
-    return vector[0] * vector[0] + vector[1] * vector[1];
-}
-
-__device__
-void dist_noflip(const float* point, RobotDimensions& dim, float* result_point)
-// no angle flipping
-{
-    // Coxa as the frame of reference without rotation
-    float result[3];
-    result[0] = point[0] - dim.body;
-    result[1] = point[1];
-    result[2] = point[2];
-
-    // finding coxa angle
-    float required_angle_coxa = atan2f(result[1], result[0]);
-
-    // flipping angle if above +-90deg
-    // required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
-
-    // saturating coxa angle for dist
-    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox = cosf(-required_angle_coxa);
-    float sin_angle_cox = sinf(-required_angle_coxa);
-    float buffer = result[0] * sin_angle_cox;
-    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
-    result[1] = buffer + result[1] * cos_angle_cox;
-
-    // Femur as the frame of reference witout rotation
-    result[0] -= dim.coxa_length;
-
-    // finding femur angle
-    float required_angle_femur = atan2f(result[2], result[0]);
-
-    // saturating coxa angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
-
-    // canceling femur rotation for dist
-    float cos_angle_fem = cosf(required_angle_femur);
-    float sin_angle_fem = sinf(required_angle_femur);
-
-    // middle_TG as the frame of reference
-    result[0] -= dim.middle_TG * cos_angle_fem;
-    result[2] -= dim.middle_TG * sin_angle_fem;
-
-    // rotating back to default xyz, but staying on middle_TG
-
-    buffer = result[1] * sin_angle_cox;
-    result[1] = -result[0] * sin_angle_cox + result[1] * cos_angle_cox;
-    result[0] = result[0] * cos_angle_cox + buffer;
-
-    result_point[0] = result[0];
-    result_point[1] = result[1];
-    result_point[2] = result[2];
-}
-
-__device__
-float3 dist_noflipf3(float3& point, RobotDimensions& dim)
-// no angle flipping
-{
-    // Coxa as the frame of reference without rotation
-    float3 result = point;
-    result.x -= dim.body;
-
-    // finding coxa angle
-    float required_angle_coxa = atan2f(result.y, result.x);
-
-    // saturating coxa angle for dist
-    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox = cosf(-required_angle_coxa);
-    float sin_angle_cox = sinf(-required_angle_coxa);
-    float buffer = result.x * sin_angle_cox;
-    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
-    result.y = buffer + result.y * cos_angle_cox;
-
-    // Femur as the frame of reference witout rotation
-    result.x -= dim.coxa_length;
-
-    // finding femur angle
-    float required_angle_femur = atan2f(result.z, result.x);
-
-    // saturating coxa angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
-
-    // canceling femur rotation for dist
-    float cos_angle_fem = cosf(required_angle_femur);
-    float sin_angle_fem = sinf(required_angle_femur);
-
-    // middle_TG as the frame of reference
-    result.x -= dim.middle_TG * cos_angle_fem;
-    result.z -= dim.middle_TG * sin_angle_fem;
-
-    // rotating back to default xyz, but staying on middle_TG
-
-    buffer = result.y * sin_angle_cox;
-    result.y = -result.x * sin_angle_cox + result.y * cos_angle_cox;
-    result.x = result.x * cos_angle_cox + buffer;
-
-    return result;
-}
-
-__device__
-void dist_flip(const float* point, RobotDimensions& dim, float* result_point)
-// with angle flipping
-{
-    // Coxa as the frame of reference without rotation
-    float result[3];
-    result[0] = point[0] - dim.body;
-    result[1] = point[1];
-    result[2] = point[2];
-
-    // finding coxa angle
-    float required_angle_coxa = atan2f(-result[1], -result[0]);
-
-    // flipping angle if above +-90deg
-    // required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
-
-    // saturating coxa angle for dist
-    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox = cosf(-required_angle_coxa);
-    float sin_angle_cox = sinf(-required_angle_coxa);
-    float buffer = result[0] * sin_angle_cox;
-    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
-    result[1] = buffer + result[1] * cos_angle_cox;
-
-    // Femur as the frame of reference witout rotation
-    result[0] -= dim.coxa_length;
-
-    // finding femur angle
-    float required_angle_femur = atan2f(result[2], result[0]);
-
-    // saturating coxa angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
-
-    // canceling femur rotation for dist
-    float cos_angle_fem = cosf(required_angle_femur);
-    float sin_angle_fem = sinf(required_angle_femur);
-
-    // middle_TG as the frame of reference
-    result[0] -= dim.middle_TG * cos_angle_fem;
-    result[2] -= dim.middle_TG * sin_angle_fem;
-
-    // rotating back to default xyz, but staying on middle_TG
-
-    buffer = result[1] * sin_angle_cox;
-    result[1] = -result[0] * sin_angle_cox + result[1] * cos_angle_cox;
-    result[0] = result[0] * cos_angle_cox + buffer;
-
-    result_point[0] = result[0];
-    result_point[1] = result[1];
-    result_point[2] = result[2];
-}
-
-__device__
-float3 dist_flipf3(float3& point, RobotDimensions& dim)
-// no angle flipping
-{
-    // Coxa as the frame of reference without rotation
-    float3 result = point;
-    result.x -= dim.body;
-
-    // finding coxa angle
-    float required_angle_coxa = atan2f(-result.y, -result.x);
-
-    // saturating coxa angle for dist
-    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox = cosf(-required_angle_coxa);
-    float sin_angle_cox = sinf(-required_angle_coxa);
-    float buffer = result.x * sin_angle_cox;
-    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
-    result.y = buffer + result.y * cos_angle_cox;
-
-    // Femur as the frame of reference witout rotation
-    result.x -= dim.coxa_length;
-
-    // finding femur angle
-    float required_angle_femur = atan2f(result.z, result.x);
-
-    // saturating coxa angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
-
-    // canceling femur rotation for dist
-    float cos_angle_fem = cosf(required_angle_femur);
-    float sin_angle_fem = sinf(required_angle_femur);
-
-    // middle_TG as the frame of reference
-    result.x -= dim.middle_TG * cos_angle_fem;
-    result.z -= dim.middle_TG * sin_angle_fem;
-
-    // rotating back to default xyz, but staying on middle_TG
-
-    buffer = result.y * sin_angle_cox;
-    result.y = -result.x * sin_angle_cox + result.y * cos_angle_cox;
-    result.x = result.x * cos_angle_cox + buffer;
-
-    return result;
-}
-
-__device__
-float place_over_coxa(float3& coordinates, RobotDimensions& dim)
-{
-    // Coxa as the frame of reference without rotation
-    coordinates.x -= dim.body;
-}
-
-__device__
-float find_coxa_angle(float3& coordinates)
-{
-    // finding coxa angle
-    return atan2f(coordinates.y, coordinates.x);
-}
-
-__device__
-void find_vert_plane_dist(float& x, float& z, RobotDimensions& dim)
-{
-    // Femur as the frame of reference witout rotation
-    x -= dim.coxa_length;
-
-    // finding femur angle
-    float required_angle_femur = atan2f(z, x);
-    float angle_overshoot = required_angle_femur;
-
-    float overmargin = 0.72;
-
-    // saturating femur angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur,
-                                       dim.max_angle_femur_w_margin + overmargin),
-                                 dim.min_angle_femur_w_margin - overmargin);
-
-    angle_overshoot = abs(angle_overshoot - fmaxf(fminf(required_angle_femur,
-                                                        dim.max_angle_femur),
-                                                  dim.min_angle_femur));
-
-    // canceling femur rotation for dist
-    float cos_angle_fem;
-    float sin_angle_fem;
-    sincosf(required_angle_femur, &sin_angle_fem, &cos_angle_fem);
-
-    float adjust_factor = 1.63f*dim.middle_TG_radius_w_margin*sinf(fmax(angle_overshoot/overmargin,0.f));
-
-    // middle_TG as the frame of reference
-    x -= (dim.middle_TG - angle_overshoot * adjust_factor) * cos_angle_fem;
-    z -= (dim.middle_TG - angle_overshoot * adjust_factor) * sin_angle_fem;
-
-    float zeroing_radius = fmax(dim.middle_TG_radius_w_margin - angle_overshoot * adjust_factor, 0.f);
-
-    float magnitude = fmax(
-            norm3df(x, z, 0.f),
-            zeroing_radius
-            );
-
-    x -= zeroing_radius*x/magnitude;
-    z -= zeroing_radius*z/magnitude;
-}
-
-__device__
-void finish_finding_dist(float3& coordinates, RobotDimensions& dim, const float coxa_angle)
-{
-    // saturating coxa angle for dist
-    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox;
-    float sin_angle_cox;
-    sincosf(-saturated_coxa_angle, &sin_angle_cox, &cos_angle_cox);
-    float buffer = coordinates.x * sin_angle_cox;
-    coordinates.x = coordinates.x * cos_angle_cox - coordinates.y * sin_angle_cox;
-    coordinates.y = buffer + coordinates.y * cos_angle_cox;
-
-    find_vert_plane_dist(coordinates.x, coordinates.z, dim);
-
-    buffer = coordinates.y * sin_angle_cox;
-    coordinates.y = -coordinates.x * sin_angle_cox + coordinates.y * cos_angle_cox;
-    coordinates.x = coordinates.x * cos_angle_cox + buffer;
-}
-
-__device__
-void dist_double_sol(const float* point, RobotDimensions& dim, float* result_point)
-{
-    // Coxa as the frame of reference without rotation
-    float result_noflip[3];
-    float result_flip[3];
-
-    dist_noflip(point, dim, result_noflip);
-    dist_flip(point, dim, result_flip);
-
-    float* result_to_use = (sumOfSquares3df(result_noflip) < sumOfSquares3df(result_flip))
-            ? result_noflip : result_flip;
-
-    // result_to_use = result_flip;
-    result_point[0] = result_to_use[0];
-    result_point[1] = result_to_use[1];
-    result_point[2] = result_to_use[2];
-
-}
-
-__device__
-float3 dist_double_solf3(float3 point, RobotDimensions& dim)
-//
-{
-    float3 coordinate_noflip = point;
-    place_over_coxa(coordinate_noflip, dim);
-    float3 coordinate_flip = coordinate_noflip;
-
-    float coxangle = find_coxa_angle(coordinate_noflip);
-
-    finish_finding_dist(coordinate_noflip,
-                        dim,
-                        coxangle);
-    finish_finding_dist(coordinate_flip,
-                        dim,
-                        ((coxangle > 0)? coxangle - dim.pI : coxangle + dim.pI));
-
-    float3* result_to_use = (
-            norm3df(coordinate_noflip.x, coordinate_noflip.y, coordinate_noflip.z)
-            <
-            norm3df(coordinate_flip.x, coordinate_flip.y, coordinate_flip.z)
-                            ) ? &coordinate_noflip : &coordinate_flip;
-
-    // result_to_use = result_flip;
-    return *result_to_use;
-
-}
-
-__device__
-bool reachability(const float* point, RobotDimensions& dim)
-// no angle flipping
-{
-    // Coxa as the frame of reference without rotation
-    float result[3];
-    result[0] = point[0] - dim.body;
-    result[1] = point[1];
-    result[2] = point[2];
-
-    // finding coxa angle
-    float required_angle_coxa = atan2f(result[1], result[0]);
-
-    // flipping angle if above +-90deg
-    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
-
-    if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
-        return false;
-    }
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox = cosf(-required_angle_coxa);
-    float sin_angle_cox = sinf(-required_angle_coxa);
-    float buffer = result[0] * sin_angle_cox;
-    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
-    result[1] = buffer + result[1] * cos_angle_cox;
-
-    // Femur as the frame of reference witout rotation
-    result[0] -= dim.coxa_length;
-
-    float linnorm = norm3df(result[0], result[1], result[2]);
-
-    if ((linnorm < dim.min_tibia_to_gripper_dist) || (linnorm > dim.max_tibia_to_gripper_dist)){
-        return false;
-    }
-
-    // finding femur angle
-    float required_angle_femur = atan2f(result[2], result[0]);
-
-    if ((required_angle_femur > dim.min_angle_femur) && (required_angle_femur < dim.max_angle_femur)) {
-        return true;
-    }
-
-    linnorm = fminf(
-            norm3df(result[0] - dim.positiv_saturated_femur[0], 0, result[2] - dim.positiv_saturated_femur[1])
-            ,
-            norm3df(result[0] - dim.negativ_saturated_femur[0], 0, result[2] - dim.negativ_saturated_femur[1])
-    );
-
-    return linnorm < dim.femur_length;
-}
-
-__device__
-bool reachability_vect(const float3& point, RobotDimensions& dim)
-// no angle flipping
-{
-    // Coxa as the frame of reference without rotation
-    float3 result;
-    result = point;
-    result.x -= dim.body;
-
-    // finding coxa angle
-    float required_angle_coxa = atan2f(result.y, result.x);
-
-    // flipping angle if above +-90deg
-    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
-
-    if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
-        return false;
-    }
-
-    // canceling coxa rotation for dist
-    // Coxa as the frame of reference with rotation
-    float cos_angle_cox = cosf(-required_angle_coxa);
-    float sin_angle_cox = sinf(-required_angle_coxa);
-    float buffer = result.x * sin_angle_cox;
-    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
-    result.y = buffer + result.y * cos_angle_cox;
-
-    // Femur as the frame of reference witout rotation
-    result.x -= dim.coxa_length;
-
-    float linnorm = norm3df(result.x, result.y, result.z);
-
-    if ((linnorm < dim.min_tibia_to_gripper_dist) || (linnorm > dim.max_tibia_to_gripper_dist)){
-        return false;
-    }
-
-    // finding femur angle
-    float required_angle_femur = atan2f(result.z, result.x);
-
-    if ((required_angle_femur > dim.min_angle_femur) && (required_angle_femur < dim.max_angle_femur)) {
-        return true;
-    }
-
-    linnorm = fminf(
-            norm3df(result.x - dim.positiv_saturated_femur[0], 0, result.z - dim.positiv_saturated_femur[1])
-            ,
-            norm3df(result.x - dim.negativ_saturated_femur[0], 0, result.z - dim.negativ_saturated_femur[1])
-    );
-
-    return linnorm < dim.femur_length;
-}
 
 __constant__ __device__ float VirdisColorMapData[256][3] =
         {
@@ -773,6 +314,484 @@ __constant__ __device__ float VirdisColorMapData[256][3] =
                 { 0.993248, 0.906157, 0.143936 }
         };
 
+
+__global__
+void empty_kernel() {
+}
+
+// Function to calculate the mean of an array of floats
+float calculateMean(const float* arr, int size) {
+    float sum = 0.0f;
+    for (int i = 0; i < size; ++i) {
+        sum += arr[i];
+    }
+    return sum / size;
+}
+
+// Function to calculate the standard deviation of an array of floats
+float calculateStdDev(const float* arr, int size, float mean) {
+    float sum = 0.0f;
+    for (int i = 0; i < size; ++i) {
+        float diff = arr[i] - mean;
+        sum += diff * diff;
+    }
+    return std::sqrt(sum / (size - 1));
+}
+
+__device__ float sumOfSquares3df(const float* vector) {
+    return vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2];
+}
+__device__ float sumOfSquares2df(const float* vector) {
+    return vector[0] * vector[0] + vector[1] * vector[1];
+}
+
+__device__
+void dist_noflip(const float* point, RobotDimensions& dim, float* result_point)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float result[3];
+    result[0] = point[0] - dim.body;
+    result[1] = point[1];
+    result[2] = point[2];
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result[1], result[0]);
+
+    // flipping angle if above +-90deg
+    // required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+
+    // saturating coxa angle for dist
+    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result[0] * sin_angle_cox;
+    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
+    result[1] = buffer + result[1] * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result[0] -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result[2], result[0]);
+
+    // saturating coxa angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem = cosf(required_angle_femur);
+    float sin_angle_fem = sinf(required_angle_femur);
+
+    // middle_TG as the frame of reference
+    result[0] -= dim.middle_TG * cos_angle_fem;
+    result[2] -= dim.middle_TG * sin_angle_fem;
+
+    // rotating back to default xyz, but staying on middle_TG
+
+    buffer = result[1] * sin_angle_cox;
+    result[1] = -result[0] * sin_angle_cox + result[1] * cos_angle_cox;
+    result[0] = result[0] * cos_angle_cox + buffer;
+
+    result_point[0] = result[0];
+    result_point[1] = result[1];
+    result_point[2] = result[2];
+}
+
+__device__
+float3 dist_noflipf3(float3& point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float3 result = point;
+    result.x -= dim.body;
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result.y, result.x);
+
+    // saturating coxa angle for dist
+    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result.x * sin_angle_cox;
+    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
+    result.y = buffer + result.y * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result.x -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result.z, result.x);
+
+    // saturating coxa angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem = cosf(required_angle_femur);
+    float sin_angle_fem = sinf(required_angle_femur);
+
+    // middle_TG as the frame of reference
+    result.x -= dim.middle_TG * cos_angle_fem;
+    result.z -= dim.middle_TG * sin_angle_fem;
+
+    // rotating back to default xyz, but staying on middle_TG
+
+    buffer = result.y * sin_angle_cox;
+    result.y = -result.x * sin_angle_cox + result.y * cos_angle_cox;
+    result.x = result.x * cos_angle_cox + buffer;
+
+    return result;
+}
+
+__device__
+void dist_flip(const float* point, RobotDimensions& dim, float* result_point)
+// with angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float result[3];
+    result[0] = point[0] - dim.body;
+    result[1] = point[1];
+    result[2] = point[2];
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(-result[1], -result[0]);
+
+    // flipping angle if above +-90deg
+    // required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+
+    // saturating coxa angle for dist
+    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result[0] * sin_angle_cox;
+    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
+    result[1] = buffer + result[1] * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result[0] -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result[2], result[0]);
+
+    // saturating coxa angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem = cosf(required_angle_femur);
+    float sin_angle_fem = sinf(required_angle_femur);
+
+    // middle_TG as the frame of reference
+    result[0] -= dim.middle_TG * cos_angle_fem;
+    result[2] -= dim.middle_TG * sin_angle_fem;
+
+    // rotating back to default xyz, but staying on middle_TG
+
+    buffer = result[1] * sin_angle_cox;
+    result[1] = -result[0] * sin_angle_cox + result[1] * cos_angle_cox;
+    result[0] = result[0] * cos_angle_cox + buffer;
+
+    result_point[0] = result[0];
+    result_point[1] = result[1];
+    result_point[2] = result[2];
+}
+
+__device__
+float3 dist_flipf3(float3& point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float3 result = point;
+    result.x -= dim.body;
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(-result.y, -result.x);
+
+    // saturating coxa angle for dist
+    required_angle_coxa = fmaxf(fminf(required_angle_coxa, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result.x * sin_angle_cox;
+    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
+    result.y = buffer + result.y * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result.x -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result.z, result.x);
+
+    // saturating coxa angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+
+    // canceling femur rotation for dist
+    float cos_angle_fem = cosf(required_angle_femur);
+    float sin_angle_fem = sinf(required_angle_femur);
+
+    // middle_TG as the frame of reference
+    result.x -= dim.middle_TG * cos_angle_fem;
+    result.z -= dim.middle_TG * sin_angle_fem;
+
+    // rotating back to default xyz, but staying on middle_TG
+
+    buffer = result.y * sin_angle_cox;
+    result.y = -result.x * sin_angle_cox + result.y * cos_angle_cox;
+    result.x = result.x * cos_angle_cox + buffer;
+
+    return result;
+}
+
+__device__
+float place_over_coxa(float3& coordinates, RobotDimensions& dim)
+{
+    // Coxa as the frame of reference without rotation
+    coordinates.x -= dim.body;
+}
+
+__device__
+float find_coxa_angle(float3& coordinates)
+{
+    // finding coxa angle
+    return atan2f(coordinates.y, coordinates.x);
+}
+
+__device__
+void find_vert_plane_dist(float& x, float& z, RobotDimensions& dim)
+{
+    // Femur as the frame of reference witout rotation
+    x -= dim.coxa_length;
+
+    // finding femur angle
+    float required_angle_femur = atan2f(z, x);
+    float angle_overshoot = required_angle_femur;
+
+    float overmargin = dim.femur_overmargin;
+
+    // saturating femur angle for dist
+    required_angle_femur = fmaxf(fminf(required_angle_femur,
+                                       dim.max_angle_femur_w_margin + overmargin),
+                                 dim.min_angle_femur_w_margin - overmargin);
+
+    angle_overshoot = abs(angle_overshoot - fmaxf(fminf(
+            required_angle_femur,
+                                                        dim.max_angle_femur),
+                                                  dim.min_angle_femur));
+
+    // canceling femur rotation for dist
+    float cos_angle_fem;
+    float sin_angle_fem;
+    sincosf(required_angle_femur, &sin_angle_fem, &cos_angle_fem);
+
+    float center_adjust_factor = dim.middle_TG_radius *
+                                 fmax(angle_overshoot/overmargin,0.f) *
+                                 sinf(fmax(angle_overshoot/overmargin,0.f))
+            ;
+
+    // middle_TG as the frame of reference
+    x -= (dim.middle_TG - center_adjust_factor) * cos_angle_fem;
+    z -= (dim.middle_TG - center_adjust_factor) * sin_angle_fem;
+
+    float zeroing_radius = fmax(dim.middle_TG_radius_w_margin - center_adjust_factor, 0.f);
+
+    float magnitude = fmax(
+            norm3df(x, z, 0.f),
+            zeroing_radius
+            );
+
+    x -= zeroing_radius*x/magnitude;
+    z -= zeroing_radius*z/magnitude;
+}
+
+__device__
+void finish_finding_dist(float3& coordinates, RobotDimensions& dim, const float coxa_angle)
+{
+    // saturating coxa angle for dist
+//    float test = fmax(norm3df(coordinates.x, coordinates.y, 0.f), 1.f);
+//    float sub = fmax(dim.max_angle_coxa - asin(10.f/ test), 0.f);
+//    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, sub), -sub);
+    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox;
+    float sin_angle_cox;
+    sincosf(-saturated_coxa_angle, &sin_angle_cox, &cos_angle_cox);
+    float buffer = coordinates.x * sin_angle_cox;
+    coordinates.x = coordinates.x * cos_angle_cox - coordinates.y * sin_angle_cox;
+    coordinates.y = buffer + coordinates.y * cos_angle_cox;
+
+    find_vert_plane_dist(coordinates.x, coordinates.z, dim);
+
+    buffer = coordinates.y * sin_angle_cox;
+    coordinates.y = -coordinates.x * sin_angle_cox + coordinates.y * cos_angle_cox;
+    coordinates.x = coordinates.x * cos_angle_cox + buffer;
+}
+
+__device__
+void dist_double_sol(const float* point, RobotDimensions& dim, float* result_point)
+{
+    // Coxa as the frame of reference without rotation
+    float result_noflip[3];
+    float result_flip[3];
+
+    dist_noflip(point, dim, result_noflip);
+    dist_flip(point, dim, result_flip);
+
+    float* result_to_use = (sumOfSquares3df(result_noflip) < sumOfSquares3df(result_flip))
+            ? result_noflip : result_flip;
+
+    // result_to_use = result_flip;
+    result_point[0] = result_to_use[0];
+    result_point[1] = result_to_use[1];
+    result_point[2] = result_to_use[2];
+
+}
+
+__device__
+float3 dist_double_solf3(float3 point, RobotDimensions& dim)
+//
+{
+    float3 coordinate_noflip = point;
+    place_over_coxa(coordinate_noflip, dim);
+    float3 coordinate_flip = coordinate_noflip;
+
+
+//    coordinate_noflip.x -= 10;
+    float coxangle = find_coxa_angle(coordinate_noflip);
+
+    finish_finding_dist(coordinate_noflip,
+                        dim,
+                        coxangle);
+    finish_finding_dist(coordinate_flip,
+                        dim,
+                        ((coxangle > 0)? coxangle - dim.pI : coxangle + dim.pI));
+
+    float3* result_to_use = (
+            norm3df(coordinate_noflip.x, coordinate_noflip.y, coordinate_noflip.z)
+            <
+            norm3df(coordinate_flip.x, coordinate_flip.y, coordinate_flip.z)
+                            ) ? &coordinate_noflip : &coordinate_flip;
+
+    // result_to_use = result_flip;
+    return *result_to_use;
+
+}
+
+__device__
+bool reachability(const float* point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float result[3];
+    result[0] = point[0] - dim.body;
+    result[1] = point[1];
+    result[2] = point[2];
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result[1], result[0]);
+
+    // flipping angle if above +-90deg
+    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+
+    if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
+        return false;
+    }
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result[0] * sin_angle_cox;
+    result[0] = result[0] * cos_angle_cox - result[1] * sin_angle_cox;
+    result[1] = buffer + result[1] * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result[0] -= dim.coxa_length;
+
+    float linnorm = norm3df(result[0], result[1], result[2]);
+
+    if ((linnorm < dim.min_tibia_to_gripper_dist) || (linnorm > dim.max_tibia_to_gripper_dist)){
+        return false;
+    }
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result[2], result[0]);
+
+    if ((required_angle_femur > dim.min_angle_femur) && (required_angle_femur < dim.max_angle_femur)) {
+        return true;
+    }
+
+    linnorm = fminf(
+            norm3df(result[0] - dim.positiv_saturated_femur[0], 0, result[2] - dim.positiv_saturated_femur[1])
+            ,
+            norm3df(result[0] - dim.negativ_saturated_femur[0], 0, result[2] - dim.negativ_saturated_femur[1])
+    );
+
+    return linnorm < dim.femur_length;
+}
+
+__device__
+bool reachability_vect(const float3& point, RobotDimensions& dim)
+// no angle flipping
+{
+    // Coxa as the frame of reference without rotation
+    float3 result;
+    result = point;
+    result.x -= dim.body;
+
+    // finding coxa angle
+    float required_angle_coxa = atan2f(result.y, result.x);
+
+    // flipping angle if above +-90deg
+    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+
+    if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
+        return false;
+    }
+
+    // canceling coxa rotation for dist
+    // Coxa as the frame of reference with rotation
+    float cos_angle_cox = cosf(-required_angle_coxa);
+    float sin_angle_cox = sinf(-required_angle_coxa);
+    float buffer = result.x * sin_angle_cox;
+    result.x = result.x * cos_angle_cox - result.y * sin_angle_cox;
+    result.y = buffer + result.y * cos_angle_cox;
+
+    // Femur as the frame of reference witout rotation
+    result.x -= dim.coxa_length;
+
+    float linnorm = norm3df(result.x, result.y, result.z);
+
+    if ((linnorm < dim.min_tibia_to_gripper_dist) || (linnorm > dim.max_tibia_to_gripper_dist)){
+        return false;
+    }
+
+    // finding femur angle
+    float required_angle_femur = atan2f(result.z, result.x);
+
+    if ((required_angle_femur > dim.min_angle_femur) && (required_angle_femur < dim.max_angle_femur)) {
+        return true;
+    }
+
+    linnorm = fminf(
+            norm3df(result.x - dim.positiv_saturated_femur[0], 0, result.z - dim.positiv_saturated_femur[1])
+            ,
+            norm3df(result.x - dim.negativ_saturated_femur[0], 0, result.z - dim.negativ_saturated_femur[1])
+    );
+
+    return linnorm < dim.femur_length;
+}
+
 __device__ void linearInterp(float* x, float* result, float** colorMap)
 {
     const float x_clamped  = fmaxf(fminf(255.f, *x), 0.f);
@@ -947,7 +966,7 @@ void dist2virdis_pipelinef3(Arrayf3 arr, RobotDimensions dimensions, unsigned ch
         const int x = (int)
                 floorf(
                         fmaxf(
-                                fminf(255.f, result.x),
+                                fminf(255.f, result.x + 0.95f),
                                 0.f)
                 );
         const float color[3] = {VirdisColorMapData[x][0], VirdisColorMapData[x][1], VirdisColorMapData[x][2]};

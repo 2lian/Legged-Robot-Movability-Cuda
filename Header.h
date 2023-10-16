@@ -56,6 +56,7 @@ public:
     float middle_TG;
     float middle_TG_radius;
     float middle_TG_radius_w_margin;
+    float femur_overmargin;
 };
 
 class AutoEstimator {
