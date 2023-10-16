@@ -12,7 +12,7 @@ RobotDimensions dim_of_SCARE() {
     scare.tibia_angle_deg = 90.0f; //90
     scare.tibia_length = 190.0f;
     scare.tibia_length_squared = scare.tibia_length * scare.tibia_length;
-    scare.femur_angle_deg = 120.0f; //120
+    scare.femur_angle_deg = 90.0f; //120
     scare.femur_length = 200.0f; //200
     scare.max_angle_coxa = scare.pI / 180.0f * scare.coxa_angle_deg;
     scare.min_angle_coxa = -scare.pI / 180.0f * scare.coxa_angle_deg;
@@ -22,8 +22,8 @@ RobotDimensions dim_of_SCARE() {
     scare.min_angle_tibia = -scare.pI / 180.0f * scare.tibia_angle_deg;
     scare.max_angle_femur = scare.max_angle_tibia;
     scare.min_angle_femur = scare.min_angle_tibia;
-    scare.max_angle_femur_w_margin = scare.pI / 180.0f * (scare.tibia_angle_deg + 10.0f);
-    scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.tibia_angle_deg + 10.0f);
+    scare.max_angle_femur_w_margin = scare.pI / 180.0f * (scare.tibia_angle_deg + 0.0f);
+    scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.tibia_angle_deg + 0.0f);
     scare.max_tibia_to_gripper_dist = scare.tibia_length + scare.femur_length;
 
     scare.positiv_saturated_femur[0] = cos(scare.max_angle_femur) * scare.tibia_length;
@@ -302,23 +302,39 @@ void find_vert_plane_dist(float& x, float& z, RobotDimensions& dim)
 
     // finding femur angle
     float required_angle_femur = atan2f(z, x);
+    float angle_overshoot = required_angle_femur;
+
+    float overmargin = 0.72;
 
     // saturating femur angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur, dim.max_angle_femur_w_margin), dim.min_angle_femur_w_margin);
+    required_angle_femur = fmaxf(fminf(required_angle_femur,
+                                       dim.max_angle_femur_w_margin + overmargin),
+                                 dim.min_angle_femur_w_margin - overmargin);
+
+    angle_overshoot = abs(angle_overshoot - fmaxf(fminf(required_angle_femur,
+                                                        dim.max_angle_femur),
+                                                  dim.min_angle_femur));
 
     // canceling femur rotation for dist
     float cos_angle_fem;
     float sin_angle_fem;
     sincosf(required_angle_femur, &sin_angle_fem, &cos_angle_fem);
 
+    float adjust_factor = 1.63f*dim.middle_TG_radius_w_margin*sinf(fmax(angle_overshoot/overmargin,0.f));
+
     // middle_TG as the frame of reference
-    x -= dim.middle_TG * cos_angle_fem;
-    z -= dim.middle_TG * sin_angle_fem;
+    x -= (dim.middle_TG - angle_overshoot * adjust_factor) * cos_angle_fem;
+    z -= (dim.middle_TG - angle_overshoot * adjust_factor) * sin_angle_fem;
 
-    float magnitude = fmax(norm3df(x, z, 0.f), dim.middle_TG_radius_w_margin);
+    float zeroing_radius = fmax(dim.middle_TG_radius_w_margin - angle_overshoot * adjust_factor, 0.f);
 
-    x -= dim.middle_TG_radius_w_margin*x/magnitude;
-    z -= dim.middle_TG_radius_w_margin*z/magnitude;
+    float magnitude = fmax(
+            norm3df(x, z, 0.f),
+            zeroing_radius
+            );
+
+    x -= zeroing_radius*x/magnitude;
+    z -= zeroing_radius*z/magnitude;
 }
 
 __device__
@@ -935,10 +951,33 @@ void dist2virdis_pipelinef3(Arrayf3 arr, RobotDimensions dimensions, unsigned ch
                                 0.f)
                 );
         const float color[3] = {VirdisColorMapData[x][0], VirdisColorMapData[x][1], VirdisColorMapData[x][2]};
-        pixels[i * 4 + 0] = (unsigned char) floorf(color[0]*255.f);
-        pixels[i * 4 + 1] = (unsigned char) floorf(color[1]*255.f);
-        pixels[i * 4 + 2] = (unsigned char) floorf(color[2]*255.f);
-        pixels[i * 4 + 3] = (unsigned char) (1*255);
+
+        float rBelow = floorf(color[0] * 255.f);
+        float gBelow = floorf(color[1] * 255.f);
+        float bBelow = floorf(color[2] * 255.f);
+        float aBelow = 255;  // This is the new alpha value
+
+        // Old pixel values
+        auto rAbove = (float)pixels[i * 4 + 0];
+        auto gAbove = (float)pixels[i * 4 + 1];
+        auto bAbove = (float)pixels[i * 4 + 2];
+        auto aAbove = (float)pixels[i * 4 + 3];
+
+        // Calculate the new pixel values with alpha compositing
+        float alphaAbove = aAbove / 255.0f;
+        float alphaBelow = aBelow / 255.0f;
+        float alphaResult = alphaAbove + alphaBelow * (1.0f - alphaAbove);
+
+        auto rMerged = (unsigned char)((rAbove * alphaAbove + rBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
+        auto gMerged = (unsigned char)((gAbove * alphaAbove + gBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
+        auto bMerged = (unsigned char)((bAbove * alphaAbove + bBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
+        auto aMerged = (unsigned char)(alphaResult * 255.0f);
+
+        // Update the pixel values
+        pixels[i * 4 + 0] = rMerged;
+        pixels[i * 4 + 1] = gMerged;
+        pixels[i * 4 + 2] = bMerged;
+        pixels[i * 4 + 3] = aMerged;
     }
 }
 
@@ -993,12 +1032,22 @@ void reachability2transpborder_vect_pipeline(Arrayf3 arr, RobotDimensions dimens
 __global__ void compute_diff(const unsigned char* pixels, unsigned char* outputImage, int imageWidth, int imageHeight) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
+    unsigned char inv_gaussianKernel1[9] = {
+            0, 8, 0,
+            8, 2, 8,
+            0, 8, 0,
+    };
+    unsigned char inv_gaussianKernel2[9] = {
+            16, 8, 16,
+            8, 4, 8,
+            16, 8, 16,
+    };
 
-    for (int i = index; i < imageWidth * imageHeight; i += stride) {
-        int centerX = i % imageWidth;
-        int centerY = i / imageWidth;
-        unsigned char sum1 = pixels[i*4+0];
-        unsigned char sum2 = 0.0f;
+    for (int subindex = index; subindex < imageWidth * imageHeight; subindex += stride) {
+        int centerX = subindex % imageWidth;
+        int centerY = subindex / imageWidth;
+        unsigned char sum1 = 0;
+        unsigned char sum2 = 0;
 
         for (int j = -1; j <= 1; j++) {
             for (int i = -1; i <= 1; i++) {
@@ -1007,19 +1056,20 @@ __global__ void compute_diff(const unsigned char* pixels, unsigned char* outputI
                 int kernelIndex = (j + 1) * 3 + (i + 1);
 
                 if (pixelX >= 0 && pixelX < imageWidth && pixelY >= 0 && pixelY < imageHeight) {
-                    unsigned char pixelValue = pixels[pixelY * imageWidth + pixelX];
-//                    sum1 += pixelValue * gaussianKernel1[kernelIndex];
-                    sum2 += pixelValue / 9;
+                    unsigned char pixelValue = pixels[(pixelY * imageWidth + pixelX)*4];
+                    sum1 += pixelValue / inv_gaussianKernel1[kernelIndex];
+                    sum2 += pixelValue / inv_gaussianKernel2[kernelIndex];
                 }
             }
         }
-
-        outputImage[centerY * imageWidth + centerX] = sum1 - sum2;
+        unsigned char d = sum1 - sum2;
+        outputImage[subindex*4] = d;
+        outputImage[subindex*4 + 3] = d;
     }
 }
+
 __device__
 bool legs_reachable(float* body_position, Matrixf target_set, RobotDimensions dimensions){
-//    return true;
     float point_relativ_to_body[3];
     bool result = true;
     float sin_buffer;
@@ -1344,6 +1394,22 @@ void AutoEstimator::compute_result_norm(){
     norm3df_kernel<<<numBlocks, blockSize >>>(result_gpu,
                                               result_norm_gpu);
     cudaDeviceSynchronize();
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
+void AutoEstimator::derivate_output(){
+    if (verbose) { std::cout << "Compute norm started" << std::endl;}
+    unsigned char* buffer;
+    cudaMalloc(&buffer, 4 * rows * sizeof(unsigned char));
+    cudaMemset(buffer, 0, rows * sizeof(int));
+    compute_diff<<<numBlocks, blockSize >>>(virdisTexture_gpu,
+                                            buffer,
+                                            screenWidth,
+                                            screenHeight);
+    cudaDeviceSynchronize();
+    cudaFree(virdisTexture_gpu);
+    virdisTexture_gpu = buffer;
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();
 }

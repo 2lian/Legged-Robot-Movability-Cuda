@@ -141,9 +141,12 @@ int main(){
         value_change = clock.restart();
         if (computation_toggle){
             autoe.reachability_to_img_pipelinef3();
+            autoe.derivate_output();
+            autoe.dist_to_virdis_pipelinef3();
         } else {
             autoe.dist_to_virdis_pipelinef3();
         }
+
         compute = clock.restart();
         autoe.virdisresult_gpu2cpu();
         copying = clock.restart();

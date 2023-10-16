@@ -115,6 +115,8 @@ public:
     void compute_leg0_by_accumulation();
 
     void dist_to_virdis_pipelinef3();
+
+    void derivate_output();
 };
 
 #endif //CUDA_HEADER_H
