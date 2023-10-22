@@ -28,7 +28,7 @@ int main(){
     std::cout << "let's go!";
     AutoEstimator autoe{(int)(pixel_density*windowWidth), (int)(pixel_density*windowHeight), 1 / pix_size / pixel_density};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
-    window.setVerticalSyncEnabled(false);
+    window.setVerticalSyncEnabled(true);
 //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
@@ -144,6 +144,7 @@ int main(){
             autoe.derivate_output();
             autoe.dist_to_virdis_pipelinef3();
         } else {
+            autoe.reset_image();
             autoe.dist_to_virdis_pipelinef3();
         }
 

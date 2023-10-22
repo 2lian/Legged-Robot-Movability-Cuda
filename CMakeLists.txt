@@ -26,9 +26,12 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-        cpp_code.cpp
-        Header.h
-        cuda_code.cu)
+#        openGL_viz.cpp
+#        Header.h
+#        cuda_using_textures.cu
+        create_virdis_tex.cu
+        #        cuda_mess.cu
+)
 
 target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
 target_include_directories(cuda PRIVATE "${CUDA_DIR}/include")

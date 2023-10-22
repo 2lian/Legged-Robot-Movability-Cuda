@@ -118,6 +118,8 @@ public:
     void dist_to_virdis_pipelinef3();
 
     void derivate_output();
+
+    void reset_image();
 };
 
 #endif //CUDA_HEADER_H

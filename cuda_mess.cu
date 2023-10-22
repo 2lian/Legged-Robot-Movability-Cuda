@@ -9,21 +9,26 @@ RobotDimensions dim_of_SCARE() {
     scare.body = 185.0f;
     scare.coxa_angle_deg = 60.0f;
     scare.coxa_length = 165.0f;
-    scare.tibia_angle_deg = 90.0f; //90
+    scare.tibia_angle_deg = 120.0f; //90
     scare.tibia_length = 190.0f;
     scare.tibia_length_squared = scare.tibia_length * scare.tibia_length;
-    scare.femur_angle_deg = 90.0f; //120
+    scare.femur_angle_deg = 120.0f; //120
     scare.femur_length = 200.0f; //200
+
     scare.max_angle_coxa = scare.pI / 180.0f * scare.coxa_angle_deg;
     scare.min_angle_coxa = -scare.pI / 180.0f * scare.coxa_angle_deg;
+
     scare.max_angle_coxa_w_margin = scare.pI / 180.0f * (scare.coxa_angle_deg - 5.0f);
     scare.min_angle_coxa_w_margin = -scare.pI / 180.0f * (scare.coxa_angle_deg - 5.0f);
+
     scare.max_angle_tibia = scare.pI / 180.0f * scare.tibia_angle_deg;
     scare.min_angle_tibia = -scare.pI / 180.0f * scare.tibia_angle_deg;
-    scare.max_angle_femur = scare.max_angle_tibia;
-    scare.min_angle_femur = scare.min_angle_tibia;
-    scare.max_angle_femur_w_margin = scare.pI / 180.0f * (scare.tibia_angle_deg + 0.0f);
-    scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.tibia_angle_deg + 0.0f);
+
+    scare.max_angle_femur = scare.pI / 180.0f * scare.femur_angle_deg;
+    scare.min_angle_femur = -scare.pI / 180.0f * scare.femur_angle_deg;
+
+    scare.max_angle_femur_w_margin = scare.pI / 180.0f * (scare.femur_angle_deg + 0.0f);
+    scare.min_angle_femur_w_margin = -scare.pI / 180.0f * (scare.femur_angle_deg + 0.0f);
     scare.max_tibia_to_gripper_dist = scare.tibia_length + scare.femur_length;
 
     scare.positiv_saturated_femur[0] = cos(scare.max_angle_femur) * scare.tibia_length;
@@ -32,8 +37,8 @@ RobotDimensions dim_of_SCARE() {
     scare.negativ_saturated_femur[0] = cos(scare.min_angle_femur) * scare.tibia_length;
     scare.negativ_saturated_femur[1] = sin(scare.min_angle_femur) * scare.tibia_length;
 
-    scare.fem_tib_min_host[0] = scare.tibia_length + scare.femur_length * cos(scare.pI / 180.0f * scare.femur_angle_deg);
-    scare.fem_tib_min_host[1] = scare.femur_length * sin(scare.pI / 180.0f * scare.femur_angle_deg);
+    scare.fem_tib_min_host[0] = scare.tibia_length + scare.femur_length * cos(scare.pI / 180.0f * scare.tibia_angle_deg);
+    scare.fem_tib_min_host[1] = scare.femur_length * sin(scare.pI / 180.0f * scare.tibia_angle_deg);
 
     scare.min_tibia_to_gripper_dist = sqrt(scare.fem_tib_min_host[0] * scare.fem_tib_min_host[0]
                                            + scare.fem_tib_min_host[1] * scare.fem_tib_min_host[1]);
@@ -616,10 +621,10 @@ __device__
 void finish_finding_dist(float3& coordinates, RobotDimensions& dim, const float coxa_angle)
 {
     // saturating coxa angle for dist
-//    float test = fmax(norm3df(coordinates.x, coordinates.y, 0.f), 1.f);
-//    float sub = fmax(dim.max_angle_coxa - asin(10.f/ test), 0.f);
-//    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, sub), -sub);
-    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa_w_margin), dim.min_angle_coxa_w_margin);
+    float test = fmax(norm3df(coordinates.x, coordinates.y, 0.f), 0.f);
+    float sub = fmax(dim.max_angle_coxa - asin(10.f/ test), 0.f);
+    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, sub), -sub);
+//    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa), dim.min_angle_coxa);
 
     // canceling coxa rotation for dist
     // Coxa as the frame of reference with rotation
@@ -1048,7 +1053,7 @@ void reachability2transpborder_vect_pipeline(Arrayf3 arr, RobotDimensions dimens
     }
 }
 
-__global__ void compute_diff(const unsigned char* pixels, unsigned char* outputImage, int imageWidth, int imageHeight) {
+__global__ void gauss_derivate(const unsigned char* pixels, unsigned char* outputImage, int imageWidth, int imageHeight) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     unsigned char inv_gaussianKernel1[9] = {
@@ -1421,7 +1426,7 @@ void AutoEstimator::derivate_output(){
     if (verbose) { std::cout << "Compute norm started" << std::endl;}
     unsigned char* buffer;
     cudaMalloc(&buffer, 4 * rows * sizeof(unsigned char));
-    cudaMemset(buffer, 0, rows * sizeof(int));
+    cudaMemset(buffer, 0, 4 * rows * sizeof(unsigned char));
     compute_diff<<<numBlocks, blockSize >>>(virdisTexture_gpu,
                                             buffer,
                                             screenWidth,
@@ -1429,6 +1434,14 @@ void AutoEstimator::derivate_output(){
     cudaDeviceSynchronize();
     cudaFree(virdisTexture_gpu);
     virdisTexture_gpu = buffer;
+    if (verbose) { std::cout << "Compute done" << std::endl;}
+    error_check();
+}
+
+void AutoEstimator::reset_image(){
+    if (verbose) { std::cout << "Compute norm started" << std::endl;}
+    cudaMemset(virdisTexture_gpu, 0, 4 * rows * sizeof(unsigned char));
+    cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();
 }
