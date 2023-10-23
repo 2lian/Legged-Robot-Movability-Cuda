@@ -2,9 +2,4 @@
 /build01/
 /build02/
 /build/
-/.idea/vcs.xml
-/.idea/training_cuda.iml
-/.idea/modules.xml
-/.idea/misc.xml
-/.idea/.name
-/.idea/.gitignore
+/.idea
