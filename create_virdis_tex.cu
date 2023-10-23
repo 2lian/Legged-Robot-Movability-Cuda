@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-float VirdisColorMapData[256][3] =
+float VirdisColorMapRaw[256][3] =
         {
                 { 0.f, 0.f, 0.f },
 //                { 0.267004, 0.004874, 0.329415 },
@@ -277,15 +277,15 @@ class VirdisHolder {
 public:
     static const int width = 256;
     float4 f4_arr[width];
-    static const int sub_points = 20;
+    static const int sub_points = 2000;
     float4 output_cpu[sub_points];
 
     VirdisHolder() {
 
         for (int i = 0; i < width; i++) {
-            f4_arr[i].x = VirdisColorMapData[i][0];
-            f4_arr[i].y = VirdisColorMapData[i][1];
-            f4_arr[i].z = VirdisColorMapData[i][2];
+            f4_arr[i].x = VirdisColorMapRaw[i][0];
+            f4_arr[i].y = VirdisColorMapRaw[i][1];
+            f4_arr[i].z = VirdisColorMapRaw[i][2];
             f4_arr[i].w = 1;
         }
         cudaChannelFormatDesc channelDesc =
@@ -342,6 +342,6 @@ public:
     }
 };
 
-int main(){
+int notmain(){
     VirdisHolder();
 }

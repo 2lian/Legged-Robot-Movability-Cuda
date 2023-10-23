@@ -5,6 +5,8 @@
 #ifndef CUDA_HEADER_H
 #define CUDA_HEADER_H
 #include <driver_types.h>
+#include "cuda.h"
+#include "cuda_runtime.h"
 
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
@@ -87,6 +89,9 @@ public:
     unsigned char* virdisTexture;
     int* gpu_accumulator{};
 
+    cudaTextureObject_t virdis1DTexture = 0;
+    cudaTextureObject_t reachabilityTexture = 1024;
+
     AutoEstimator(int pxWidth, int pxHeight, float scale);
     // Declare other member functions here.
     void input_as_grid(const float scale_factor) const;
@@ -104,7 +109,7 @@ public:
 
     void dist_to_virdis_pipeline();
 
-    void reachability_to_img_pipeline();
+    void reachability_to_img_pipeline_tex();
     void reachability_to_img_pipelinef3();
 
     void switch_zy();
@@ -120,6 +125,10 @@ public:
     void derivate_output();
 
     void reset_image();
+
+    void define_virdis_as_texture();
+
+    void create_reachability_texture();
 };
 
 #endif //CUDA_HEADER_H

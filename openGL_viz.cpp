@@ -26,7 +26,9 @@ int main(){
     int windowWidth   = 1920;
     int windowHeight  = 1080;
     std::cout << "let's go!";
-    AutoEstimator autoe{(int)(pixel_density*windowWidth), (int)(pixel_density*windowHeight), 1 / pix_size / pixel_density};
+    AutoEstimator autoe{(int)(pixel_density*windowWidth),
+                        (int)(pixel_density*windowHeight),
+                        1 / pix_size / pixel_density};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
     window.setVerticalSyncEnabled(true);
 //    window.setFramerateLimit(1000);
@@ -106,8 +108,8 @@ int main(){
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
                     computation_toggle = !computation_toggle;
-                    if (computation_toggle){textBox2.setString("reachability_to_img_pipelinef3");}
-                    else {textBox2.setString("dist_to_virdis_pipelinef3");}
+                    if (computation_toggle){textBox2.setString("reachability_to_img_pipeline_tex");}
+                    else {textBox2.setString("reachability_to_img_pipelinef3");}
                 }
                 if (event.mouseButton.button == sf::Mouse::Right)
                 {// Left mouse button was clicked event.mouseButton.x and event.mouseButton.y contain the mouse click coordinates
@@ -123,7 +125,7 @@ int main(){
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
         sf::Vector2u windowSize = window.getSize();
         sf::Vector2i windowCenter(windowSize.x / 2, windowSize.y / 2);
-        sf::Vector2i relativePosition = (mousePosition - windowCenter)*2;
+        sf::Vector2i relativePosition = (mousePosition - windowCenter)*2*0;
 
         // Other game logic and updates here
 
@@ -140,12 +142,12 @@ int main(){
 
         value_change = clock.restart();
         if (computation_toggle){
-            autoe.reachability_to_img_pipelinef3();
-            autoe.derivate_output();
-            autoe.dist_to_virdis_pipelinef3();
+            autoe.reachability_to_img_pipeline_tex();
+//            autoe.derivate_output();
+//            autoe.dist_to_virdis_pipelinef3();
         } else {
             autoe.reset_image();
-            autoe.dist_to_virdis_pipelinef3();
+            autoe.reachability_to_img_pipelinef3();
         }
 
         compute = clock.restart();

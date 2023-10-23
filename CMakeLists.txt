@@ -26,9 +26,9 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-#        openGL_viz.cpp
-#        Header.h
-#        cuda_using_textures.cu
+        openGL_viz.cpp
+        Header.h
+        cuda_using_textures.cu
         create_virdis_tex.cu
         #        cuda_mess.cu
 )
