@@ -156,8 +156,9 @@ int main(){
 //            autoe.derivate_output();
 //            autoe.dist_to_virdis_pipelinef3();
         } else {
-//            autoe.reset_image();
-            autoe.reachability_to_img_pipelinef3();
+//            autoe.reachability_to_img_pipelinef3();
+            autoe.reset_image();
+            autoe.dist_to_virdis_pipelinef3();
         }
 
         compute = clock.restart();

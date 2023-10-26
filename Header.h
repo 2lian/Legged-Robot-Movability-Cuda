@@ -69,6 +69,14 @@ public:
     int screenHeight;
     int rows;
 
+
+    int reachTexHeight = 2000;
+    int reachTexWidth = 2000;
+    float reachTexMinX = -150;
+    float reachTexMaxX = 570;
+    float reachTexMinY = -400;
+    float reachTexMaxY = 400;
+
     RobotDimensions dimensions{};
     Matrixf table_input{};
     Matrixf table_input_gpu{};

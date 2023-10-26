@@ -584,6 +584,11 @@ __global__
 void empty_kernel() {
 }
 
+__device__ float fclampf(float value, float max, float min) {
+    return fmaxf(fminf(value,
+                       max),
+                 min);
+}
 
 __device__ float sumOfSquares3df(const float* vector) {
     return vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2];
@@ -619,14 +624,15 @@ void find_vert_plane_dist(float& x, float& z, RobotDimensions& dim)
     float overmargin = dim.femur_overmargin;
 
     // saturating femur angle for dist
-    required_angle_femur = fmaxf(fminf(required_angle_femur,
-                                       dim.max_angle_femur_w_margin + overmargin),
+    required_angle_femur = fclampf(required_angle_femur,
+                                       dim.max_angle_femur_w_margin + overmargin,
                                  dim.min_angle_femur_w_margin - overmargin);
 
-    angle_overshoot = abs(angle_overshoot - fmaxf(fminf(
-            required_angle_femur,
-                                                        dim.max_angle_femur),
-                                                  dim.min_angle_femur));
+    angle_overshoot = fabsf(angle_overshoot - fclampf(
+                                                    required_angle_femur,
+                                                    dim.max_angle_femur,
+                                                    dim.min_angle_femur)
+                                                            );
 
     // canceling femur rotation for dist
     float cos_angle_fem;
@@ -645,7 +651,7 @@ void find_vert_plane_dist(float& x, float& z, RobotDimensions& dim)
     float zeroing_radius = fmax(dim.middle_TG_radius_w_margin - center_adjust_factor, 0.f);
 
     float magnitude = fmax(
-            norm3df(x, z, 0.f),
+            hypotf(x, z),
             zeroing_radius
             );
 
@@ -657,9 +663,9 @@ __device__
 void finish_finding_dist(float3& coordinates, RobotDimensions& dim, const float coxa_angle)
 {
     // saturating coxa angle for dist
-    float test = fmax(norm3df(coordinates.x, coordinates.y, 0.f), 0.f);
+    float test = fmax(hypotf(coordinates.x, coordinates.y), 0.f);
     float sub = fmax(dim.max_angle_coxa - asin(10.f/ test), 0.f);
-    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, sub), -sub);
+    float saturated_coxa_angle = fclampf(coxa_angle, sub, -sub);
 //    float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa), dim.min_angle_coxa);
 
     // canceling coxa rotation for dist
@@ -695,7 +701,7 @@ float3 dist_double_solf3(float3 point, RobotDimensions& dim)
                         coxangle);
     finish_finding_dist(coordinate_flip,
                         dim,
-                        ((coxangle > 0)? coxangle - dim.pI : coxangle + dim.pI));
+                        coxangle - copysignf(dim.pI, coxangle));
 
     float3* result_to_use = (
             norm3df(coordinate_noflip.x, coordinate_noflip.y, coordinate_noflip.z)
@@ -750,7 +756,7 @@ bool reachability_vect(float3 point, RobotDimensions& dim)
     // flipping angle if above +-90deg
 //    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
     required_angle_coxa = (dim.pI/2 > abs(required_angle_coxa))? required_angle_coxa: required_angle_coxa
-            + ((required_angle_coxa > 0)? -dim.pI: dim.pI);
+            - copysignf(dim.pI,required_angle_coxa);
 
     if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
         return false;
@@ -800,7 +806,7 @@ bool reachability_texture(const float3 point,
 
     // flipping angle if above +-90deg
     required_angle_coxa = (dim.pI/2 > abs(required_angle_coxa))? required_angle_coxa: required_angle_coxa
-            + ((required_angle_coxa > 0)? -dim.pI: dim.pI);
+            - copysignf(dim.pI,required_angle_coxa);
 
     if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
         return false;
@@ -953,41 +959,41 @@ void dist2virdis_pipelinef3(Arrayf3 arr, RobotDimensions dimensions, unsigned ch
         // dist func
         float3 result = dist_double_solf3(arr.elements[i], dimensions);
 
-        //norm func
-        // norm stored in result[0]
-        result.x = norm3df(result.x,
-                            result.y,
-                            result.z)
-                    /600;
-
-        const auto virdis_color = tex1D<float4>(colormap, result.x);
-
-        float rBelow = virdis_color.x * 255.f;
-        float gBelow = virdis_color.y * 255.f;
-        float bBelow = virdis_color.z * 255.f;
-        float aBelow = virdis_color.w * 255.f;  // This is the new alpha value of 1 (opaque)
-
-        // Old pixel values
-        auto rAbove = (float)pixels[i * 4 + 0];
-        auto gAbove = (float)pixels[i * 4 + 1];
-        auto bAbove = (float)pixels[i * 4 + 2];
-        auto aAbove = (float)pixels[i * 4 + 3];
-
-        // Calculate the new pixel values with alpha compositing
-        float alphaAbove = aAbove / 255.0f;
-        float alphaBelow = aBelow / 255.0f;
-        float alphaResult = alphaAbove + alphaBelow * (1.0f - alphaAbove);
-
-        auto rMerged = (unsigned char)((rAbove * alphaAbove + rBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
-        auto gMerged = (unsigned char)((gAbove * alphaAbove + gBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
-        auto bMerged = (unsigned char)((bAbove * alphaAbove + bBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
-        auto aMerged = (unsigned char)(alphaResult * 255.0f);
-
-        // Update the pixel values
-        pixels[i * 4 + 0] = rMerged;
-        pixels[i * 4 + 1] = gMerged;
-        pixels[i * 4 + 2] = bMerged;
-        pixels[i * 4 + 3] = aMerged;
+//        //norm func
+//        // norm stored in result[0]
+//        result.x = norm3df(result.x,
+//                            result.y,
+//                            result.z)
+//                    /600;
+//
+//        const auto virdis_color = tex1D<float4>(colormap, result.x);
+//
+//        float rBelow = virdis_color.x * 255.f;
+//        float gBelow = virdis_color.y * 255.f;
+//        float bBelow = virdis_color.z * 255.f;
+//        float aBelow = virdis_color.w * 255.f;  // This is the new alpha value of 1 (opaque)
+//
+//        // Old pixel values
+//        auto rAbove = (float)pixels[i * 4 + 0];
+//        auto gAbove = (float)pixels[i * 4 + 1];
+//        auto bAbove = (float)pixels[i * 4 + 2];
+//        auto aAbove = (float)pixels[i * 4 + 3];
+//
+//        // Calculate the new pixel values with alpha compositing
+//        float alphaAbove = aAbove / 255.0f;
+//        float alphaBelow = aBelow / 255.0f;
+//        float alphaResult = alphaAbove + alphaBelow * (1.0f - alphaAbove);
+//
+//        auto rMerged = (unsigned char)((rAbove * alphaAbove + rBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
+//        auto gMerged = (unsigned char)((gAbove * alphaAbove + gBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
+//        auto bMerged = (unsigned char)((bAbove * alphaAbove + bBelow * alphaBelow * (1.0f - alphaAbove)) / alphaResult);
+//        auto aMerged = (unsigned char)(alphaResult * 255.0f);
+//
+//        // Update the pixel values
+//        pixels[i * 4 + 0] = rMerged;
+//        pixels[i * 4 + 1] = gMerged;
+//        pixels[i * 4 + 2] = bMerged;
+//        pixels[i * 4 + 3] = aMerged;
     }
 }
 
@@ -1000,11 +1006,11 @@ void reachability2img_vect_pipeline(Arrayf3 arr, RobotDimensions dimensions, uns
     for (int i = index; i < arr.length; i += stride) {
         bool result = reachability_vect(arr.elements[i], dimensions);
 
-        unsigned char val = (result)? 0 : 255;
-        for (int n=0; n<4; n++){
-            pixels[i * 4 + n] = val;
-        }
-        pixels[i * 4 + 3] = (unsigned char) (1*255);
+//        unsigned char val = (result)? 0 : 255;
+//        for (int n=0; n<4; n++){
+//            pixels[i * 4 + n] = val;
+//        }
+//        pixels[i * 4 + 3] = (unsigned char) (1*255);
     }
 }
 
@@ -1028,11 +1034,11 @@ void reachability2img_tex_pipeline(Arrayf3 arr, RobotDimensions dimensions, unsi
                                            text_max_y
                                             );
 
-        unsigned char val = (result)? 0 : 255;
-        for (int n=0; n<4; n++){
-            pixels[i * 4 + n] = val;
-        }
-        pixels[i * 4 + 3] = (unsigned char) (1*255);
+//        unsigned char val = (result)? 0 : 255;
+//        for (int n=0; n<4; n++){
+//            pixels[i * 4 + n] = val;
+//        }
+//        pixels[i * 4 + 3] = (unsigned char) (1*255);
     }
 }
 
@@ -1173,13 +1179,8 @@ void AutoEstimator::define_virdis_as_texture(){
 }
 
 void AutoEstimator::create_reachability_texture(){
-    const int width = 2000;
-    const int height = 2000;
-
-    float minx = -150;
-    float maxx = 570;
-    float miny = -400;
-    float maxy = 400;
+    const int width = reachTexHeight;
+    const int height = reachTexWidth;
 
     unsigned char* bool_arr;
 
@@ -1195,10 +1196,10 @@ void AutoEstimator::create_reachability_texture(){
             dimensions,
             width,
             height,
-            minx,
-            maxx,
-            miny,
-            maxy
+            reachTexMinX,
+            reachTexMaxX,
+            reachTexMinY,
+            reachTexMaxY
     );
 
     cudaChannelFormatDesc channelDesc =
@@ -1412,10 +1413,10 @@ void AutoEstimator::reachability_to_img_pipeline_tex(){
     reachability2img_tex_pipeline<<<numBlocks, blockSize >>>(arr_input_gpu, dimensions,
                                                          virdisTexture_gpu,
                                                          reachabilityTexture,
-                                                          -150,
-                                                          570,
-                                                          -400,
-                                                          400);
+                                                          reachTexMinX,
+                                                          reachTexMaxX,
+                                                          reachTexMinY,
+                                                          reachTexMaxY);
     cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();

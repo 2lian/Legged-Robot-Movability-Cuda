@@ -26,10 +26,11 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-        openGL_viz.cpp
         Header.h
         cuda_using_textures.cu
         create_virdis_tex.cu
+        profile.cpp
+#        openGL_viz.cpp
         #        cuda_mess.cu
 )
 
@@ -41,8 +42,9 @@ configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYO
 
 set_target_properties(cuda PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math")
 
-target_compile_options(cuda PRIVATE -O3)
+target_compile_options(cuda PRIVATE -O2)
 
 if(WIN32)
     # Define the source directory of SFML DLLs
