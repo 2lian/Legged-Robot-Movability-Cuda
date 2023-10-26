@@ -344,4 +344,5 @@ public:
 
 int notmain(){
     VirdisHolder();
+    return 0;
 }

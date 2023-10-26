@@ -25,12 +25,13 @@ int main(){
     float pix_size = 1; // mm between each screen pixel
     int windowWidth   = 1920;
     int windowHeight  = 1080;
+    bool runOnce = 0;
     std::cout << "let's go!";
     AutoEstimator autoe{(int)(pixel_density*windowWidth),
                         (int)(pixel_density*windowHeight),
                         1 / pix_size / pixel_density};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
-    window.setVerticalSyncEnabled(true);
+    window.setVerticalSyncEnabled(false);
 //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
@@ -88,6 +89,15 @@ int main(){
     int avg_counter = 0;
     Eigen::VectorXi vect_for_avg = Eigen::VectorXi::Zero(avg_size);
 
+    view_toggle = !view_toggle;
+    autoe.switch_zy();
+    if (view_toggle){textBox1.setString("Top view");}
+    else {textBox1.setString("Side view");}
+
+//    computation_toggle = !computation_toggle;
+//    if (computation_toggle){textBox2.setString("reachability_to_img_pipeline_tex");}
+//    else {textBox2.setString("reachability_to_img_pipelinef3");}
+
     while (window.isOpen()) {
         sf::Event event{};
         while (window.pollEvent(event)) {
@@ -125,7 +135,7 @@ int main(){
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
         sf::Vector2u windowSize = window.getSize();
         sf::Vector2i windowCenter(windowSize.x / 2, windowSize.y / 2);
-        sf::Vector2i relativePosition = (mousePosition - windowCenter)*2*0;
+        sf::Vector2i relativePosition = (mousePosition - windowCenter)*2;
 
         // Other game logic and updates here
 
@@ -146,7 +156,7 @@ int main(){
 //            autoe.derivate_output();
 //            autoe.dist_to_virdis_pipelinef3();
         } else {
-            autoe.reset_image();
+//            autoe.reset_image();
             autoe.reachability_to_img_pipelinef3();
         }
 
@@ -160,7 +170,9 @@ int main(){
         << "\n copying: " << copying.asMicroseconds()
                 << std::endl;
         std::cout << "GPUop total: " << (value_change+compute+copying).asMicroseconds() << " mirco sec" << std::endl;
-
+        if (runOnce){
+            break;
+        }
         clock.restart();
 
         texture.update(autoe.virdisTexture);

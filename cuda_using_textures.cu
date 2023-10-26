@@ -709,7 +709,7 @@ float3 dist_double_solf3(float3 point, RobotDimensions& dim)
 }
 
 __device__
-bool reachability_from_coxa(float& x, float& y, RobotDimensions& dim) {
+bool reachability_from_coxa(float x, float y, RobotDimensions& dim) {
 
     // Femur as the frame of reference witout rotation
     x -= dim.coxa_length;
@@ -737,19 +737,20 @@ bool reachability_from_coxa(float& x, float& y, RobotDimensions& dim) {
 }
 
 __device__
-bool reachability_vect(const float3& point, RobotDimensions& dim)
+bool reachability_vect(float3 point, RobotDimensions& dim)
 // no angle flipping
 {
     // Coxa as the frame of reference without rotation
-    float3 result;
-    result = point;
+    float3& result = point;
     result.x -= dim.body;
 
     // finding coxa angle
     float required_angle_coxa = atan2f(result.y, result.x);
 
     // flipping angle if above +-90deg
-    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+//    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+    required_angle_coxa = (dim.pI/2 > abs(required_angle_coxa))? required_angle_coxa: required_angle_coxa
+            + ((required_angle_coxa > 0)? -dim.pI: dim.pI);
 
     if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
         return false;
@@ -765,21 +766,22 @@ bool reachability_vect(const float3& point, RobotDimensions& dim)
 }
 
 __device__
-bool reachability_from_coxa_texture(float& x, float& y, RobotDimensions& dim,
+bool reachability_from_coxa_texture(const float x, const float y, RobotDimensions& dim,
                                     cudaTextureObject_t& reachabilitymap,
-                                    float text_min_x,
-                                    float text_max_x,
-                                    float text_min_y,
-                                    float text_max_y) {
+                                    const float text_min_x,
+                                    const float text_max_x,
+                                    const float text_min_y,
+                                    const float text_max_y) {
 
-    float u = (x - (text_min_x + text_max_x)/2) / ((text_max_x - text_max_x)/2);
-    float v = (y - (text_min_y + text_max_y)/2) / ((text_max_y - text_max_y)/2);
+    const float u = 0.f + 1.f * (x - text_min_x) / (text_max_x - text_min_x);
+    const float v = 0.f + 1.f * (y - text_min_y) / (text_max_y - text_min_y);
+
     auto uVal = tex2D<unsigned char>(reachabilitymap, u, v);
     return (uVal == 1);
 }
 
 __device__
-bool reachability_texture(const float3& point,
+bool reachability_texture(const float3 point,
                           RobotDimensions& dim,
                           cudaTextureObject_t& reachabilitymap,
                           float text_min_x,
@@ -787,7 +789,6 @@ bool reachability_texture(const float3& point,
                           float text_min_y,
                           float text_max_y
                           )
-// no angle flipping
 {
     // Coxa as the frame of reference without rotation
     float3 result;
@@ -798,7 +799,8 @@ bool reachability_texture(const float3& point,
     float required_angle_coxa = atan2f(result.y, result.x);
 
     // flipping angle if above +-90deg
-    required_angle_coxa = fmodf(required_angle_coxa + dim.pI / 2.f + 2.f * dim.pI, dim.pI) - dim.pI / 2.f;
+    required_angle_coxa = (dim.pI/2 > abs(required_angle_coxa))? required_angle_coxa: required_angle_coxa
+            + ((required_angle_coxa > 0)? -dim.pI: dim.pI);
 
     if ((required_angle_coxa > dim.max_angle_coxa) || (required_angle_coxa < dim.min_angle_coxa)){
         return false;
@@ -821,26 +823,30 @@ bool reachability_texture(const float3& point,
 
 __global__ void fill_mem_with_reachability_from_coxa(unsigned char* mem_loc_ptr,
                                                      RobotDimensions dim,
-                                                     int width,
-                                                     int height,
-                                                     float minx,
-                                                     float maxx,
-                                                     float miny,
-                                                     float maxy
+                                                     const int width,
+                                                     const int height,
+                                                     const float minx,
+                                                     const float maxx,
+                                                     const float miny,
+                                                     const float maxy
                                                        ) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int stridex = blockDim.x * gridDim.x;
-    int j = blockIdx.y * blockDim.y + threadIdx.y;
-    int stridey = blockDim.y * gridDim.y;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int stridex = blockDim.x * gridDim.x;
+    const int j = blockIdx.y * blockDim.y + threadIdx.y;
+    const int stridey = blockDim.y * gridDim.y;
 
     for (int x = i; x < width; x += stridex) {
-        float x_coord = minx + (float)x/(float)width * (maxx - minx);
-        x_coord+=dim.body+dim.coxa_length;
+        const float x_coord = minx + (float)x/(float)(width - 1) * (maxx - minx);
         for (int y = j; y < height; y += stridey) {
-            float y_coord = miny + (float)y/(float)height * (maxy - miny);
-//            mem_loc_ptr[x*y] = 1;
-            mem_loc_ptr[x*y] = (reachability_from_coxa(x_coord, y_coord, dim))? 1: 0;
-//            mem_loc_ptr[x*y] = (y_coord>0)? 1: 0;
+            const float y_coord = miny + (float)y/(float)(height - 1) * (maxy - miny);
+            const int pix_index = x + y * width;
+//            int pix_index = y + x*height;
+//            mem_loc_ptr[pix_index] = 0;
+            mem_loc_ptr[pix_index] = (reachability_from_coxa(x_coord, y_coord, dim)
+//                    ||y==0 || x==0 || y==height-1 || x==width-1
+                    )? 1: 0;
+//            mem_loc_ptr[pix_index] = (y_coord>0 && x_coord>0)? 1: 0;
+//            mem_loc_ptr[pix_index] = (y==0 || x==0 || y==height-1 || x==width-1)? 1: 0;
         }
     }
 
@@ -1167,18 +1173,19 @@ void AutoEstimator::define_virdis_as_texture(){
 }
 
 void AutoEstimator::create_reachability_texture(){
-    const int width = 256;
-    const int height = 256;
+    const int width = 2000;
+    const int height = 2000;
 
-    float minx = -1000;
-    float maxx = 1000;
-    float miny = -1000;
-    float maxy = 1000;
+    float minx = -150;
+    float maxx = 570;
+    float miny = -400;
+    float maxy = 400;
 
     unsigned char* bool_arr;
 
     cudaMalloc(&bool_arr,
                height * width * sizeof(unsigned char));
+//    cudaMemset(&bool_arr, (unsigned char)0, height * width);
 
     dim3 threadsPerBlock(16, 16);
     dim3 numBlocks(width / threadsPerBlock.x, height / threadsPerBlock.y);
@@ -1225,8 +1232,8 @@ void AutoEstimator::create_reachability_texture(){
     memset(&texDesc, 0, sizeof(texDesc));
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.addressMode[1] = cudaAddressModeClamp;
-    texDesc.filterMode = cudaFilterModePoint;
-    texDesc.readMode = cudaReadModeElementType;
+    texDesc.filterMode = cudaFilterModePoint; //cudaFilterModeLinear cudaFilterModePoint
+    texDesc.readMode = cudaReadModeElementType; //cudaReadModeNormalizedFloat cudaReadModeElementType
     texDesc.normalizedCoords = 1;
 
     // Create texture object
@@ -1405,10 +1412,10 @@ void AutoEstimator::reachability_to_img_pipeline_tex(){
     reachability2img_tex_pipeline<<<numBlocks, blockSize >>>(arr_input_gpu, dimensions,
                                                          virdisTexture_gpu,
                                                          reachabilityTexture,
-                                                         -1000,
-                                                         1000,
-                                                         -1000,
-                                                         1000);
+                                                          -150,
+                                                          570,
+                                                          -400,
+                                                          400);
     cudaDeviceSynchronize();
     if (verbose) { std::cout << "Compute done" << std::endl;}
     error_check();
