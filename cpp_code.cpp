@@ -1,24 +1,12 @@
 #include <iostream>
-#include "Header.h"
+#include "HeaderCPP.h"
+#include "HeaderCUDA.h"
 #include <SFML/Graphics.hpp>
 #include <tinycolormap.hpp>
 #include <random>
 #include <Eigen/Dense>
 
-int CalculateMedian(const Eigen::VectorXi& data) {
-    // Convert the Eigen vector to a std::vector for sorting
-    std::vector<int> stdVector(data.data(), data.data() + data.size());
 
-    // Sort the std::vector
-    std::sort(stdVector.begin(), stdVector.end());
-
-    // Calculate the median
-    int median;
-    size_t size = stdVector.size();
-    median = stdVector[size / 2]; // not very true but I don't care
-
-    return median;
-}
 
 int main(){
     float pixel_density = 1; // sample/pixel
@@ -29,7 +17,7 @@ int main(){
     AutoEstimator autoe{(int)(pixel_density*windowWidth), (int)(pixel_density*windowHeight), 1 / pix_size / pixel_density};
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML Background Image");
     window.setVerticalSyncEnabled(false);
-//    window.setFramerateLimit(1000);
+    //    window.setFramerateLimit(1000);
 
     sf::Texture texture;
     texture.create((int)(pixel_density*windowWidth), (int)(pixel_density*windowHeight));
@@ -47,27 +35,27 @@ int main(){
     sf::Text textBox2;
     sf::Text textBox3;
 
-// Set the font
+    // Set the font
     textBox1.setFont(font);
     textBox2.setFont(font);
     textBox3.setFont(font);
 
-// Set the text content
+    // Set the text content
     textBox1.setString("Top view");
     textBox2.setString("Gradient");
     textBox3.setString("");
 
-// Set the position
+    // Set the position
     textBox1.setPosition(10, 5);  // Adjust these coordinates as needed
     textBox2.setPosition(10, 60);  // Adjust these coordinates as needed
     textBox3.setPosition(10, 110);  // Adjust these coordinates as needed
 
-// Set the text color
+    // Set the text color
     textBox1.setFillColor(sf::Color::Black);
     textBox2.setFillColor(sf::Color::Black);
     textBox3.setFillColor(sf::Color::Black);
 
-// Set the character size
+    // Set the character size
     textBox1.setCharacterSize(50);  // Adjust the size as needed
     textBox2.setCharacterSize(50);  // Adjust the size as needed
     textBox3.setCharacterSize(50);  // Adjust the size as needed

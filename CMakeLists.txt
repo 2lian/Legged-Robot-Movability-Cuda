@@ -2,13 +2,15 @@
 
 cmake_minimum_required(VERSION 3.26)
 project(cuda LANGUAGES CUDA CXX)
+# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Detect the operating system
 if(WIN32)
     set(SFML_DIR "${CMAKE_SOURCE_DIR}/externals/SFML-2.6.0_win")
     set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_win")
 elseif(UNIX)
-    # you need sfml installed using 'sudo apt-get install libsfml-dev' to use find_package
+    # you need sfml installed using 'sudo apt-get install libsfml-dev' to 
+    # use find_package
     find_package(SFML COMPONENTS graphics window system REQUIRED)
     set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_linux")
 else()
@@ -17,7 +19,9 @@ endif()
 
 include_directories("${CUDA_DIR}/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/tinycolormap-master/include")
+# include_directories("externals/tinycolormap-master/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
+# include_directories("externals/eigen-3.4.0")
 if(WIN32)
     include_directories("${SFML_DIR}/include")
     link_directories("${SFML_DIR}/lib")
@@ -26,9 +30,14 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-        cpp_code.cpp
-        Header.h
-        cuda_code.cu)
+    cpp_code.cpp
+    math_util.cpp
+    static_variables.cpp
+    cuda_code.cu
+    one_leg.cu
+    HeaderCPP.h
+    HeaderCUDA.h
+    )
 
 target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
 target_include_directories(cuda PRIVATE "${CUDA_DIR}/include")
@@ -41,8 +50,7 @@ set_target_properties(cuda PROPERTIES
 
 target_compile_options(cuda PRIVATE -O3)
 
-if(WIN32)
-    # Define the source directory of SFML DLLs
+if(WIN32) # Define the source directory of SFML DLLs
     set(SFML_DLL_DIR "${SFML_DIR}/bin")
 
     # Define a list of SFML DLLs you want to copy

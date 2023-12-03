@@ -1,0 +1,11 @@
+CompileFlags: # Tweak the parse settings
+  Add: [
+    --cuda-path=/usr/local/cuda-12.3,
+    --cuda-gpu-arch=sm_52,
+
+    -Iexternals/eigen-3.4.0, 
+    -Iexternals/tinycolormap-master/include,
+    -Iexternals/cuda-12.2_linux/include
+  ]
+    # - "-I=[externals/eigen-3.4.0]"
+    # - "-I=[externals/tinycolormap-master/include]"

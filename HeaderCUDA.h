@@ -1,63 +1,14 @@
-//
-// Created by 2lian on 2023-09-16.
-//
 #pragma once
 #ifndef CUDA_HEADER_H
 #define CUDA_HEADER_H
+
 #include <driver_types.h>
-
-// Matrices are stored in row-major order:
-// M(row, col) = *(M.elements + row * M.width + col)
-typedef struct {
-    int width;
-    int height;
-    int stride;
-    float* elements;
-} Matrixf;
-
-typedef struct {
-    int width;
-    int height;
-    int stride;
-    bool* elements;
-} Matrixb;
+#include "HeaderCPP.h"
 
 typedef struct {
     int length;
     float3* elements;
 } Arrayf3;
-
-struct RobotDimensions {
-public:
-    float pI;
-    float body;
-    float coxa_angle_deg;
-    float coxa_length;
-    float tibia_angle_deg;
-    float tibia_length;
-    float tibia_length_squared;
-    float femur_angle_deg;
-    float femur_length;
-    float max_angle_coxa;
-    float min_angle_coxa;
-    float max_angle_coxa_w_margin;
-    float min_angle_coxa_w_margin;
-    float max_angle_tibia;
-    float min_angle_tibia;
-    float max_angle_femur;
-    float min_angle_femur;
-    float max_angle_femur_w_margin;
-    float min_angle_femur_w_margin;
-    float positiv_saturated_femur[2];
-    float negativ_saturated_femur[2];
-    float fem_tib_min_host[2];
-    float max_tibia_to_gripper_dist;
-    float min_tibia_to_gripper_dist;
-    float middle_TG;
-    float middle_TG_radius;
-    float middle_TG_radius_w_margin;
-    float femur_overmargin;
-};
 
 class AutoEstimator {
 private:
@@ -120,4 +71,4 @@ public:
     void derivate_output();
 };
 
-#endif //CUDA_HEADER_H
+#endif
