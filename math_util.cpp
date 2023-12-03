@@ -1,7 +1,8 @@
 /* #include <iostream> */
 /* #include <fstream> */
 #include "HeaderCPP.h"
-#include <tinycolormap.hpp>
+/* #include <tinycolormap.hpp> */
+#include <vector>
 /* #include <random> */
 
 int CalculateMedian(const Eigen::VectorXi& data) {

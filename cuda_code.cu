@@ -483,7 +483,7 @@ float3 dist_flipf3(float3& point, RobotDimensions& dim)
 }
 
 __device__
-float place_over_coxa(float3& coordinates, RobotDimensions& dim)
+void place_over_coxa(float3& coordinates, RobotDimensions& dim)
 {
     // Coxa as the frame of reference without rotation
     coordinates.x -= dim.body;
@@ -1183,7 +1183,7 @@ AutoEstimator::AutoEstimator(int pxWidth, int pxHeight, float scale) {
     verbose = true;
     screenWidth = pxWidth;
     screenHeight = pxHeight;
-    dimensions = dim_of_SCARE();
+    dimensions = cpu::get_dim_of_SCARE();
     rows = screenWidth * screenHeight;
 
     table_input.width = 3; table_input.height = rows;

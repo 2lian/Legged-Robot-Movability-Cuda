@@ -14,24 +14,25 @@ else
   set shortmess=aoO
 endif
 badd +1 ~/Legged-Robot-Movability-Cuda
-badd +3 cpp_code.cpp
-badd +7 cuda_code.cu
+badd +6 cpp_code.cpp
+badd +2 cuda_code.cu
 badd +1 one_leg.cu
-badd +4 static_variables.cpp
+badd +1 static_variables.cpp
 badd +10 Header.h
 badd +1 HeaderCUDA.h
-badd +23 HeaderCPP.h
+badd +2 HeaderCPP.h
 badd +1 Makefile
-badd +1 CMakeLists.txt
+badd +20 CMakeLists.txt
 badd +1 externals/eigen-3.4.0/INSTALL
 badd +3 math_util.cpp
-badd +4 LAUNCH.bash
+badd +1 LAUNCH.bash
 badd +17 compile_commands.json
 badd +1 externals/eigen-3.4.0/Eigen/Dense
 badd +39 term://~/Legged-Robot-Movability-Cuda//4934:.\ LAUNCH.bash
 badd +4336 ~/.local/state/nvim/lsp.log
 badd +8 .clangd
 badd +1 /usr/include/c++/9/iostream
+badd +823 externals/tinycolormap-master/include/tinycolormap.hpp
 badd +0 fugitive:///home/elian/Legged-Robot-Movability-Cuda/.git//
 argglobal
 %argdel
@@ -56,29 +57,29 @@ set winwidth=1
 exe '1resize ' . ((&lines * 22 + 23) / 46)
 exe '2resize ' . ((&lines * 21 + 23) / 46)
 argglobal
-balt .clangd
+balt ~/Legged-Robot-Movability-Cuda
 setlocal fdm=manual
 setlocal fde=0
-setlocal fmr={{{,}}}
+setlocal fmr=<<<<<<<<,>>>>>>>>
 setlocal fdi=#
 setlocal fdl=0
 setlocal fml=1
 setlocal fdn=20
 setlocal fen
-let s:l = 1 - ((0 * winheight(0) + 11) / 22)
+let s:l = 14 - ((13 * winheight(0) + 11) / 22)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1
-normal! 0
+keepjumps 14
+normal! 012|
 lcd ~/Legged-Robot-Movability-Cuda
 wincmd w
 argglobal
-if bufexists(fnamemodify("~/Legged-Robot-Movability-Cuda/math_util.cpp", ":p")) | buffer ~/Legged-Robot-Movability-Cuda/math_util.cpp | else | edit ~/Legged-Robot-Movability-Cuda/math_util.cpp | endif
+if bufexists(fnamemodify("~/Legged-Robot-Movability-Cuda/LAUNCH.bash", ":p")) | buffer ~/Legged-Robot-Movability-Cuda/LAUNCH.bash | else | edit ~/Legged-Robot-Movability-Cuda/LAUNCH.bash | endif
 if &buftype ==# 'terminal'
-  silent file ~/Legged-Robot-Movability-Cuda/math_util.cpp
+  silent file ~/Legged-Robot-Movability-Cuda/LAUNCH.bash
 endif
-balt ~/Legged-Robot-Movability-Cuda/.clangd
+balt ~/Legged-Robot-Movability-Cuda
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -89,12 +90,12 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 32 - ((13 * winheight(0) + 10) / 21)
+let s:l = 5 - ((4 * winheight(0) + 10) / 21)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 32
-normal! 0
+keepjumps 5
+normal! 06|
 lcd ~/Legged-Robot-Movability-Cuda
 wincmd w
 exe '1resize ' . ((&lines * 22 + 23) / 46)

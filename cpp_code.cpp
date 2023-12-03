@@ -3,7 +3,7 @@
 #include "HeaderCUDA.h"
 #include <SFML/Graphics.hpp>
 #include <tinycolormap.hpp>
-#include <random>
+/* #include <random> */
 #include <Eigen/Dense>
 
 
