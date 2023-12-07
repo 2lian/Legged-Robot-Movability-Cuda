@@ -1,3 +1,11 @@
 # Project exclude paths
-/build01/
-/build02/
+build*/
+build01/
+build02/
+.idea/
+Session.vim
+/CMakeCache.txt
+/CMakeFiles/
+/Makefile
+/cmake_install.cmake
+/cuda
