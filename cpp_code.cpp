@@ -1,6 +1,7 @@
 #include <iostream>
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "math_util.cpp"
 #include <SFML/Graphics.hpp>
 #include <tinycolormap.hpp>
 /* #include <random> */

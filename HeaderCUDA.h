@@ -1,9 +1,22 @@
 #pragma once
-#ifndef CUDA_HEADER_H
-#define CUDA_HEADER_H
-
 #include <driver_types.h>
 #include "HeaderCPP.h"
+
+// Matrices are stored in row-major order:
+// M(row, col) = *(M.elements + row * M.width + col)
+typedef struct {
+    int width;
+    int height;
+    int stride;
+    float* elements;
+} Matrixf;
+
+typedef struct {
+    int width;
+    int height;
+    int stride;
+    bool* elements;
+} Matrixb;
 
 typedef struct {
     int length;
@@ -70,5 +83,3 @@ public:
 
     void derivate_output();
 };
-
-#endif

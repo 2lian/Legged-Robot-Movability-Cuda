@@ -1,9 +1,5 @@
-/* #include <iostream> */
-/* #include <fstream> */
-#include "HeaderCPP.h"
-/* #include <tinycolormap.hpp> */
 #include <vector>
-/* #include <random> */
+#include <Eigen/Dense>
 
 int CalculateMedian(const Eigen::VectorXi& data) {
     // Convert the Eigen vector to a std::vector for sorting

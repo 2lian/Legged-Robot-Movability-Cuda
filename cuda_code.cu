@@ -1,5 +1,4 @@
 #include <iostream>
-#include <fstream>
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
 
@@ -265,7 +264,6 @@ __constant__ __device__ float VirdisData[256*3] = {
     0.993248, 0.906157, 0.143936 
 };
 
-
 __constant__ __device__ float VirdisColorMapData[256][3] = {
     { 0.f, 0.f, 0.f },
     //                { 0.267004, 0.004874, 0.329415 },
@@ -525,8 +523,6 @@ __constant__ __device__ float VirdisColorMapData[256][3] = {
     { 0.983868, 0.904867, 0.136897 },
     { 0.993248, 0.906157, 0.143936 }
 };
-
-
 
 __global__
 void empty_kernel() {
