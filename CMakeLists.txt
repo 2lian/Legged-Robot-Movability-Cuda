@@ -1,6 +1,7 @@
 # please follow this if you work on Clion https://www.jetbrains.com/help/clion/cuda-projects.html#set-nvcc
 
 cmake_minimum_required(VERSION 3.26)
+set(CMAKE_CUDA_ARCHITECTURES "native")
 project(cuda LANGUAGES CUDA CXX)
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
