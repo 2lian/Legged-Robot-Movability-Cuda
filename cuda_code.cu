@@ -1146,9 +1146,8 @@ __device__ bool legs_reachable(float* body_position, Matrixf target_set,
     return result;
 }
 
-__global__ void all5_reachable(Matrixf body_pos_table,
-                               LegDimensions dimensions, Matrixf target_set,
-                               unsigned char* pixels) {
+__global__ void all5_reachable(Matrixf body_pos_table, LegDimensions dimensions,
+                               Matrixf target_set, unsigned char* pixels) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < body_pos_table.height; i += stride) {
@@ -1345,19 +1344,19 @@ void AutoEstimator::input_as_grid(const float scale_factor) const {
             // X
             *(table_input.elements + row * table_input.width + 0)
                 //= -1000.0f + static_cast<float>(rand()) /
-                //static_cast<float>(RAND_MAX) * 2000.0f;
+                // static_cast<float>(RAND_MAX) * 2000.0f;
                 = x;
             arr_input.elements[row].x = x;
             // Y
             *(table_input.elements + row * table_input.width + 1)
                 //= -1000.0f + static_cast<float>(rand()) /
-                //static_cast<float>(RAND_MAX) * 2000.0f;
+                // static_cast<float>(RAND_MAX) * 2000.0f;
                 = y;
             arr_input.elements[row].y = y;
             // Z
             *(table_input.elements + row * table_input.width + 2)
                 //= -500.0f + static_cast<float>(rand()) /
-                //static_cast<float>(RAND_MAX) * 1000.0f;
+                // static_cast<float>(RAND_MAX) * 1000.0f;
                 = z;
             arr_input.elements[row].z = z;
         }
