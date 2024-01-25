@@ -1,6 +1,9 @@
 #pragma once
-#include <driver_types.h>
 #include "HeaderCPP.h"
+#include <driver_types.h>
+
+__device__ constexpr float pIgpu =
+    3.14159265358979323846264338327950288419716939937510582097f;
 
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
@@ -24,14 +27,15 @@ typedef struct {
 } Arrayf3;
 
 class AutoEstimator {
-private:
+  private:
     cudaError_t cudaStatus;
-public:
+
+  public:
     int screenWidth;
     int screenHeight;
     int rows;
 
-    RobotDimensions dimensions{};
+    LegDimensions dimensions{};
     Matrixf table_input{};
     Matrixf table_input_gpu{};
     Matrixf result_gpu{};
