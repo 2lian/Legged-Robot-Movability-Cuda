@@ -1,4 +1,5 @@
 #pragma once
+/* #include "cpp_code.cpp" */
 #include <Eigen/Dense>
 
 typedef struct RobotDimensions{
@@ -41,6 +42,7 @@ typedef struct RobotDimensions{
 } RobotDimensions;
 
 
-int CalculateMedian(const Eigen::VectorXi& data);
+RobotDimensions get_dim_of_SCARE();
+int calculateMedian(const Eigen::VectorXi& data);
 float calculateMean(const float* arr, int size);
-float calculateStdDev(const float* arr, int size, float mean);
+

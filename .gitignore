@@ -9,3 +9,5 @@ Session.vim
 /Makefile
 /cmake_install.cmake
 /cuda
+/.cache
+/.cmake

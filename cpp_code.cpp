@@ -1,7 +1,6 @@
 #include <iostream>
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
-#include "math_util.cpp"
 #include <SFML/Graphics.hpp>
 #include <tinycolormap.hpp>
 /* #include <random> */
@@ -120,7 +119,7 @@ int main(){
         if(run_toggle){
             avg_counter = (avg_counter+1) % avg_size;
             vect_for_avg[avg_counter] = (int)compute.asMicroseconds();
-            textBox3.setString(std::to_string(CalculateMedian(vect_for_avg)) + " us");
+            textBox3.setString(std::to_string(calculateMedian(vect_for_avg)) + " us");
             if (view_toggle){
                 autoe.change_z_value((float) relativePosition.y / 2.f);
             } else {
