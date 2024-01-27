@@ -1,5 +1,4 @@
-#include "HeaderCPP.h"
-#include <cmath>
+#include "static_variables.h"
 
 LegDimensions get_SCARE_leg(float body_angle) {
     LegDimensions scare{};

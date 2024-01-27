@@ -31,11 +31,15 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
-    cpp_code.cpp
     math_util.cpp
+    math_util.h
     static_variables.cpp
-    cuda_code.cu
+    static_variables.h
     one_leg.cu
+    one_leg.h
+    one_leg.cpp
+    cuda_util.cu
+    cuda_util.h
     HeaderCPP.h
     HeaderCUDA.h
     )

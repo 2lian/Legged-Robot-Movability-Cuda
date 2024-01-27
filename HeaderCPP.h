@@ -1,6 +1,4 @@
 #pragma once
-/* #include "cpp_code.cpp" */
-#include <Eigen/Dense>
 
 constexpr float pI =
     3.14159265358979323846264338327950288419716939937510582097f;
@@ -44,5 +42,3 @@ typedef struct LegDimensions {
 } LegDimensions;
 
 LegDimensions get_SCARE_leg(float body_angle);
-int calculateMedian(const Eigen::VectorXi& data);
-float calculateMean(const float* arr, int size);

@@ -1,6 +1,4 @@
-#include <vector>
-#include <Eigen/Dense>
-#include "HeaderCPP.h"
+#include "math_util.h"
 
 int calculateMedian(const Eigen::VectorXi& data) {
     // Convert the Eigen vector to a std::vector for sorting
