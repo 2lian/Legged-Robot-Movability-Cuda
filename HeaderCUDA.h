@@ -6,6 +6,24 @@
 __device__ constexpr float pIgpu =
     3.14159265358979323846264338327950288419716939937510582097f;
 
+template <typename T>
+struct Array {
+    int length;
+    T* elements;
+};
+
+template <>
+struct Array<float3> {
+    int length;
+    float3* elements;
+};
+
+template <>
+struct Array<bool> {
+    int length;
+    bool* elements;
+};
+
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
 typedef struct {

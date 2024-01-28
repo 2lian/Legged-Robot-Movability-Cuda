@@ -14,6 +14,8 @@ elseif(UNIX)
     # use find_package
     find_package(SFML COMPONENTS graphics window system REQUIRED)
     set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_linux")
+
+    find_package(Catch2 3 REQUIRED)
 else()
     message(FATAL_ERROR "Unsupported operating system")
 endif()
@@ -31,20 +33,22 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(cuda
+    HeaderCPP.h
+    HeaderCUDA.h
     math_util.cpp
     math_util.h
     static_variables.cpp
     static_variables.h
     one_leg.cu
-    one_leg.h
+    one_leg.cu.h
     one_leg.cpp
     cuda_util.cu
     cuda_util.h
-    HeaderCPP.h
-    HeaderCUDA.h
     )
 
-target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
+# target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
+# target_link_libraries(cuda PRIVATE Catch2::Catch2)
+target_link_libraries(cuda PRIVATE Catch2::Catch2WithMain)
 target_include_directories(cuda PRIVATE "${CUDA_DIR}/include")
 
 # Copy font file to the build directory
@@ -74,3 +78,7 @@ if(WIN32) # Define the source directory of SFML DLLs
                 $<TARGET_FILE_DIR:cuda>)
     endforeach()
 endif ()
+
+include(CTest)
+include(Catch)
+catch_discover_tests(cuda)

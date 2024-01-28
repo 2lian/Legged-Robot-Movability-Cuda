@@ -33,3 +33,7 @@ float calculateStdDev(const float* arr, int size, float mean) {
     }
     return std::sqrt(sum / (size - 1));
 }
+
+bool close(float a, float b, float interval) {
+    return (a - interval < b) && (b < a + interval);
+}
