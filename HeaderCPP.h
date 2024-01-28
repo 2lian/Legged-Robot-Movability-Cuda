@@ -30,7 +30,7 @@ typedef struct LegDimensions {
 
     float negativ_saturated_femur[2];
 
-    float fem_tib_min_host[2];
+    float fem_tib_min[2];
 
     float min_tibia_to_gripper_dist;
     float middle_TG;

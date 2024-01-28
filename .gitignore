@@ -11,3 +11,8 @@ Session.vim
 /cuda
 /.cache
 /.cmake
+
+CTestTestfile.cmake
+DartConfiguration.tcl
+cuda-b12d07c_include.cmake
+cuda-b12d07c_tests.cmake

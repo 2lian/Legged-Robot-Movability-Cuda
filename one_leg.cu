@@ -1,4 +1,5 @@
-#include "one_leg.h"
+#include "HeaderCUDA.h"
+#include "one_leg.cu.h"
 
 __device__ void place_over_coxa(float3& coordinates, const LegDimensions& dim) {
     // Coxa as the frame of reference without rotation
@@ -168,8 +169,9 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
     return linnorm < dim.femur_length;
 }
 
-__global__ void dist_kernel(const Arrayf3 input, LegDimensions dimensions,
-                               Arrayf3 const output) {
+__global__ void dist_kernel(const Array<float3> input,
+                            const LegDimensions dimensions,
+                            Array<float3> const output) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < input.length; i += stride) {
@@ -177,11 +179,32 @@ __global__ void dist_kernel(const Arrayf3 input, LegDimensions dimensions,
     }
 }
 
-__global__ void reachability_kernel(const Arrayf3 input, LegDimensions dimensions,
-                               Arrayb const output) {
+__global__ void reachability_kernel(const Array<float3> input,
+                                    const LegDimensions dimensions,
+                                    Array<bool> const output) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < input.length; i += stride) {
         output.elements[i] = reachability_vect(input.elements[i], dimensions);
     }
 }
+/*
+__global__ void dist_kernel(const Arrayf3 input, const LegDimensions dimensions,
+                            Arrayf3 const output) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < input.length; i += stride) {
+        output.elements[i] = dist_double_solf3(input.elements[i], dimensions);
+    }
+}
+
+__global__ void reachability_kernel(const Arrayf3 input,
+                                    const LegDimensions dimensions,
+                                    Arrayb const output) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < input.length; i += stride) {
+        output.elements[i] = reachability_vect(input.elements[i], dimensions);
+    }
+}
+*/
