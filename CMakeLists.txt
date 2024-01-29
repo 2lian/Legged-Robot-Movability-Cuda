@@ -16,6 +16,12 @@ elseif(UNIX)
     set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_linux")
 
     find_package(Catch2 3 REQUIRED)
+    #install with
+    # cd ~
+    # $ git clone https://github.com/catchorg/Catch2.git
+# $ cd Catch2
+# $ cmake -Bbuild -H. -DBUILD_TESTING=OFF
+# $ sudo cmake --build build/ --target install
 else()
     message(FATAL_ERROR "Unsupported operating system")
 endif()
