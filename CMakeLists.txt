@@ -2,6 +2,7 @@
 
 cmake_minimum_required(VERSION 3.26)
 set(CMAKE_CUDA_ARCHITECTURES "native")
+# set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -arch=sm_75)
 project(cuda LANGUAGES CUDA CXX)
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -13,7 +14,9 @@ elseif(UNIX)
     # you need sfml installed using 'sudo apt-get install libsfml-dev' to 
     # use find_package
     find_package(SFML COMPONENTS graphics window system REQUIRED)
-    set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_linux")
+    # set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_linux")
+    set(CUDA_DIR "/usr/local/cuda-11.4")
+    find_package(CUDA 11.0 REQUIRED)
 
     find_package(Catch2 3 REQUIRED)
     #install with

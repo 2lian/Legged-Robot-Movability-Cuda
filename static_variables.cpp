@@ -22,7 +22,7 @@ LegDimensions get_SCARE_leg(float body_angle) {
     scare.max_angle_coxa_w_margin =
         pI / 180.0f * (scare.coxa_angle_deg - coxa_margin);
     scare.min_angle_coxa_w_margin =
-        -pI / 180.0f * (scare.coxa_angle_deg - 5.0f);
+        -pI / 180.0f * (scare.coxa_angle_deg - coxa_margin);
     scare.max_angle_tibia = pI / 180.0f * scare.tibia_angle_deg;
     scare.min_angle_tibia = -pI / 180.0f * scare.tibia_angle_deg;
     scare.max_angle_femur = scare.max_angle_tibia;

@@ -1,5 +1,6 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include <cstdio>
 // #include "cuda_runtime_api.h"
 
 __global__ void empty_kernel() {}
@@ -22,9 +23,19 @@ __global__ void norm3df_kernel(Arrayf3 input, Arrayf output) {
     }
 }
 
+#define CUDA_CHECK_ERROR(errorMessage)                                         \
+    do {                                                                       \
+        cudaError_t err = cudaGetLastError();                                  \
+        if (err != cudaSuccess) {                                              \
+            fprintf(stderr, "CUDA error in %s: %s\n", errorMessage,            \
+                    cudaGetErrorString(err));                                  \
+            exit(EXIT_FAILURE);                                                \
+        }                                                                      \
+    } while (0)
+
 /**
  * @brief applies kernel on provided array to provided array
- * 
+ *
  * @tparam T_in
  * @tparam T_out
  * @param input Input array of any type
@@ -42,18 +53,23 @@ void apply_kernel(const Array<T_in> input, const LegDimensions dim,
     gpu_in.length = input.length;
     gpu_out.length = output.length;
     cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(T_in));
+    CUDA_CHECK_ERROR("cudaMalloc gpu_in.elements");
     cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(T_out));
+    CUDA_CHECK_ERROR("cudaMalloc gpu_out.elements");
 
     cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(T_in),
                cudaMemcpyHostToDevice);
+    CUDA_CHECK_ERROR("cudaMemcpy gpu_in.elements");
 
     int blockSize = 1024;
     int numBlock = (input.length + blockSize - 1) / blockSize;
     kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
-    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("Kernel launch");
 
     cudaMemcpy(output.elements, gpu_out.elements, output.length * sizeof(T_out),
                cudaMemcpyDeviceToHost);
+    CUDA_CHECK_ERROR("cudaMemcpy gpu_out.elements");
+    cudaDeviceSynchronize();
 
     cudaFree(gpu_in.elements);
     cudaFree(gpu_out.elements);
@@ -69,55 +85,3 @@ template void apply_kernel<float3, bool>(Array<float3>, LegDimensions,
                                          void (*)(const Array<float3>,
                                                   LegDimensions, Array<bool>),
                                          Array<bool>);
-
-void apply_kernel(const Arrayf3 input, const LegDimensions dim,
-                  void (*kernel)(const Arrayf3, const LegDimensions,
-                                 Arrayf3 const),
-                  Arrayf3 const output) {
-    Arrayf3 gpu_in{};
-    Arrayf3 gpu_out{};
-    gpu_in.length = input.length;
-    gpu_out.length = output.length;
-    cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(float3));
-    cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(float3));
-
-    cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(float3),
-               cudaMemcpyHostToDevice);
-
-    int blockSize = 1024;
-    int numBlock = (input.length + blockSize - 1) / blockSize;
-    kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
-    cudaDeviceSynchronize();
-
-    cudaMemcpy(output.elements, gpu_out.elements,
-               output.length * sizeof(float3), cudaMemcpyDeviceToHost);
-
-    cudaFree(gpu_in.elements);
-    cudaFree(gpu_out.elements);
-}
-
-void apply_kernel(const Arrayf3 input, const LegDimensions dim,
-                  void (*kernel)(const Arrayf3, const LegDimensions,
-                                 Arrayb const),
-                  Arrayb const output) {
-    Arrayf3 gpu_in{};
-    Arrayb gpu_out{};
-    gpu_in.length = input.length;
-    gpu_out.length = output.length;
-    cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(float3));
-    cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(bool));
-
-    cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(float3),
-               cudaMemcpyHostToDevice);
-
-    int blockSize = 1024;
-    int numBlock = (input.length + blockSize - 1) / blockSize;
-    kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
-    cudaDeviceSynchronize();
-
-    cudaMemcpy(output.elements, gpu_out.elements, output.length * sizeof(bool),
-               cudaMemcpyDeviceToHost);
-
-    cudaFree(gpu_in.elements);
-    cudaFree(gpu_out.elements);
-}

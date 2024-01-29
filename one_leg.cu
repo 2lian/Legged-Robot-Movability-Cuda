@@ -176,6 +176,7 @@ __global__ void dist_kernel(const Array<float3> input,
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < input.length; i += stride) {
         output.elements[i] = dist_double_solf3(input.elements[i], dimensions);
+        // output.elements[i] = input.elements[i];
     }
 }
 

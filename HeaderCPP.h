@@ -40,5 +40,3 @@ typedef struct LegDimensions {
     float femur_overmargin;
 
 } LegDimensions;
-
-LegDimensions get_SCARE_leg(float body_angle);
