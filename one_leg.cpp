@@ -15,91 +15,92 @@ TEST_CASE("single leg reachability", "[reachability]") {
     Array<float3> arr{};
     Array<bool> out{};
 
-    arr.length = 10;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 10") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
+/*     arr.length = 10; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 10") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     arr.length = 100; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 100") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     arr.length = 1000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 1000") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     arr.length = 10000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 10000") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     arr.length = 100000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 100000") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     arr.length = 1000000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 1000000") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     arr.length = 10000000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new bool[out.length]; */
+/*     BENCHMARK("Reachability computation 10_000_000") { */
+/*         apply_kernel(arr, dim, reachability_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     delete[] arr.elements; */
+/*     delete[] out.elements; */
 
     arr.length = 100;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 100") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
-
-    arr.length = 1000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 1000") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
-
-    arr.length = 10000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 10000") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
-
-    arr.length = 100000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 100000") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
-
-    arr.length = 1000000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 1000000") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
-
-    arr.length = 10000000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new bool[out.length];
-    BENCHMARK("Reachability computation 10_000_000") {
-        apply_kernel(arr, dim, reachability_kernel, out);
-        return;
-    };
-
-
-    arr.length = 100;
-    delete [] arr.elements;
     arr.elements = new float3[arr.length];
     for (int i = 0; i < arr.length; i++) {
         arr.elements[i].x = 0.0f;
@@ -120,9 +121,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
         dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist - 1;
 
     out.length = arr.length;
-    delete [] out.elements;
     out.elements = new bool[out.length];
 
+    apply_kernel(arr, dim, reachability_kernel, out);
 
     SECTION("manually placed points") {
         CHECK(arr.elements[4].x == 0);
@@ -140,89 +141,90 @@ TEST_CASE("single leg distance", "[distance]") {
     Array<float3> arr{};
     Array<float3> out{};
 
-    arr.length = 10;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 10") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
+/*     arr.length = 10; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 10") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
 
-    arr.length = 100;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 100") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
+/*     arr.length = 100; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 100") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
 
-    arr.length = 1000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 1000") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
+/*     arr.length = 1000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 1000") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
 
-    arr.length = 10000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 10000") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
+/*     arr.length = 10000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 10000") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
 
-    arr.length = 100000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 100000") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
+/*     arr.length = 100000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 100000") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
 
-    arr.length = 1000000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 1000000") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
+/*     arr.length = 1000000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 1000000") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
 
-    arr.length = 10000000;
-    delete [] arr.elements;
-    arr.elements = new float3[arr.length];
-    memset(arr.elements, 0, arr.length * sizeof(float3));
-    out.length = arr.length;
-    delete [] out.elements;
-    out.elements = new float3[out.length];
-    BENCHMARK("Distance computation 10_000_000") {
-        apply_kernel(arr, dim, dist_kernel, out);
-        return;
-    };
-    delete [] out.elements;
-    delete [] arr.elements;
+/*     arr.length = 10000000; */
+/*     delete[] arr.elements; */
+/*     arr.elements = new float3[arr.length]; */
+/*     memset(arr.elements, 0, arr.length * sizeof(float3)); */
+/*     out.length = arr.length; */
+/*     delete[] out.elements; */
+/*     out.elements = new float3[out.length]; */
+/*     BENCHMARK("Distance computation 10_000_000") { */
+/*         apply_kernel(arr, dim, dist_kernel, out); */
+/*         return; */
+/*     }; */
+
+/*     delete[] out.elements; */
+/*     delete[] arr.elements; */
 
     arr.length = 100;
     arr.elements = new float3[arr.length];
@@ -253,6 +255,8 @@ TEST_CASE("single leg distance", "[distance]") {
     if (arr.elements == nullptr || out.elements == nullptr) {
         std::cerr << "Memory allocation failed." << std::endl;
     }
+
+    apply_kernel(arr, dim, dist_kernel, out);
 
     float interval = 0.001f;
     SECTION("manually placed points") {
