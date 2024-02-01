@@ -157,8 +157,8 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
 
     float linnorm = norm3df(result.x, result.y, result.z);
 
-    if ((linnorm < dim.min_tibia_to_gripper_dist) ||
-        (linnorm > dim.max_tibia_to_gripper_dist)) {
+    if ((linnorm < dim.min_femur_to_gripper_dist) ||
+        (linnorm > dim.max_femur_to_gripper_dist)) {
         return false;
     }
 

@@ -24,7 +24,7 @@ typedef struct LegDimensions {
     float min_angle_femur;
     float max_angle_femur_w_margin;
     float min_angle_femur_w_margin;
-    float max_tibia_to_gripper_dist;
+    float max_femur_to_gripper_dist;
 
     float positiv_saturated_femur[2];
 
@@ -32,7 +32,7 @@ typedef struct LegDimensions {
 
     float fem_tib_min[2];
 
-    float min_tibia_to_gripper_dist;
+    float min_femur_to_gripper_dist;
     float middle_TG;
     float middle_TG_radius;
     float middle_TG_radius_w_margin;

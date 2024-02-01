@@ -111,16 +111,16 @@ TEST_CASE("single leg reachability", "[reachability]") {
         memset(arr.elements, 0, arr.length * sizeof(float3));
 
         arr.elements[0].x =
-            dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist + 1;
+            dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist + 1;
 
         arr.elements[1].x =
-            dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist - 1;
+            dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist - 1;
 
         arr.elements[2].x =
-            dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist + 1;
+            dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist + 1;
 
         arr.elements[3].x =
-            dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist - 1;
+            dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist - 1;
 
         out.length = arr.length;
         out.elements = new bool[out.length];
@@ -257,7 +257,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
     }
 
     SECTION("Forward kinematics FALSE, femur saturated tibia far") {
-        float tibia_elongation = 1;
+        float tibia_elongation = 1.1;
         dim.tibia_length += tibia_elongation;
 
         delete[] arr.elements;
@@ -284,7 +284,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
                     a2r * (-(-0.4f + angle_margin) + (-0.0f - angle_margin));
 
                 arr.elements[counter].x = coxa;
-                arr.elements[counter].y = -dim.min_angle_femur;
+                arr.elements[counter].y = dim.min_angle_femur;
                 arr.elements[counter].z = tibia;
 
                 if (counter > arr.length) {
@@ -328,6 +328,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
                 std::cout << "angles : " << arr.elements[i].x << " | "
                           << arr.elements[i].y << " | " << arr.elements[i].z
                           << " | " << std::endl;
+                std::cout << "coord : " << intermediate.elements[i].x << " | "
+                          << intermediate.elements[i].y << " | "
+                          << intermediate.elements[i].z << " | " << std::endl;
             }
         }
         delete[] intermediate.elements;
@@ -439,16 +442,16 @@ TEST_CASE("single leg distance", "[distance]") {
     float overshoot = 10.0f;
 
     arr.elements[0].x =
-        dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist + 1.0f;
+        dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist + 1.0f;
 
     arr.elements[1].x =
-        dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist - overshoot;
+        dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist - overshoot;
 
     arr.elements[2].x =
-        dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist + overshoot;
+        dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist + overshoot;
 
     arr.elements[3].x =
-        dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist - 1;
+        dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist - 1;
 
     out.length = arr.length;
     out.elements = new float3[out.length];
@@ -509,16 +512,16 @@ int mainnot(int argc, char* argv[]) {
     arr.elements = new float3[arr.length];
 
     arr.elements[0].x =
-        dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist + 1;
+        dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist + 1;
 
     arr.elements[1].x =
-        dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist - 1;
+        dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist - 1;
 
     arr.elements[2].x =
-        dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist + 1;
+        dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist + 1;
 
     arr.elements[3].x =
-        dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist - 1;
+        dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist - 1;
 
     Array<float3> out1{};
     out1.length = arr.length;
