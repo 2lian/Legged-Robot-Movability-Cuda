@@ -1,12 +1,10 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
 #include "cuda_util.h"
-#include "math_util.h"
 #include "one_leg.cu.h"
 #include "static_variables.h"
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <iostream>
 #include <ostream>
 
@@ -99,33 +97,36 @@ TEST_CASE("single leg reachability", "[reachability]") {
 
     /*     delete[] arr.elements; */
     /*     delete[] out.elements; */
-
-    arr.length = 100;
-    arr.elements = new float3[arr.length];
-    for (int i = 0; i < arr.length; i++) {
-        arr.elements[i].x = 0.0f;
-        arr.elements[i].y = 0.0f;
-        arr.elements[i].z = 0.0f;
-    }
-    /* memset(arr.elements, 0, arr.length * sizeof(float3)); */
-    arr.elements[0].x =
-        dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist + 1;
-
-    arr.elements[1].x =
-        dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist - 1;
-
-    arr.elements[2].x =
-        dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist + 1;
-
-    arr.elements[3].x =
-        dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist - 1;
-
-    out.length = arr.length;
-    out.elements = new bool[out.length];
-
-    apply_kernel(arr, dim, reachability_kernel, out);
-
     SECTION("manually placed points") {
+        delete[] arr.elements;
+        delete[] out.elements;
+
+        arr.length = 100;
+        arr.elements = new float3[arr.length];
+        /* for (int i = 0; i < arr.length; i++) { */
+        /*     arr.elements[i].x = 0.0f; */
+        /*     arr.elements[i].y = 0.0f; */
+        /*     arr.elements[i].z = 0.0f; */
+        /* } */
+        memset(arr.elements, 0, arr.length * sizeof(float3));
+
+        arr.elements[0].x =
+            dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist + 1;
+
+        arr.elements[1].x =
+            dim.body + dim.coxa_length + dim.min_tibia_to_gripper_dist - 1;
+
+        arr.elements[2].x =
+            dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist + 1;
+
+        arr.elements[3].x =
+            dim.body + dim.coxa_length + dim.max_tibia_to_gripper_dist - 1;
+
+        out.length = arr.length;
+        out.elements = new bool[out.length];
+
+        apply_kernel(arr, dim, reachability_kernel, out);
+
         CHECK(arr.elements[4].x == 0);
         CHECK(arr.elements[4].y == 0);
         CHECK(arr.elements[4].z == 0);
@@ -135,60 +136,62 @@ TEST_CASE("single leg reachability", "[reachability]") {
         CHECK(out.elements[3] == true);
     }
 
-    delete[] arr.elements;
-    delete[] out.elements;
+    SECTION("Forward kinematics TRUE") {
 
-    int samples_per_joint = 30;
-    float angle_margin = 0.01;
-    arr.length = samples_per_joint * samples_per_joint * samples_per_joint;
-    arr.elements = new float3[arr.length];
-    for (int i = 0; i < arr.length; i++) {
-        arr.elements[i].x = 0.0f;
-        arr.elements[i].y = 0.0f;
-        arr.elements[i].z = 0.0f;
-    }
+        delete[] arr.elements;
+        delete[] out.elements;
 
-    int counter = 0;
-    for (float a1r = 0; a1r <= 1;
-         a1r += 1.0f / (float)(samples_per_joint - 1)) {
-        float coxa = (dim.min_angle_coxa + angle_margin) +
-                     a1r * (-(dim.min_angle_coxa + angle_margin) +
-                            (dim.max_angle_coxa - angle_margin));
+        int samples_per_joint = 300;
+        float angle_margin = 0.01;
+        arr.length = samples_per_joint * samples_per_joint * samples_per_joint;
+        arr.elements = new float3[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            arr.elements[i].x = 0.0f;
+            arr.elements[i].y = 0.0f;
+            arr.elements[i].z = 0.0f;
+        }
 
-        for (float a2r = 0; a2r <= 1;
-             a2r += 1.0f / (float)(samples_per_joint - 1)) {
-            float femur = (dim.min_angle_femur + angle_margin) +
-                          a2r * (-(dim.min_angle_femur + angle_margin) +
-                                 (dim.max_angle_femur - angle_margin));
+        int counter = 0;
+        for (int a1 = 0; a1 < samples_per_joint; a1++) {
+            float a1r = (float)a1 / (float)(samples_per_joint - 1);
+            float coxa = (dim.min_angle_coxa + angle_margin) +
+                         a1r * (-(dim.min_angle_coxa + angle_margin) +
+                                (dim.max_angle_coxa - angle_margin));
 
-            for (float a3r = 0; a3r <= 1;
-                 a3r += 1.0f / (float)(samples_per_joint - 1)) {
-                float tibia = (dim.min_angle_tibia + angle_margin) +
-                              a3r * (-(dim.min_angle_tibia + angle_margin) +
-                                     (dim.max_angle_tibia - angle_margin));
+            for (int a2 = 0; a2 < samples_per_joint; a2++) {
+                float a2r = (float)a2 / (float)(samples_per_joint - 1);
+                float femur = (dim.min_angle_femur + angle_margin) +
+                              a2r * (-(dim.min_angle_femur + angle_margin) +
+                                     (dim.max_angle_femur - angle_margin));
 
-                arr.elements[counter].x = coxa;
-                arr.elements[counter].y = femur;
-                arr.elements[counter].z = tibia;
+                for (int a3 = 0; a3 < samples_per_joint; a3++) {
+                    float a3r = (float)a3 / (float)(samples_per_joint - 1);
+                    float tibia = (dim.min_angle_tibia + angle_margin) +
+                                  a3r * (-(dim.min_angle_tibia + angle_margin) +
+                                         (dim.max_angle_tibia - angle_margin));
 
-                if (counter > arr.length) {
-                    std::cout << "ERROR Array overflowing" << std::endl;
+                    arr.elements[counter].x = coxa;
+                    arr.elements[counter].y = femur;
+                    arr.elements[counter].z = tibia;
+
+                    if (counter > arr.length) {
+                        std::cout << "ERROR Array overflowing" << std::endl;
+                    }
+                    counter++;
                 }
-                counter++;
             }
         }
-    }
 
-    Array<float3> intermediate;
-    intermediate.length = arr.length;
-    intermediate.elements = new float3[intermediate.length];
-    apply_kernel(arr, dim, forward_kine_kernel, intermediate);
+        Array<float3> intermediate;
+        intermediate.length = arr.length;
+        intermediate.elements = new float3[intermediate.length];
+        apply_kernel(arr, dim, forward_kine_kernel, intermediate);
 
-    out.length = arr.length;
-    out.elements = new bool[out.length];
-    apply_kernel(intermediate, dim, reachability_kernel, out);
+        out.length = arr.length;
+        out.elements = new bool[out.length];
+        apply_kernel(intermediate, dim, reachability_kernel, out);
+        std::cout << "Done\n";
 
-    SECTION("Forward kinematics correspondence") {
         for (int i = 0; i < arr.length; i++) {
             CHECK(out.elements[i] == true);
             if (out.elements[i] != true) {
@@ -197,10 +200,10 @@ TEST_CASE("single leg reachability", "[reachability]") {
                           << " | " << std::endl;
             }
         }
+        delete[] intermediate.elements;
     }
 
     delete[] arr.elements;
-    delete[] intermediate.elements;
     delete[] out.elements;
 }
 
@@ -356,6 +359,8 @@ TEST_CASE("single leg distance", "[distance]") {
         CHECK_THAT(out.elements[3].z,
                    Catch::Matchers::WithinRel(0.0f, interval));
     }
+    delete[] arr.elements;
+    delete[] out.elements;
 }
 
 /**
