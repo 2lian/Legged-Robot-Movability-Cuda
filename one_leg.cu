@@ -1,3 +1,4 @@
+#include "HeaderCPP.h"
 #include "HeaderCUDA.h"
 #include "one_leg.cu.h"
 
@@ -122,14 +123,21 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
     float3 result;
     result = point;
     place_over_coxa(result, dim);
+    bool flip_flag = signbit(result.x);
+
+    if (flip_flag) {
+        result.x *= -1;
+    }
 
     // finding coxa angle
     float required_angle_coxa = find_coxa_angle(result);
 
-    // flipping angle if above +-90deg
-    if (signbit(result.x)) {
-        required_angle_coxa = -required_angle_coxa;
+    if (flip_flag) {
+        result.x *= -1;
+        required_angle_coxa *= -1;
     }
+
+    // flipping angle if above +-90deg
 
     if ((required_angle_coxa > dim.max_angle_coxa) ||
         (required_angle_coxa < dim.min_angle_coxa)) {
@@ -156,8 +164,8 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
     // finding femur angle
     float required_angle_femur = atan2f(result.z, result.x);
 
-    if ((required_angle_femur > dim.min_angle_femur) &&
-        (required_angle_femur < dim.max_angle_femur)) {
+    if ((required_angle_femur >= dim.min_angle_femur) &&
+        (required_angle_femur <= dim.max_angle_femur)) {
         return true;
     }
     // distance to femur at the most extrem position, this value is pre_computed
@@ -166,7 +174,7 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
                     norm3df(result.x - dim.negativ_saturated_femur[0], 0,
                             result.z - dim.negativ_saturated_femur[1]));
 
-    return linnorm < dim.femur_length;
+    return linnorm <= dim.femur_length;
 }
 
 __global__ void dist_kernel(const Array<float3> input,
@@ -189,23 +197,43 @@ __global__ void reachability_kernel(const Array<float3> input,
         output.elements[i] = reachability_vect(input.elements[i], dimensions);
     }
 }
-/*
-__global__ void dist_kernel(const Arrayf3 input, const LegDimensions dimensions,
-                            Arrayf3 const output) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int i = index; i < input.length; i += stride) {
-        output.elements[i] = dist_double_solf3(input.elements[i], dimensions);
-    }
-}
 
-__global__ void reachability_kernel(const Arrayf3 input,
-                                    const LegDimensions dimensions,
-                                    Arrayb const output) {
+__device__ float3 forward_kinematics(const float coxa, const float femur,
+                                     const float tibia,
+                                     const LegDimensions dim) {
+    float3 result{0, 0, 0};
+    result.x += dim.body;
+    float cos_horiz, sin_horiz;
+    sincosf(coxa, &sin_horiz, &cos_horiz);
+    result.x += cos_horiz * dim.coxa_length;
+    result.y += sin_horiz * dim.coxa_length;
+
+    float cos, sin;
+    sincosf(femur, &sin, &cos);
+    float horiz_distance = cos * dim.femur_length;
+    float vert_distance = sin * dim.femur_length;
+    result.x += cos_horiz * horiz_distance;
+    result.y += sin_horiz * horiz_distance;
+    result.z += vert_distance;
+
+    sincosf(tibia + femur, &sin, &cos);
+    horiz_distance = cos * dim.tibia_length;
+    vert_distance = sin * dim.tibia_length;
+    result.x += cos_horiz * horiz_distance;
+    result.y += sin_horiz * horiz_distance;
+    result.z += vert_distance;
+
+    return result;
+};
+
+__global__ void forward_kine_kernel(const Array<float3> angles_3_input,
+                                    const LegDimensions dim,
+                                    Array<float3> const output_xyz) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
-    for (int i = index; i < input.length; i += stride) {
-        output.elements[i] = reachability_vect(input.elements[i], dimensions);
+    for (int i = index; i < angles_3_input.length; i += stride) {
+        output_xyz.elements[i] = forward_kinematics(
+            angles_3_input.elements[i].x, angles_3_input.elements[i].y,
+            angles_3_input.elements[i].z, dim);
     }
 }
-*/

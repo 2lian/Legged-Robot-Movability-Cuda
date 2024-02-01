@@ -56,7 +56,8 @@ LegDimensions get_SCARE_leg(float body_angle) {
         (scare.max_tibia_to_gripper_dist + scare.min_tibia_to_gripper_dist) /
         2.0f;
     scare.middle_TG_radius =
-        (scare.max_tibia_to_gripper_dist - scare.min_tibia_to_gripper_dist) / 2;
+        (scare.max_tibia_to_gripper_dist - scare.min_tibia_to_gripper_dist) /
+        2.0f;
     scare.middle_TG_radius_w_margin = scare.middle_TG_radius - dist_margin;
 
     // extend or reduces? the maximum femur angle by the accounting for the
