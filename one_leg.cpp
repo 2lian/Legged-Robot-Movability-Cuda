@@ -141,15 +141,10 @@ TEST_CASE("single leg reachability", "[reachability]") {
         delete[] arr.elements;
         delete[] out.elements;
 
-        int samples_per_joint = 300;
-        float angle_margin = 0.01;
+        int samples_per_joint = 100;
+        float angle_margin = 0.0001;
         arr.length = samples_per_joint * samples_per_joint * samples_per_joint;
         arr.elements = new float3[arr.length];
-        for (int i = 0; i < arr.length; i++) {
-            arr.elements[i].x = 0.0f;
-            arr.elements[i].y = 0.0f;
-            arr.elements[i].z = 0.0f;
-        }
 
         int counter = 0;
         for (int a1 = 0; a1 < samples_per_joint; a1++) {
@@ -201,6 +196,142 @@ TEST_CASE("single leg reachability", "[reachability]") {
             }
         }
         delete[] intermediate.elements;
+    }
+
+    SECTION("Forward kinematics FALSE, tibia zero far") {
+        float tibia_elongation = 0.01;
+        dim.tibia_length += tibia_elongation;
+
+        delete[] arr.elements;
+        delete[] out.elements;
+
+        int samples_per_joint = 100;
+        float angle_margin = 0.0;
+        arr.length = samples_per_joint * samples_per_joint;
+        arr.elements = new float3[arr.length];
+
+        int counter = 0;
+        for (int a1 = 0; a1 < samples_per_joint; a1++) {
+            float a1r = (float)a1 / (float)(samples_per_joint - 1);
+            float coxa = (dim.min_angle_coxa + angle_margin) +
+                         a1r * (-(dim.min_angle_coxa + angle_margin) +
+                                (dim.max_angle_coxa - angle_margin));
+
+            for (int a2 = 0; a2 < samples_per_joint; a2++) {
+                float a2r = (float)a2 / (float)(samples_per_joint - 1);
+                float femur = (dim.min_angle_femur + angle_margin) +
+                              a2r * (-(dim.min_angle_femur + angle_margin) +
+                                     (dim.max_angle_femur - angle_margin));
+
+                arr.elements[counter].x = coxa;
+                arr.elements[counter].y = femur;
+                arr.elements[counter].z = 0.0f;
+
+                if (counter > arr.length) {
+                    std::cout << "ERROR Array overflowing" << std::endl;
+                }
+                counter++;
+            }
+        }
+
+        Array<float3> intermediate;
+        intermediate.length = arr.length;
+        intermediate.elements = new float3[intermediate.length];
+        apply_kernel(arr, dim, forward_kine_kernel, intermediate);
+
+        out.length = arr.length;
+        out.elements = new bool[out.length];
+        apply_kernel(intermediate, dim, reachability_kernel, out);
+        std::cout << "Done\n";
+
+        for (int i = 0; i < arr.length; i++) {
+            CHECK(out.elements[i] == false);
+            if (out.elements[i] != false) {
+                std::cout << "angles : " << arr.elements[i].x << " | "
+                          << arr.elements[i].y << " | " << arr.elements[i].z
+                          << " | " << std::endl;
+            }
+        }
+        delete[] intermediate.elements;
+        dim.tibia_length -= tibia_elongation;
+    }
+
+    SECTION("Forward kinematics FALSE, femur saturated tibia far") {
+        float tibia_elongation = 1;
+        dim.tibia_length += tibia_elongation;
+
+        delete[] arr.elements;
+        delete[] out.elements;
+
+        int samples_per_joint = 11;
+        float angle_margin = 0.0;
+        arr.length = samples_per_joint;
+        arr.elements = new float3[arr.length];
+
+        int counter = 0;
+        for (int a1 = 0; a1 < samples_per_joint; a1++) {
+            float a1r = (float)a1 / (float)(samples_per_joint - 1);
+            a1r = 0.5;
+            float coxa = (dim.min_angle_coxa + angle_margin) +
+                         a1r * (-(dim.min_angle_coxa + angle_margin) +
+                                (dim.max_angle_coxa - angle_margin));
+
+            for (int a2 = 0; a2 < samples_per_joint; a2++) {
+                float a2r = (float)a2 / (float)(samples_per_joint - 1);
+
+                float tibia =
+                    (-0.4f + angle_margin) +
+                    a2r * (-(-0.4f + angle_margin) + (-0.0f - angle_margin));
+
+                arr.elements[counter].x = coxa;
+                arr.elements[counter].y = -dim.min_angle_femur;
+                arr.elements[counter].z = tibia;
+
+                if (counter > arr.length) {
+                    std::cout << "ERROR Array overflowing" << std::endl;
+                }
+                counter++;
+            }
+            break;
+
+            /* for (int a2 = 0; a2 < samples_per_joint; a2++) { */
+            /*     float a2r = (float)a2 / (float)(samples_per_joint - 1); */
+            /*     float tibia = (0.0f + angle_margin) + */
+            /*                   a2r * (-(0.0f + angle_margin) + */
+            /*                          (dim.max_angle_tibia - angle_margin));
+             */
+
+            /*     arr.elements[counter].x = coxa; */
+            /*     arr.elements[counter].y = dim.max_angle_femur; */
+            /*     arr.elements[counter].z = tibia; */
+
+            /*     if (counter > arr.length) { */
+            /*         std::cout << "ERROR Array overflowing" << std::endl; */
+            /*     } */
+            /*     counter++; */
+            /* } */
+        }
+
+        Array<float3> intermediate;
+        intermediate.length = arr.length;
+        intermediate.elements = new float3[intermediate.length];
+        apply_kernel(arr, dim, forward_kine_kernel, intermediate);
+
+        out.length = arr.length;
+        out.elements = new bool[out.length];
+        apply_kernel(intermediate, dim, reachability_kernel, out);
+        std::cout << "Done\n";
+
+        for (int i = 0; i < arr.length; i++) {
+            CHECK(out.elements[i] == false);
+            if (out.elements[i] != false) {
+                std::cout << "angles : " << arr.elements[i].x << " | "
+                          << arr.elements[i].y << " | " << arr.elements[i].z
+                          << " | " << std::endl;
+            }
+        }
+        delete[] intermediate.elements;
+        dim.tibia_length -= tibia_elongation;
     }
 
     delete[] arr.elements;

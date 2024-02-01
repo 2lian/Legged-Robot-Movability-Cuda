@@ -34,20 +34,20 @@ LegDimensions get_SCARE_leg(float body_angle) {
     scare.max_tibia_to_gripper_dist = scare.tibia_length + scare.femur_length;
 
     scare.positiv_saturated_femur[0] =
-        cos(scare.max_angle_femur) * scare.tibia_length;
+        cos(scare.max_angle_femur) * scare.femur_length;
     scare.positiv_saturated_femur[1] =
-        sin(scare.max_angle_femur) * scare.tibia_length;
+        sin(scare.max_angle_femur) * scare.femur_length;
 
     scare.negativ_saturated_femur[0] =
-        cos(scare.min_angle_femur) * scare.tibia_length;
+        cos(scare.min_angle_femur) * scare.femur_length;
     scare.negativ_saturated_femur[1] =
-        sin(scare.min_angle_femur) * scare.tibia_length;
+        sin(scare.min_angle_femur) * scare.femur_length;
 
     scare.fem_tib_min[0] =
-        scare.tibia_length +
-        scare.femur_length * cos(pI / 180.0f * scare.femur_angle_deg);
+        scare.femur_length +
+        scare.tibia_length * cos(pI / 180.0f * scare.tibia_angle_deg);
     scare.fem_tib_min[1] =
-        scare.femur_length * sin(pI / 180.0f * scare.femur_angle_deg);
+        scare.tibia_length * sin(pI / 180.0f * scare.tibia_angle_deg);
 
     scare.min_tibia_to_gripper_dist =
         sqrt(scare.fem_tib_min[0] * scare.fem_tib_min[0] +

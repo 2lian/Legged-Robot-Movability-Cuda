@@ -127,6 +127,7 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
 
     if (flip_flag) {
         result.x *= -1;
+        result.y *= -1;
     }
 
     // finding coxa angle
@@ -134,7 +135,7 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
 
     if (flip_flag) {
         result.x *= -1;
-        required_angle_coxa *= -1;
+        result.y *= -1;
     }
 
     // flipping angle if above +-90deg
@@ -174,7 +175,7 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
                     norm3df(result.x - dim.negativ_saturated_femur[0], 0,
                             result.z - dim.negativ_saturated_femur[1]));
 
-    return linnorm <= dim.femur_length;
+    return linnorm <= dim.tibia_length;
 }
 
 __global__ void dist_kernel(const Array<float3> input,
