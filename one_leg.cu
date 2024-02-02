@@ -123,7 +123,7 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
     float3 result;
     result = point;
     place_over_coxa(result, dim);
-    bool flip_flag = signbit(result.x);
+    bool flip_flag = -signbit(result.x);
 
     if (flip_flag) {
         result.x *= -1;
@@ -169,6 +169,7 @@ __device__ bool reachability_vect(const float3& point, const LegDimensions& dim)
         (required_angle_femur <= dim.max_angle_femur)) {
         return true;
     }
+
     // distance to femur at the most extrem position, this value is pre_computed
     linnorm = fminf(norm3df(result.x - dim.positiv_saturated_femur[0], 0,
                             result.z - dim.positiv_saturated_femur[1]),
