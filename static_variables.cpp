@@ -35,10 +35,8 @@ LegDimensions get_SCARE_leg(float body_angle) {
     scare.max_femur_to_gripper_dist = scare.tibia_length + scare.femur_length;
 
     scare.fem_tib_min[0] =
-        scare.femur_length +
-        scare.tibia_length * cos(scare.max_angle_tibia);
-    scare.fem_tib_min[1] =
-        scare.tibia_length * sin(scare.max_angle_tibia);
+        scare.femur_length + scare.tibia_length * cos(scare.max_angle_tibia);
+    scare.fem_tib_min[1] = scare.tibia_length * sin(scare.max_angle_tibia);
 
     scare.min_femur_to_gripper_dist =
         sqrt(scare.fem_tib_min[0] * scare.fem_tib_min[0] +
@@ -61,16 +59,22 @@ LegDimensions get_SCARE_leg(float body_angle) {
     scare.negativ_saturated_femur[1] =
         sin(scare.min_angle_femur) * scare.femur_length;
 
-    // extend or reduces? the maximum femur angle by the accounting for the
-    // length of the tibia
+    // this is the maximum angle possiblefrom the femur to the target
+    // after accounting for the tibia's angle saturation
+    // So there's the femur angle, then this one added to it.
+    /* scare.femur_overmargin = */
+    /*     -scare.max_angle_femur + */
+    /*     atan2f(scare.femur_length * sinf(scare.max_angle_femur) + */
+    /*                (scare.tibia_length - dist_margin) * */
+    /*                    sinf(scare.max_angle_femur + scare.max_angle_tibia), */
+    /*            scare.femur_length * cosf(scare.max_angle_femur) + */
+    /*                (scare.tibia_length - dist_margin) * */
+    /*                    cosf(scare.max_angle_femur + scare.max_angle_tibia)); */
     scare.femur_overmargin =
-        -scare.max_angle_femur +
-        atan2f(scare.femur_length * sinf(scare.max_angle_femur) +
-                   (scare.tibia_length - dist_margin) *
-                       sinf(scare.max_angle_femur + scare.max_angle_tibia),
-               scare.femur_length * cosf(scare.max_angle_femur) +
-                   (scare.tibia_length - dist_margin) *
-                       cosf(scare.max_angle_femur + scare.max_angle_tibia));
+        (scare.min_femur_to_gripper_dist * scare.min_femur_to_gripper_dist +
+         scare.tibia_length * scare.tibia_length +
+         scare.femur_length * scare.femur_length) /
+        (2 * scare.min_femur_to_gripper_dist * scare.femur_length);
 
     return scare;
 }

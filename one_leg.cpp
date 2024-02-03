@@ -8,7 +8,7 @@
 #include <iostream>
 #include <ostream>
 
-TEST_CASE("single leg reachability", "[reachability]") {
+TEST_CASE("single leg reachability") {
     LegDimensions dim = get_SCARE_leg(0.0f);
     Array<float3> arr{};
     Array<bool> out{};
@@ -97,7 +97,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
 
     /*     delete[] arr.elements; */
     /*     delete[] out.elements; */
-    SECTION("manually placed points") {
+    SECTION("manually placed points"
+            /* , "[!mayfail]" */
+    ) {
         delete[] arr.elements;
         delete[] out.elements;
 
@@ -127,16 +129,18 @@ TEST_CASE("single leg reachability", "[reachability]") {
 
         apply_kernel(arr, dim, reachability_kernel, out);
 
-        CHECK(arr.elements[4].x == 0);
-        CHECK(arr.elements[4].y == 0);
-        CHECK(arr.elements[4].z == 0);
-        CHECK(out.elements[0] == true);
-        CHECK(out.elements[1] == false);
-        CHECK(out.elements[2] == false);
-        CHECK(out.elements[3] == true);
+        REQUIRE(arr.elements[4].x == 0);
+        REQUIRE(arr.elements[4].y == 0);
+        REQUIRE(arr.elements[4].z == 0);
+        REQUIRE(out.elements[0] == true);
+        REQUIRE(out.elements[1] == false);
+        REQUIRE(out.elements[2] == false);
+        REQUIRE(out.elements[3] == true);
     }
 
-    SECTION("Forward kinematics TRUE") {
+    SECTION("Forward kinematics TRUE"
+            /* , "[!mayfail]" */
+    ) {
 
         delete[] arr.elements;
         delete[] out.elements;
@@ -187,7 +191,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
         apply_kernel(intermediate, dim, reachability_kernel, out);
 
         for (int i = 0; i < arr.length; i++) {
-            CHECK(out.elements[i] == true);
+            REQUIRE(out.elements[i] == true);
             if (out.elements[i] != true) {
                 std::cout << "angles : " << arr.elements[i].x << " | "
                           << arr.elements[i].y << " | " << arr.elements[i].z
@@ -197,7 +201,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
         delete[] intermediate.elements;
     }
 
-    SECTION("Forward kinematics FALSE, tibia zero far") {
+    SECTION("Forward kinematics FALSE, tibia zero far"
+            /* , "[!mayfail]" */
+    ) {
         float tibia_elongation = 0.001;
         dim.tibia_length += tibia_elongation;
 
@@ -245,7 +251,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
         apply_kernel(intermediate, dim, reachability_kernel, out);
 
         for (int i = 0; i < arr.length; i++) {
-            CHECK(out.elements[i] == false);
+            REQUIRE(out.elements[i] == false);
             if (out.elements[i] != false) {
                 std::cout << "angles : " << arr.elements[i].x << " | "
                           << arr.elements[i].y << " | " << arr.elements[i].z
@@ -255,7 +261,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
         delete[] intermediate.elements;
     }
 
-    SECTION("Forward kinematics FALSE, femur saturated tibia elongatred") {
+    SECTION("Forward kinematics FALSE, femur saturated tibia elongatred"
+            /* , "[!mayfail]" */
+    ) {
 
         float tibia_elongation = 0.01;
         dim.tibia_length += tibia_elongation;
@@ -278,9 +286,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
             for (int a2 = 0; a2 < samples_per_joint; a2++) {
                 float a2r = (float)a2 / (float)(samples_per_joint - 1);
 
-                float tibia =
-                    (dim.min_angle_tibia + angle_margin) +
-                    a2r * (-(dim.min_angle_tibia + angle_margin) + (0.0f - angle_margin));
+                float tibia = (dim.min_angle_tibia + angle_margin) +
+                              a2r * (-(dim.min_angle_tibia + angle_margin) +
+                                     (0.0f - angle_margin));
 
                 arr.elements[counter].x = coxa;
                 arr.elements[counter].y = dim.min_angle_femur;
@@ -296,7 +304,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
                 float a2r = (float)a2 / (float)(samples_per_joint - 1);
                 float tibia = (0.0f + angle_margin) +
                               a2r * (-(0.0f + angle_margin) +
-                                      (dim.max_angle_tibia - angle_margin));
+                                     (dim.max_angle_tibia - angle_margin));
 
                 arr.elements[counter].x = coxa;
                 arr.elements[counter].y = dim.max_angle_femur;
@@ -321,7 +329,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
         apply_kernel(intermediate, dim, reachability_kernel, out);
 
         for (int i = 0; i < arr.length; i++) {
-            CHECK(out.elements[i] == false);
+            REQUIRE(out.elements[i] == false);
             if (out.elements[i] != false) {
                 std::cout << "angles : " << arr.elements[i].x << " | "
                           << arr.elements[i].y << " | " << arr.elements[i].z
@@ -334,7 +342,9 @@ TEST_CASE("single leg reachability", "[reachability]") {
         delete[] intermediate.elements;
     }
 
-    SECTION("Forward kinematics FALSE, too close tibia saturated") {
+    SECTION("Forward kinematics FALSE, too close tibia saturated"
+            /* , "[!mayfail]" */
+    ) {
 
         delete[] arr.elements;
         delete[] out.elements;
@@ -348,8 +358,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
         for (int a1 = 0; a1 < samples_per_joint; a1++) {
             float a1r = (float)a1 / (float)(samples_per_joint - 1);
             float coxa = (dim.min_angle_coxa) +
-                         a1r * (-(dim.min_angle_coxa) +
-                                (dim.max_angle_coxa));
+                         a1r * (-(dim.min_angle_coxa) + (dim.max_angle_coxa));
 
             for (int a2 = 0; a2 < samples_per_joint; a2++) {
                 float a2r = (float)a2 / (float)(samples_per_joint - 1);
@@ -379,7 +388,7 @@ TEST_CASE("single leg reachability", "[reachability]") {
         apply_kernel(intermediate, dim, reachability_kernel, out);
 
         for (int i = 0; i < arr.length; i++) {
-            CHECK(out.elements[i] == false);
+            REQUIRE(out.elements[i] == false);
             if (out.elements[i] != false) {
                 std::cout << "angles : " << arr.elements[i].x << " | "
                           << arr.elements[i].y << " | " << arr.elements[i].z
@@ -486,40 +495,38 @@ TEST_CASE("single leg distance", "[distance]") {
     /*     delete[] out.elements; */
     /*     delete[] arr.elements; */
 
-    arr.length = 100;
-    arr.elements = new float3[arr.length];
-    for (int i = 0; i < arr.length; i++) {
-        arr.elements[i].x = 0.0f;
-        arr.elements[i].y = 0.0f;
-        arr.elements[i].z = 0.0f;
-    }
+    SECTION("manually placed points"
+            /* , "[!mayfail]" */
+    ) {
+        delete[] arr.elements;
+        delete[] out.elements;
 
-    float overshoot = 10.0f;
+        arr.length = 100;
+        arr.elements = new float3[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            arr.elements[i].x = 0.0f;
+            arr.elements[i].y = 0.0f;
+            arr.elements[i].z = 0.0f;
+        }
+        float overshoot = 10.0f;
+        arr.elements[0].x =
+            dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist + 1.0f;
+        arr.elements[1].x = dim.body + dim.coxa_length +
+                            dim.min_femur_to_gripper_dist - overshoot;
+        arr.elements[2].x = dim.body + dim.coxa_length +
+                            dim.max_femur_to_gripper_dist + overshoot;
+        arr.elements[3].x =
+            dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist - 1;
+        out.length = arr.length;
+        out.elements = new float3[out.length];
 
-    arr.elements[0].x =
-        dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist + 1.0f;
+        // Ensure memory allocation is successful
+        if (arr.elements == nullptr || out.elements == nullptr) {
+            std::cerr << "Memory allocation failed." << std::endl;
+        }
 
-    arr.elements[1].x =
-        dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist - overshoot;
-
-    arr.elements[2].x =
-        dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist + overshoot;
-
-    arr.elements[3].x =
-        dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist - 1;
-
-    out.length = arr.length;
-    out.elements = new float3[out.length];
-
-    // Ensure memory allocation is successful
-    if (arr.elements == nullptr || out.elements == nullptr) {
-        std::cerr << "Memory allocation failed." << std::endl;
-    }
-
-    apply_kernel(arr, dim, dist_kernel, out);
-
-    float interval = 0.001f;
-    SECTION("manually placed points") {
+        apply_kernel(arr, dim, dist_kernel, out);
+        float interval = 0.001f;
         CHECK_THAT(out.elements[0].x,
                    Catch::Matchers::WithinRel((float)0.0f, interval));
         CHECK_THAT(out.elements[0].y,
@@ -547,6 +554,144 @@ TEST_CASE("single leg distance", "[distance]") {
                    Catch::Matchers::WithinRel(0.0f, interval));
         CHECK_THAT(out.elements[3].z,
                    Catch::Matchers::WithinRel(0.0f, interval));
+    }
+
+    SECTION("Forward kinematics distance, too far tibia elongated and zeroed",
+            "[~!mayfail]") {
+
+        delete[] arr.elements;
+        delete[] out.elements;
+
+        float tibia_elongation = 1;
+        dim.tibia_length += tibia_elongation;
+
+        int samples_per_joint = 101;
+        float angle_overshoot = 0;
+        arr.length = samples_per_joint * samples_per_joint;
+        arr.elements = new float3[arr.length];
+        int counter = 0;
+        for (int a1 = 0; a1 < samples_per_joint; a1++) {
+            float a1r = (float)a1 / (float)(samples_per_joint - 1);
+            float coxa = (dim.min_angle_coxa) +
+                         a1r * (-(dim.min_angle_coxa) + (dim.max_angle_coxa));
+
+            for (int a2 = 0; a2 < samples_per_joint; a2++) {
+                float a2r = (float)a2 / (float)(samples_per_joint - 1);
+
+                float femur =
+                    (dim.min_angle_femur) +
+                    a2r * (-(dim.min_angle_femur) + (dim.max_angle_femur));
+
+                arr.elements[counter].x = coxa;
+                arr.elements[counter].y = femur;
+                arr.elements[counter].z = 0;
+
+                if (counter > arr.length) {
+                    std::cout << "ERROR Array overflowing" << std::endl;
+                }
+                counter++;
+            }
+        }
+
+        Array<float3> intermediate;
+        intermediate.length = arr.length;
+        intermediate.elements = new float3[intermediate.length];
+        apply_kernel(arr, dim, forward_kine_kernel, intermediate);
+
+        dim.tibia_length -= tibia_elongation;
+
+        out.length = arr.length;
+        out.elements = new float3[out.length];
+        apply_kernel(intermediate, dim, dist_kernel, out);
+        float interval = 0.1;
+        for (int i = 0; i < arr.length; i++) {
+            REQUIRE_THAT(out.elements[i].x * out.elements[i].x +
+                             out.elements[i].y * out.elements[i].y +
+                             out.elements[i].z * out.elements[i].z,
+                         Catch::Matchers::WithinRel(
+                             tibia_elongation * tibia_elongation, interval));
+
+            /* if (out.elements[i] != false) { */
+            /*     std::cout << "angles : " << arr.elements[i].x << " | " */
+            /*               << arr.elements[i].y << " | " << arr.elements[i].z
+             */
+            /*               << " | " << std::endl; */
+            /*     std::cout << "coord : " << intermediate.elements[i].x << " |
+             * " */
+            /*               << intermediate.elements[i].y << " | " */
+            /*               << intermediate.elements[i].z << " | " <<
+             * std::endl; */
+            /* } */
+        }
+        delete[] intermediate.elements;
+    }
+
+    SECTION("Forward kinematics distance, too far tibia elongated and zeroed",
+            "[!mayfail]") {
+
+        delete[] arr.elements;
+        delete[] out.elements;
+
+        float tibia_elongation = 1;
+        dim.tibia_length += tibia_elongation;
+
+        int samples_per_joint = 11;
+        float angle_overshoot = 0;
+        arr.length = samples_per_joint * 1;
+        arr.elements = new float3[arr.length];
+        int counter = 0;
+        for (int a1 = 0; a1 < 1; a1++) {
+            float a1r = (float)a1 / (float)(samples_per_joint - 1);
+            a1r = 0.5;
+            float coxa = (dim.min_angle_coxa) +
+                         a1r * (-(dim.min_angle_coxa) + (dim.max_angle_coxa));
+
+            for (int a2 = 0; a2 < samples_per_joint; a2++) {
+                float a2r = (float)a2 / (float)(samples_per_joint - 1);
+
+                float tibia = (0) + a2r * (-(0) + (dim.max_angle_tibia));
+
+                arr.elements[counter].x = coxa;
+                arr.elements[counter].y = dim.max_angle_femur;
+                arr.elements[counter].z = tibia;
+
+                if (counter > arr.length) {
+                    std::cout << "ERROR Array overflowing" << std::endl;
+                }
+                counter++;
+            }
+        }
+
+        Array<float3> intermediate;
+        intermediate.length = arr.length;
+        intermediate.elements = new float3[intermediate.length];
+        apply_kernel(arr, dim, forward_kine_kernel, intermediate);
+
+        dim.tibia_length -= tibia_elongation;
+
+        out.length = arr.length;
+        out.elements = new float3[out.length];
+        apply_kernel(intermediate, dim, dist_kernel, out);
+        float interval = 0.5;
+        for (int i = 0; i < arr.length; i++) {
+            CHECK_THAT(out.elements[i].x * out.elements[i].x +
+                             out.elements[i].y * out.elements[i].y +
+                             out.elements[i].z * out.elements[i].z,
+                         Catch::Matchers::WithinRel(
+                             tibia_elongation * tibia_elongation, interval));
+
+            if (true != false) {
+                std::cout << "angles : " << arr.elements[i].x << " | "
+                          << arr.elements[i].y << " | " << arr.elements[i].z
+
+                          << " | " << std::endl;
+                std::cout << "coord : " << intermediate.elements[i].x
+                          << " | " 
+                          << intermediate.elements[i].y << " | "
+                          << intermediate.elements[i].z << " | " << std::endl;
+            }
+        }
+        delete[] intermediate.elements;
     }
     delete[] arr.elements;
     delete[] out.elements;

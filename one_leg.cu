@@ -37,19 +37,23 @@ __device__ void place_on_vert_plane(float& x, float& z,
     float sin_angle_fem;
     sincosf(required_angle_femur, &sin_angle_fem, &cos_angle_fem);
 
-    float center_adjust_factor = dim.middle_TG_radius *
-                                 fmax(angle_overshoot / overmargin, 0.f) *
-                                 sinf(fmax(angle_overshoot / overmargin, 0.f));
+    // How close we are from the overmargin. 1 means we're at the saturated
+    // femur, 0 means we're at the saturated femur and tibia
+    float ratio = fmax(angle_overshoot / overmargin, 0.f);
+    float radius_adjust_factor = dim.middle_TG_radius * ratio * sinf(ratio);
 
-    // middle_TG as the frame of reference
-    x -= (dim.middle_TG - center_adjust_factor) * cos_angle_fem;
-    z -= (dim.middle_TG - center_adjust_factor) * sin_angle_fem;
+    // middle_TG is now the frame of reference
+    // if the middle radius is reduced by x in the overgin, middleTG is brought
+    // back by x in order to keep the inner circle (min_femur_to_gripper_dist)
+    // unchanged
+    x -= (dim.middle_TG - radius_adjust_factor) * cos_angle_fem;
+    z -= (dim.middle_TG - radius_adjust_factor) * sin_angle_fem;
 
+    // inside this radius the distance is zero
     float zeroing_radius =
-        fmax(dim.middle_TG_radius_w_margin - center_adjust_factor, 0.f);
-
+        fmax(dim.middle_TG_radius_w_margin - radius_adjust_factor, 0.f);
     float magnitude = fmax(norm3df(x, z, 0.f), zeroing_radius);
-
+    // the part of the vector inside the radius gets substracted
     x -= zeroing_radius * x / magnitude;
     z -= zeroing_radius * z / magnitude;
 }
@@ -105,7 +109,7 @@ __device__ float3 dist_double_solf3(const float3& point,
     float coxangle_flip = (coxangle > 0) ? coxangle - pIgpu : coxangle + pIgpu;
 
     finish_finding_closest(closest, dim, coxangle);
-    finish_finding_closest(closest_flip, dim, (coxangle_flip));
+    finish_finding_closest(closest_flip, dim, coxangle_flip);
 
     float3* result_to_use =
         (norm3df(closest.x, closest.y, closest.z) <
