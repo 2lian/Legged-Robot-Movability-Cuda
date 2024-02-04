@@ -12,34 +12,111 @@ __device__ float find_coxa_angle(const float3& coordinates) {
     return atan2f(coordinates.y, coordinates.x);
 }
 
+__device__ void clamp_on_circle(const float* center, const float& radius,
+                                const bool& clamp_direction, float& x,
+                                float& y) {
+    float u = x - center[0];
+    float v = y - center[1];
+    float magnitude = sqrtf(u * u + v * v);
+    bool radius_direction = !signbit(radius - magnitude);
+
+    if (clamp_direction != radius_direction) { x=0; y=0; return;}
+
+    x -= radius * u / magnitude;
+    y -= radius * v / magnitude;
+}
+
 __device__ void place_on_vert_plane(float& x, float& z,
                                     const LegDimensions& dim) {
     // Femur as the frame of reference witout rotation
     x -= dim.coxa_length;
 
+    float femur_angle_raw = atan2f(z, x);
+    float femur_distance = norm3df(z, x, 0);
+
+    bool positiv_side = !signbit(z);
+    const float* saturated_femur_of_interest =
+        (positiv_side) ? dim.positiv_saturated_femur
+                       : dim.negativ_saturated_femur;
+    const float& tibia_saturation =
+        (positiv_side) ? dim.max_angle_tibia : -dim.min_angle_tibia;
+    const float& femur_saturation =
+        (positiv_side) ? dim.max_angle_femur : -dim.min_angle_femur;
+
+    float tibia_angle_raw = atan2f(z - saturated_femur_of_interest[1],
+                                   x - saturated_femur_of_interest[0]);
+    if (!positiv_side) {
+        tibia_angle_raw *= -1;
+        femur_angle_raw *= -1;
+    }
+
+    bool too_close = femur_distance < dim.min_femur_to_gripper_dist;
+
+    float center[2] = {0,0};
+    float radius;
+    bool clamp_direction = too_close;
+
+    if ((femur_angle_raw <= femur_saturation)) {
+        if (too_close) {
+            radius = dim.min_femur_to_gripper_dist;
+        } else {
+            radius = dim.max_femur_to_gripper_dist;
+        }
+
+    } else if (true or (tibia_angle_raw < (tibia_saturation + femur_saturation)) or
+               (tibia_angle_raw <
+                (tibia_saturation + femur_saturation - 2 * pIgpu))) {
+        if (too_close) {
+            radius = dim.min_femur_to_gripper_dist;
+        } else {
+            center[0] = saturated_femur_of_interest[0];
+            center[1] = saturated_femur_of_interest[1];
+            radius = dim.tibia_length;
+        }
+
+    } else {
+        center[0] = cosf(dim.femur_overmargin + femur_saturation) *
+                    dim.min_femur_to_gripper_dist;
+        center[1] = sinf(dim.femur_overmargin + femur_saturation) *
+                    dim.min_femur_to_gripper_dist;
+        center[1] = copysignf(center[1], z);
+        radius = 0;
+        clamp_direction = false;
+    };
+
+    clamp_on_circle(center, radius, clamp_direction, x, z);
+}
+
+__device__ void place_on_vert_plane_old(float& x, float& z,
+                                        const LegDimensions& dim) {
+    // Femur as the frame of reference witout rotation
+    x -= dim.coxa_length;
+
     // finding femur angle
-    float required_angle_femur = atan2f(z, x);
-    float angle_overshoot = required_angle_femur;
+    float required_overangle_femur = atan2f(z, x);
+    float angle_overshoot = required_overangle_femur;
 
     float overmargin = dim.femur_overmargin;
 
     // saturating femur angle for dist
-    required_angle_femur = fmaxf(
-        fminf(required_angle_femur, dim.max_angle_femur_w_margin + overmargin),
-        dim.min_angle_femur_w_margin - overmargin);
+    required_overangle_femur =
+        fmaxf(fminf(required_overangle_femur,
+                    dim.max_angle_femur_w_margin + overmargin),
+              dim.min_angle_femur_w_margin - overmargin);
 
-    angle_overshoot = abs(angle_overshoot - fmaxf(fminf(required_angle_femur,
-                                                        dim.max_angle_femur),
-                                                  dim.min_angle_femur));
+    angle_overshoot =
+        abs(angle_overshoot -
+            fmaxf(fminf(required_overangle_femur, dim.max_angle_femur),
+                  dim.min_angle_femur));
 
     // canceling femur rotation for dist
     float cos_angle_fem;
     float sin_angle_fem;
-    sincosf(required_angle_femur, &sin_angle_fem, &cos_angle_fem);
+    sincosf(required_overangle_femur, &sin_angle_fem, &cos_angle_fem);
 
-    // How close we are from the overmargin. 1 means we're at the saturated
-    // femur, 0 means we're at the saturated femur and tibia
-    float ratio = fmax(angle_overshoot / overmargin, 0.f);
+    // How close we are from the overmargin. 0 means we're at the saturated
+    // femur, 1 means we're at the saturated femur and tibia
+    float ratio = fmin(fmax(angle_overshoot / overmargin, 0.f), 1.f);
     float radius_adjust_factor = dim.middle_TG_radius * ratio * sinf(ratio);
 
     // middle_TG is now the frame of reference

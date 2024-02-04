@@ -1,4 +1,6 @@
 #include "static_variables.h"
+#include <cmath>
+#include <iostream>
 
 LegDimensions get_SCARE_leg(float body_angle) {
 
@@ -70,11 +72,14 @@ LegDimensions get_SCARE_leg(float body_angle) {
     /*            scare.femur_length * cosf(scare.max_angle_femur) + */
     /*                (scare.tibia_length - dist_margin) * */
     /*                    cosf(scare.max_angle_femur + scare.max_angle_tibia)); */
-    scare.femur_overmargin =
-        (scare.min_femur_to_gripper_dist * scare.min_femur_to_gripper_dist +
-         scare.tibia_length * scare.tibia_length +
-         scare.femur_length * scare.femur_length) /
-        (2 * scare.min_femur_to_gripper_dist * scare.femur_length);
+    /* std::cout << scare.femur_overmargin << std::endl; */
+    scare.femur_overmargin = acos((
+         scare.min_femur_to_gripper_dist * scare.min_femur_to_gripper_dist +
+         scare.femur_length * scare.femur_length -
+         scare.tibia_length * scare.tibia_length
+         ) /
+        (2 * scare.min_femur_to_gripper_dist * scare.femur_length));
+    std::cout << scare.femur_overmargin << std::endl;
 
     return scare;
 }

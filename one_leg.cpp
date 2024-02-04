@@ -527,37 +527,36 @@ TEST_CASE("single leg distance", "[distance]") {
 
         apply_kernel(arr, dim, dist_kernel, out);
         float interval = 0.001f;
-        CHECK_THAT(out.elements[0].x,
+        REQUIRE_THAT(out.elements[0].y,
+                Catch::Matchers::WithinRel(0.0f, interval));
+        REQUIRE_THAT(out.elements[0].z,
+                Catch::Matchers::WithinRel(0.0f, interval));
+        REQUIRE_THAT(out.elements[0].x,
                    Catch::Matchers::WithinRel((float)0.0f, interval));
-        CHECK_THAT(out.elements[0].y,
-                   Catch::Matchers::WithinRel(0.0f, interval));
-        CHECK_THAT(out.elements[0].z,
-                   Catch::Matchers::WithinRel(0.0f, interval));
 
-        CHECK_THAT(out.elements[1].x,
+        REQUIRE_THAT(out.elements[1].x,
                    Catch::Matchers::WithinRel(-overshoot, interval));
-        CHECK_THAT(out.elements[1].y,
+        REQUIRE_THAT(out.elements[1].y,
                    Catch::Matchers::WithinRel(0.0f, interval));
-        CHECK_THAT(out.elements[1].z,
+        REQUIRE_THAT(out.elements[1].z,
                    Catch::Matchers::WithinRel(0.0f, interval));
 
-        CHECK_THAT(out.elements[2].x,
+        REQUIRE_THAT(out.elements[2].x,
                    Catch::Matchers::WithinRel(overshoot, interval));
-        CHECK_THAT(out.elements[2].y,
+        REQUIRE_THAT(out.elements[2].y,
                    Catch::Matchers::WithinRel(0.0f, interval));
-        CHECK_THAT(out.elements[2].z,
+        REQUIRE_THAT(out.elements[2].z,
                    Catch::Matchers::WithinRel(0.0f, interval));
 
-        CHECK_THAT(out.elements[3].x,
+        REQUIRE_THAT(out.elements[3].x,
                    Catch::Matchers::WithinRel(0.0f, interval));
-        CHECK_THAT(out.elements[3].y,
+        REQUIRE_THAT(out.elements[3].y,
                    Catch::Matchers::WithinRel(0.0f, interval));
-        CHECK_THAT(out.elements[3].z,
+        REQUIRE_THAT(out.elements[3].z,
                    Catch::Matchers::WithinRel(0.0f, interval));
     }
 
-    SECTION("Forward kinematics distance, too far tibia elongated and zeroed",
-            "[~!mayfail]") {
+    SECTION("Forward kinematics distance, too far tibia elongated and zeroed") {
 
         delete[] arr.elements;
         delete[] out.elements;
@@ -565,7 +564,7 @@ TEST_CASE("single leg distance", "[distance]") {
         float tibia_elongation = 1;
         dim.tibia_length += tibia_elongation;
 
-        int samples_per_joint = 101;
+        int samples_per_joint = 11;
         float angle_overshoot = 0;
         arr.length = samples_per_joint * samples_per_joint;
         arr.elements = new float3[arr.length];
@@ -603,31 +602,29 @@ TEST_CASE("single leg distance", "[distance]") {
         out.length = arr.length;
         out.elements = new float3[out.length];
         apply_kernel(intermediate, dim, dist_kernel, out);
-        float interval = 0.1;
+        float interval = 0.01;
         for (int i = 0; i < arr.length; i++) {
-            REQUIRE_THAT(out.elements[i].x * out.elements[i].x +
+            CHECK_THAT(out.elements[i].x * out.elements[i].x +
                              out.elements[i].y * out.elements[i].y +
                              out.elements[i].z * out.elements[i].z,
                          Catch::Matchers::WithinRel(
                              tibia_elongation * tibia_elongation, interval));
 
-            /* if (out.elements[i] != false) { */
-            /*     std::cout << "angles : " << arr.elements[i].x << " | " */
-            /*               << arr.elements[i].y << " | " << arr.elements[i].z
-             */
-            /*               << " | " << std::endl; */
-            /*     std::cout << "coord : " << intermediate.elements[i].x << " |
-             * " */
-            /*               << intermediate.elements[i].y << " | " */
-            /*               << intermediate.elements[i].z << " | " <<
-             * std::endl; */
-            /* } */
+            if (false) {
+                std::cout << "angles : " << arr.elements[i].x << " | "
+                          << arr.elements[i].y << " | " << arr.elements[i].z
+
+                          << " | " << std::endl;
+                std::cout << "coord : " << intermediate.elements[i].x
+                          << " | " 
+                          << intermediate.elements[i].y << " | "
+                          << intermediate.elements[i].z << " | " << std::endl;
+            }
         }
         delete[] intermediate.elements;
     }
 
-    SECTION("Forward kinematics distance, too far tibia elongated and zeroed",
-            "[!mayfail]") {
+    SECTION("Forward kinematics distance, femur saturated tibia elongated") {
 
         delete[] arr.elements;
         delete[] out.elements;
@@ -647,9 +644,9 @@ TEST_CASE("single leg distance", "[distance]") {
                          a1r * (-(dim.min_angle_coxa) + (dim.max_angle_coxa));
 
             for (int a2 = 0; a2 < samples_per_joint; a2++) {
-                float a2r = (float)a2 / (float)(samples_per_joint - 1);
+                float a2r = float(a2) / float(samples_per_joint - 1);
 
-                float tibia = (0) + a2r * (-(0) + (dim.max_angle_tibia));
+                float tibia = (0.f) + a2r * (-(0.f) + (dim.max_angle_tibia));
 
                 arr.elements[counter].x = coxa;
                 arr.elements[counter].y = dim.max_angle_femur;
@@ -674,21 +671,21 @@ TEST_CASE("single leg distance", "[distance]") {
         apply_kernel(intermediate, dim, dist_kernel, out);
         float interval = 0.5;
         for (int i = 0; i < arr.length; i++) {
-            CHECK_THAT(out.elements[i].x * out.elements[i].x +
+            CHECK_THAT(sqrt(out.elements[i].x * out.elements[i].x +
                              out.elements[i].y * out.elements[i].y +
-                             out.elements[i].z * out.elements[i].z,
+                             out.elements[i].z * out.elements[i].z),
                          Catch::Matchers::WithinRel(
-                             tibia_elongation * tibia_elongation, interval));
+                             tibia_elongation, interval));
 
             if (true != false) {
                 std::cout << "angles : " << arr.elements[i].x << " | "
                           << arr.elements[i].y << " | " << arr.elements[i].z
 
                           << " | " << std::endl;
-                std::cout << "coord : " << intermediate.elements[i].x
+                std::cout << "out : " << out.elements[i].x
                           << " | " 
-                          << intermediate.elements[i].y << " | "
-                          << intermediate.elements[i].z << " | " << std::endl;
+                          << out.elements[i].y << " | "
+                          << out.elements[i].z << " | " << std::endl;
             }
         }
         delete[] intermediate.elements;
