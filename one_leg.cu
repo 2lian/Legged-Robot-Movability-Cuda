@@ -15,15 +15,19 @@ __device__ float find_coxa_angle(const float3& coordinates) {
 __device__ void clamp_on_circle(const float* center, const float& radius,
                                 const bool& clamp_direction, float& x,
                                 float& y) {
-    float u = x - center[0];
-    float v = y - center[1];
-    float magnitude = sqrtf(u * u + v * v);
+    x -= center[0];
+    y -= center[1];
+    float magnitude = sqrtf(x * x + y * y);
     bool radius_direction = !signbit(radius - magnitude);
 
-    if (clamp_direction != radius_direction) { x=0; y=0; return;}
+    if (clamp_direction != radius_direction) {
+        x = 0;
+        y = 0;
+        return;
+    }
 
-    x -= radius * u / magnitude;
-    y -= radius * v / magnitude;
+    x -= radius * x / magnitude;
+    y -= radius * y / magnitude;
 }
 
 __device__ void place_on_vert_plane(float& x, float& z,
@@ -52,7 +56,7 @@ __device__ void place_on_vert_plane(float& x, float& z,
 
     bool too_close = femur_distance < dim.min_femur_to_gripper_dist;
 
-    float center[2] = {0,0};
+    float center[2] = {0, 0};
     float radius;
     bool clamp_direction = too_close;
 
@@ -63,15 +67,20 @@ __device__ void place_on_vert_plane(float& x, float& z,
             radius = dim.max_femur_to_gripper_dist;
         }
 
-    } else if (true or (tibia_angle_raw < (tibia_saturation + femur_saturation)) or
-               (tibia_angle_raw <
-                (tibia_saturation + femur_saturation - 2 * pIgpu))) {
+    } else if (((tibia_angle_raw <= (tibia_saturation + femur_saturation)) and
+                !signbit(tibia_angle_raw)) or
+               ((tibia_angle_raw <=
+                 (tibia_saturation + femur_saturation - 2 * pIgpu)))) {
         if (too_close) {
             radius = dim.min_femur_to_gripper_dist;
         } else {
             center[0] = saturated_femur_of_interest[0];
             center[1] = saturated_femur_of_interest[1];
+            // center[0] = 0;
+            // center[1] = 190;
             radius = dim.tibia_length;
+            // radius = 200;
+            // clamp_direction = false;
         }
 
     } else {

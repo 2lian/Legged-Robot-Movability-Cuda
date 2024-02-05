@@ -79,7 +79,6 @@ LegDimensions get_SCARE_leg(float body_angle) {
          scare.tibia_length * scare.tibia_length
          ) /
         (2 * scare.min_femur_to_gripper_dist * scare.femur_length));
-    std::cout << scare.femur_overmargin << std::endl;
 
     return scare;
 }
