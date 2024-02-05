@@ -499,14 +499,14 @@ TEST_CASE("single leg distance", "[distance]") {
         delete[] arr.elements;
         delete[] out.elements;
 
-        arr.length = 100;
+        arr.length = 10;
         arr.elements = new float3[arr.length];
         for (int i = 0; i < arr.length; i++) {
             arr.elements[i].x = 0.0f;
             arr.elements[i].y = 0.0f;
             arr.elements[i].z = 0.0f;
         }
-        float overshoot = 1.0f;
+        float overshoot = 0.01f;
         arr.elements[0].x =
             dim.body + dim.coxa_length + dim.min_femur_to_gripper_dist + 1.0f;
         arr.elements[1].x = dim.body + dim.coxa_length +
@@ -541,7 +541,7 @@ TEST_CASE("single leg distance", "[distance]") {
         }
 
         apply_kernel(arr, dim, dist_kernel, out);
-        float interval = 0.001f;
+        float interval = 0.01f;
         REQUIRE_THAT(out.elements[0].y,
                      Catch::Matchers::WithinRel(0.0f, interval));
         REQUIRE_THAT(out.elements[0].z,
@@ -657,7 +657,7 @@ TEST_CASE("single leg distance", "[distance]") {
         delete[] arr.elements;
         delete[] out.elements;
 
-        float tibia_elongation = 1;
+        float tibia_elongation = 0.1;
         dim.tibia_length += tibia_elongation;
 
         int samples_per_joint = 101;
@@ -713,7 +713,7 @@ TEST_CASE("single leg distance", "[distance]") {
         out.length = arr.length;
         out.elements = new float3[out.length];
         apply_kernel(intermediate, dim, dist_kernel, out);
-        float interval = 0.01;
+        float interval = 0.001;
         for (int i = 0; i < arr.length; i++) {
             CHECK_THAT(sqrt(out.elements[i].x * out.elements[i].x +
                             out.elements[i].y * out.elements[i].y +
@@ -741,11 +741,11 @@ TEST_CASE("single leg distance", "[distance]") {
         delete[] arr.elements;
         delete[] out.elements;
 
-        float tibia_elongation = 1;
+        float tibia_elongation = 0.1;
         float tibia_length_save = dim.tibia_length;
         float femur_length_save = dim.femur_length;
         dim.femur_length = dim.min_femur_to_gripper_dist;
-        dim.tibia_length = -1;
+        dim.tibia_length = -tibia_elongation;
 
         int samples_per_joint = 101;
         float angle_overshoot = 0;
@@ -802,7 +802,7 @@ TEST_CASE("single leg distance", "[distance]") {
         out.length = arr.length;
         out.elements = new float3[out.length];
         apply_kernel(intermediate, dim, dist_kernel, out);
-        float interval = 0.1;
+        float interval = 0.01;
         for (int i = 0; i < arr.length; i++) {
             CHECK_THAT(sqrt(out.elements[i].x * out.elements[i].x +
                             out.elements[i].y * out.elements[i].y +

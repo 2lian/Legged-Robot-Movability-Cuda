@@ -20,7 +20,7 @@ __device__ void clamp_on_circle(const float* center, const float& radius,
     float magnitude = sqrtf(x * x + y * y);
     bool radius_direction = !signbit(radius - magnitude);
 
-    if (clamp_direction != radius_direction) {
+    if (clamp_direction != radius_direction or magnitude < 0.001f) {
         x = 0;
         y = 0;
         return;
@@ -60,25 +60,22 @@ __device__ void place_on_vert_plane(float& x, float& z,
     float radius = dim.min_femur_to_gripper_dist;
     bool& clamp_direction = too_close;
 
-    if ((femur_angle_raw <= femur_saturation)) {
-        if (!too_close) {
-            radius = dim.max_femur_to_gripper_dist;
-        }
-    } else if (((tibia_angle_raw <= (tibia_saturation + femur_saturation)) and
-                !signbit(tibia_angle_raw)) or
-               ((tibia_angle_raw <=
-                 (tibia_saturation + femur_saturation - 2 * pIgpu)))) {
-        if (!too_close) {
-            center[0] = saturated_femur_of_interest[0];
-            center[1] = saturated_femur_of_interest[1];
-            // center[0] = 0;
-            // center[1] = 190;
-            radius = dim.tibia_length;
-            // radius = 200;
-            // clamp_direction = false;
-        }
+    bool femur_condition = (femur_angle_raw <= femur_saturation);
+    bool femur_cond_wider =
+        femur_angle_raw <= (femur_saturation + dim.femur_overmargin);
+    bool tibia_condition =
+        (((tibia_angle_raw <= (tibia_saturation + femur_saturation)) and
+          !signbit(tibia_angle_raw)) or
+         ((tibia_angle_raw <=
+           (tibia_saturation + femur_saturation - 2 * pIgpu))));
 
-    } else {
+    if (femur_condition and not too_close) {
+        radius = dim.max_femur_to_gripper_dist;
+    } else if (tibia_condition and not too_close) {
+        center[0] = saturated_femur_of_interest[0];
+        center[1] = saturated_femur_of_interest[1];
+        radius = dim.tibia_length;
+    } else if (not femur_cond_wider and not tibia_condition) {
         center[0] = cosf(dim.femur_overmargin + femur_saturation) *
                     dim.min_femur_to_gripper_dist;
         center[1] = sinf(dim.femur_overmargin + femur_saturation) *
