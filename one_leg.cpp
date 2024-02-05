@@ -593,7 +593,7 @@ TEST_CASE("single leg distance", "[distance]") {
         float tibia_elongation = 1;
         dim.tibia_length += tibia_elongation;
 
-        int samples_per_joint = 11;
+        int samples_per_joint = 101;
         float angle_overshoot = 0;
         arr.length = samples_per_joint * samples_per_joint;
         arr.elements = new float3[arr.length];
@@ -660,7 +660,7 @@ TEST_CASE("single leg distance", "[distance]") {
         float tibia_elongation = 1;
         dim.tibia_length += tibia_elongation;
 
-        int samples_per_joint = 11;
+        int samples_per_joint = 101;
         float angle_overshoot = 0;
         arr.length = samples_per_joint * samples_per_joint * 2;
         arr.elements = new float3[arr.length];
@@ -747,7 +747,7 @@ TEST_CASE("single leg distance", "[distance]") {
         dim.femur_length = dim.min_femur_to_gripper_dist;
         dim.tibia_length = -1;
 
-        int samples_per_joint = 11;
+        int samples_per_joint = 101;
         float angle_overshoot = 0;
         arr.length = samples_per_joint * samples_per_joint * 2;
         arr.elements = new float3[arr.length];
