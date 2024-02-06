@@ -13,6 +13,8 @@ __global__ void forward_kine_kernel(const Array<float3> input,
                                     const LegDimensions dimensions,
                                     Array<float3> const output);
 
+__device__ bool reachability_vect(const float3& point, const LegDimensions& dim);
+
 /* __global__ void dist_kernel(const Arrayf3 input, LegDimensions dimensions, */
 /*                             Arrayf3 const output); */
 
