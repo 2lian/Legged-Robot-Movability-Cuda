@@ -24,6 +24,19 @@ struct Array<bool> {
     bool* elements;
 };
 
+template <>
+struct Array<int> {
+    int length;
+    int* elements;
+};
+
+template <>
+struct Array<LegDimensions> {
+    int length;
+    LegDimensions* elements;
+};
+
+
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
 typedef struct {

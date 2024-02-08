@@ -45,7 +45,21 @@ endif()
 
 set(CMAKE_CUDA_STANDARD 17)
 
-add_executable(cuda
+# add_executable(one_leg
+#     HeaderCPP.h
+#     HeaderCUDA.h
+#     math_util.cpp
+#     math_util.h
+#     static_variables.cpp
+#     static_variables.h
+#     one_leg.cu
+#     one_leg.cu.h
+#     one_leg.cpp
+#     cuda_util.cu
+#     cuda_util.h
+#     )
+
+add_executable(cuda 
     HeaderCPP.h
     HeaderCUDA.h
     math_util.cpp
@@ -57,6 +71,9 @@ add_executable(cuda
     one_leg.cpp
     cuda_util.cu
     cuda_util.h
+    several_leg.cu
+    several_leg.cu.h
+    several_leg.cpp
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
