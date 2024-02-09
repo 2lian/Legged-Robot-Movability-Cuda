@@ -3,3 +3,5 @@
 cmake .
 make
 ./cuda
+python3 array_vizu_1D.py
+imgcat graph.png

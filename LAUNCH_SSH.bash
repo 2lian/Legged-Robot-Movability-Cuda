@@ -5,7 +5,7 @@
  # rm -rf cuda_research_ssh_tmp/
  # mkdir cuda_research_ssh_tmp
  # exit
-SSH_ADDRESS="moonbotj40@10.240.20.224"
+SSH_ADDRESS="moonbotj40@10.240.20.111"
 SOURCE_DIR="./"
 DESTINATION_DIR="${SSH_ADDRESS}:~/elian_stuff/cuda_research_ssh_tmp/"
 
@@ -16,6 +16,9 @@ ssh "${SSH_ADDRESS}" <<EOF
 script -q /dev/null
 cd ~/elian_stuff/cuda_research_ssh_tmp/
 . LAUNCH.bash
+exit
 EOF
 # Run your commands here
 # scp -r . moonbotj40@10.240.20.224:/elian_stuff/cuda_research_ssh_tmp/. 
+#
+rsync -av --include='*.png' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}/image"

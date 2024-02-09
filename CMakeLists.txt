@@ -16,11 +16,11 @@ elseif(UNIX)
     find_package(SFML COMPONENTS graphics window system REQUIRED)
 
     # for cuda 11:
-    # set(CUDA_DIR "/usr/local/cuda-11.4")
-    # find_package(CUDA 11.0 REQUIRED)
+    set(CUDA_DIR "/usr/local/cuda-11.4")
+    find_package(CUDA 11.0 REQUIRED)
     # for cuda 12:
-    set(CUDA_DIR "/usr/local/cuda-12.3")
-    find_package(CUDA 12.0 REQUIRED)
+    # set(CUDA_DIR "/usr/local/cuda-12.3")
+    # find_package(CUDA 12.0 REQUIRED)
 
     find_package(Catch2 3 REQUIRED)
     #install with
@@ -37,6 +37,7 @@ include_directories("${CUDA_DIR}/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/tinycolormap-master/include")
 # include_directories("externals/tinycolormap-master/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
+# include_directories("${CMAKE_SOURCE_DIR}/externals/sciplot")
 # include_directories("externals/eigen-3.4.0")
 if(WIN32)
     include_directories("${SFML_DIR}/include")
@@ -44,7 +45,7 @@ if(WIN32)
 endif()
 
 set(CMAKE_CUDA_STANDARD 17)
-
+set(CMAKE_CXX_STANDARD 17)
 # add_executable(one_leg
 #     HeaderCPP.h
 #     HeaderCUDA.h

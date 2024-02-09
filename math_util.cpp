@@ -1,4 +1,7 @@
 #include "math_util.h"
+#include "HeaderCPP.h"
+#include <fstream>
+#include <iostream>
 
 int calculateMedian(const Eigen::VectorXi& data) {
     // Convert the Eigen vector to a std::vector for sorting
@@ -37,3 +40,20 @@ float calculateStdDev(const float* arr, int size, float mean) {
 bool close(float a, float b, float interval) {
     return (a - interval < b) && (b < a + interval);
 }
+
+// Function to save array and its length to binary file
+template <typename T>
+void saveArrayToFile(T* array, size_t length, const char* filename) {
+    std::ofstream file(filename, std::ios::binary);
+    if (file.is_open()) {
+        file.write(reinterpret_cast<const char*>(array), length * sizeof(T));
+        file.close();
+    } else {
+        std::cout << "error savinf file";
+    }
+}
+
+template void saveArrayToFile<int>(int* array, size_t length,
+                                   const char* filename);
+template void saveArrayToFile<float>(float* array, size_t length,
+                                   const char* filename);

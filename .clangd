@@ -6,7 +6,6 @@ CompileFlags: # Tweak the parse settings
 
     -Iexternals/eigen-3.4.0, 
     -Iexternals/tinycolormap-master/include,
-    -Iexternals/cuda-12.2_linux/include
+    -Iexternals/cuda-12.2_linux/include,
+    # -Iexternals/sciplot
   ]
-    # - "-I=[externals/eigen-3.4.0]"
-    # - "-I=[externals/tinycolormap-master/include]"
