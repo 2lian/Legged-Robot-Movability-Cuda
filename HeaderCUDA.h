@@ -19,6 +19,12 @@ struct Array<float3> {
 };
 
 template <>
+struct Array<float> {
+    int length;
+    float* elements;
+};
+
+template <>
 struct Array<bool> {
     int length;
     bool* elements;

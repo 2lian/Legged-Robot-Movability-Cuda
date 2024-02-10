@@ -22,8 +22,8 @@ __device__ void unrotateInPlace(float3& point, float z_rot, float& cos_memory,
     return;
 }
 
-__device__ bool reachable_leg(float3 target, const float3 body_pos,
-                              const LegDimensions& dim) {
+__device__ bool reachable_rotate_leg(float3 target, const float3 body_pos,
+                                     const LegDimensions& dim) {
     float cos_memory;
     float sin_memory;
     target.x -= body_pos.x;
@@ -37,15 +37,15 @@ __global__ void reachable_leg_kernel_accu(Array<float3> body_map,
                                           Array<float3> target_map,
                                           LegDimensions dim,
                                           Array<int> output) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int i = index; i < (body_map.length * target_map.length);
-         i += stride) {
+    long index = blockIdx.x * blockDim.x + threadIdx.x;
+    long stride = blockDim.x * gridDim.x;
+    long maxid = (long)body_map.length * (long)target_map.length;
+    for (long i = index; i < maxid; i += stride) {
         int body_index = i / target_map.length;
         int target_index = i % target_map.length;
         float3& target = target_map.elements[target_index];
         float3& body_pos = body_map.elements[body_index];
-        if (reachable_leg(target, body_pos, dim)) {
+        if (reachable_rotate_leg(target, body_pos, dim)) {
             atomicAdd(&output.elements[body_index], 1);
         }
     }
@@ -130,8 +130,8 @@ Array<int> robot_full_reachable(Array<float3> body_map,
         Array<int>* newpointer;
         cudaMalloc(&newpointer, legs.length * sizeof(Array<int>));
         CUDA_CHECK_ERROR("cudaMalloc legdim");
-        cudaMemcpy(newpointer, res_bool_array,
-                   legs.length * sizeof(Array<int>), cudaMemcpyHostToDevice);
+        cudaMemcpy(newpointer, res_bool_array, legs.length * sizeof(Array<int>),
+                   cudaMemcpyHostToDevice);
         CUDA_CHECK_ERROR("cudaMemcpy legdim");
         res_bool_array = newpointer;
     }
