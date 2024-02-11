@@ -136,7 +136,8 @@ Array<int> robot_full_reachable(Array<float3> body_map,
         res_bool_array = newpointer;
     }
 
-    numBlock = (body_map.length) / blockSize;
+    numBlock =
+        (body_map.length + blockSize - 1) / blockSize;
     find_min_kernel<<<numBlock, blockSize>>>(res_bool_array, legs.length,
                                              final_count);
     cudaDeviceSynchronize();

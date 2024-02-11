@@ -5,4 +5,4 @@ python3 before.py
 make
 ./cuda
 python3 array_vizu_1D.py
-# feh -A --auto-reload=1 graph.png
+# feh -R 1 graph.png

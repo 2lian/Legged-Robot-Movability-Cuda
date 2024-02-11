@@ -28,7 +28,7 @@ int main() {
     delete[] inputxz.elements;
 
     Array<LegDimensions> legArray;
-    legArray.length = 6;
+    legArray.length = 4;
     legArray.elements = new LegDimensions[legArray.length];
     float angle = pI * 2 / legArray.length;
     for (int leg = 0; leg < legArray.length; leg++) {
@@ -80,18 +80,18 @@ int main() {
               << std::endl;
     Array<int> out;
     out = robot_full_reachable(body_pos_arr, target_map, legArray);
-    for (int i = 0; i < body_pos_arr.length; i++) {
-        if (i < target_map.length) {
-            std::cout << target_map.elements[i].x << "  |  "
-                      << target_map.elements[i].y << "  |  "
-                      << target_map.elements[i].z << std::endl;
-        }
-        std::cout << body_pos_arr.elements[i].x << "  |  "
-                  << body_pos_arr.elements[i].y << "  |  "
-                  << body_pos_arr.elements[i].z << std::endl;
-        std::cout << out.elements[i] << std::endl;
-        std::cout << std::endl;
-    }
+    /* for (int i = 0; i < body_pos_arr.length; i++) { */
+    /*     if (i < target_map.length) { */
+    /*         std::cout << target_map.elements[i].x << "  |  " */
+    /*                   << target_map.elements[i].y << "  |  " */
+    /*                   << target_map.elements[i].z << std::endl; */
+    /*     } */
+    /*     std::cout << body_pos_arr.elements[i].x << "  |  " */
+    /*               << body_pos_arr.elements[i].y << "  |  " */
+    /*               << body_pos_arr.elements[i].z << std::endl; */
+    /*     std::cout << out.elements[i] << std::endl; */
+    /*     std::cout << std::endl; */
+    /* } */
     float x_arr[body_pos_arr.length];
     for (int i = 0; i < body_pos_arr.length; i++) {
         x_arr[i] = body_pos_arr.elements[i].x;

@@ -2,8 +2,9 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import maps
 
-def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transparency = True):
+def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transparency = False):
     """
     From a grid of coordinates corresponding to pixels positions and the corresponding bool value of that pixel
     draw a matplotlib image (then you have to plt.show() to show this result)
@@ -13,14 +14,14 @@ def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transp
     :return: nothing, you have to plt.show() to show this result
     """
     coord = grid.copy()
-    coord[:, 1] = -coord[:, 1]
+    coord[:, 1] = coord[:, 1]
     size = (len(np.unique(coord[:, 0])) - 1, len(np.unique(coord[:, 1])) - 1)
     xmin, xmax, ymin, ymax = coord[:, 0].min(), coord[:, 0].max(), coord[:, 1].min(), coord[:, 1].max()
     img = np.ones(size, dtype=float)
 
     coord_as_int = np.empty(coord.shape, dtype=int)
     coord_as_int[:, 0] = (coord[:, 0] - xmin) * (size[0] - 1) // (xmax - xmin)
-    coord_as_int[:, 1] = (coord[:, 1] - ymin) * (size[1] - 1) // (ymax - ymin)
+    coord_as_int[:, 1] = -(coord[:, 1] - ymin) * (size[1] - 1) // (ymax - ymin)
     coord_as_int = coord_as_int.astype(int)
 
     img[coord_as_int[:, 0], coord_as_int[:, 1]] = data
@@ -57,9 +58,11 @@ grid[:,1] = xy
 filename = 'cpp_array_y.bin'
 y = read_array_from_file_with_length(filename, np.int32)
 
-bool_grid_image(grid, y, black_white=False)
+bool_grid_image(grid, y/y.max(), black_white=True, transparency=False)
 
-# plt.scatter(xx, xy, c=y, s=10)
+map = maps.obs_map
+plt.scatter(map[:, 0], map[:,1], c="red", s=5)
+
 # plt.xlabel(f'Index shape: xx{xx.shape} xy{xy.shape}')
 # plt.ylabel('Value')
 # plt.title('Title')
