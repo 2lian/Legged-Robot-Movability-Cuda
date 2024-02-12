@@ -7,7 +7,7 @@ def save_array_to_binary_file(array, filename):
         array.tofile(f)
     return
  
-map = maps.obs_map
+map = maps.random_map
 print(map, map.shape)
 save_array_to_binary_file(map[:, 0].astype(np.float32), "numpy_input_tx.bin")
 save_array_to_binary_file(map[:, 1].astype(np.float32), "numpy_input_ty.bin")
@@ -24,3 +24,19 @@ body_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
 save_array_to_binary_file(body_map[:, 0].astype(np.float32), "numpy_input_bx.bin")
 save_array_to_binary_file(body_map[:, 1].astype(np.float32), "numpy_input_by.bin")
 save_array_to_binary_file(body_map[:, 2].astype(np.float32), "numpy_input_bz.bin")
+
+print(body_map, body_map.shape)
+
+x_map_dist = np.arange(0, 901, 1/1)
+y_map_dist = 0
+z_map_dist = np.arange(-500, 500, 1/1)
+X_map_dist, Y_map_dist, Z_map_dist = np.meshgrid(x_map_dist, y_map_dist, z_map_dist)
+
+dist_map = np.concatenate([X_map_dist.flatten().reshape((len(X_map_dist.flatten()), 1)),
+                           Y_map_dist.flatten().reshape((len(Y_map_dist.flatten()), 1)),
+                           Z_map_dist.flatten().reshape((len(Z_map_dist.flatten()), 1))], axis=1).astype('float32')
+save_array_to_binary_file(dist_map[:, 0].astype(np.float32), "dist_input_tx.bin")
+save_array_to_binary_file(dist_map[:, 1].astype(np.float32), "dist_input_ty.bin")
+save_array_to_binary_file(dist_map[:, 2].astype(np.float32), "dist_input_tz.bin")
+
+print(dist_map, dist_map.shape)

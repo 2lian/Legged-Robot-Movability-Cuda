@@ -64,6 +64,7 @@ void apply_kernel(const Array<T_in> input, const LegDimensions dim,
     int blockSize = 1024;
     int numBlock = (input.length + blockSize - 1) / blockSize;
     kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
+    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("Kernel launch");
 
     cudaMemcpy(output.elements, gpu_out.elements, output.length * sizeof(T_out),

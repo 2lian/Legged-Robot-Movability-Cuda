@@ -56,10 +56,6 @@ __device__ void place_on_vert_plane(float& x, float& z,
 
     bool too_close = femur_distance < dim.min_femur_to_gripper_dist;
 
-    float center[2] = {0, 0};
-    float radius = dim.min_femur_to_gripper_dist;
-    bool& clamp_direction = too_close;
-
     bool femur_condition = (femur_angle_raw <= femur_saturation);
     bool femur_cond_wider =
         femur_angle_raw <= (femur_saturation + dim.femur_overmargin);
@@ -68,6 +64,10 @@ __device__ void place_on_vert_plane(float& x, float& z,
           !signbit(tibia_angle_raw)) or
          ((tibia_angle_raw <=
            (tibia_saturation + femur_saturation - 2 * pIgpu))));
+
+    float center[2] = {0, 0};
+    float radius = dim.min_femur_to_gripper_dist;
+    bool& clamp_direction = too_close;
 
     if (femur_condition and not too_close) {
         radius = dim.max_femur_to_gripper_dist;

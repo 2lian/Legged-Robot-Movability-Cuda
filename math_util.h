@@ -9,7 +9,7 @@ float calculateStdDev(const float* arr, int size, float mean);
 bool close(float a, float b,float interval);
 
 template<typename T>
-void saveArrayToFile(T* array, size_t length, const char* filename);
+void saveArrayToFile(T* array, long length, const char* filename);
 
 template <typename T>
 Array<T> readArrayFromFile(const char* filename);

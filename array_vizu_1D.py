@@ -58,9 +58,9 @@ grid[:,1] = xy
 filename = 'cpp_array_y.bin'
 y = read_array_from_file_with_length(filename, np.int32)
 
-bool_grid_image(grid, y/y.max(), black_white=True, transparency=False)
+bool_grid_image(grid, np.clip(y/(y.max()*3/4), 0, 1), black_white=False, transparency=False)
 
-map = maps.obs_map
+map = maps.random_map
 plt.scatter(map[:, 0], map[:,1], c="red", s=5)
 
 # plt.xlabel(f'Index shape: xx{xx.shape} xy{xy.shape}')
@@ -69,4 +69,33 @@ plt.scatter(map[:, 0], map[:,1], c="red", s=5)
 # plt.grid(False)
 # plt.axis("equal")
 
-plt.savefig("graph.png")
+plt.savefig("graph1.png")
+plt.clf()
+
+filename = 'out_dist_xx.bin'
+xx = read_array_from_file_with_length(filename, np.float32) 
+filename = 'out_dist_xy.bin'
+xy = read_array_from_file_with_length(filename, np.float32) 
+filename = 'out_dist_xz.bin'
+xz = read_array_from_file_with_length(filename, np.float32) 
+
+dist = np.empty(shape=(len(xx), 3))
+dist[:,0] = xx
+dist[:,1] = xy
+dist[:,2] = xz
+
+filename = 'dist_input_tx.bin'
+tx = read_array_from_file_with_length(filename, np.float32)
+filename = 'dist_input_ty.bin'
+ty = read_array_from_file_with_length(filename, np.float32)
+filename = 'dist_input_tz.bin'
+tz = read_array_from_file_with_length(filename, np.float32)
+
+target = np.empty(shape=(len(tx), 3))
+target[:,0] = tx
+target[:,1] = ty
+target[:,2] = tz
+
+bool_grid_image(target[:, [0, 2]], np.linalg.norm(dist, axis=1), black_white=False, transparency=False)
+
+plt.savefig("graph2.png")

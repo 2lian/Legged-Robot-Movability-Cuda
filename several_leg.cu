@@ -60,7 +60,8 @@ __global__ void find_min_kernel(Array<int>* arrays, int number_of_legs,
         int min_value = arrays[0].elements[i];
 
         for (int j = 1; j < number_of_legs; ++j) {
-            min_value = min(min_value, arrays[j].elements[i]);
+            // min_value = min(min_value, arrays[j].elements[i]);
+            min_value = min_value + arrays[j].elements[i];
         }
 
         output.elements[i] = min_value;
@@ -136,8 +137,7 @@ Array<int> robot_full_reachable(Array<float3> body_map,
         res_bool_array = newpointer;
     }
 
-    numBlock =
-        (body_map.length + blockSize - 1) / blockSize;
+    numBlock = (body_map.length + blockSize - 1) / blockSize;
     find_min_kernel<<<numBlock, blockSize>>>(res_bool_array, legs.length,
                                              final_count);
     cudaDeviceSynchronize();

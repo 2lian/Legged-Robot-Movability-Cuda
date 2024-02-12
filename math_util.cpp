@@ -42,9 +42,8 @@ bool close(float a, float b, float interval) {
     return (a - interval < b) && (b < a + interval);
 }
 
-// Function to save array and its length to binary file
 template <typename T>
-void saveArrayToFile(T* array, size_t length, const char* filename) {
+void saveArrayToFile(T* array, long length, const char* filename) {
     std::ofstream file(filename, std::ios::binary);
     if (file.is_open()) {
         file.write(reinterpret_cast<const char*>(array), length * sizeof(T));
@@ -54,9 +53,9 @@ void saveArrayToFile(T* array, size_t length, const char* filename) {
     }
 }
 
-template void saveArrayToFile<int>(int* array, size_t length,
+template void saveArrayToFile<int>(int* array, long length,
                                    const char* filename);
-template void saveArrayToFile<float>(float* array, size_t length,
+template void saveArrayToFile<float>(float* array, long length,
                                      const char* filename);
 
 template <typename T> Array<T> readArrayFromFile(const char* filename) {
