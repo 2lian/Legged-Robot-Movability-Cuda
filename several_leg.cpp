@@ -106,20 +106,31 @@ int main() {
         /*     std::cout << std::endl; */
         /* } */
         {
-            float x_arr[body_pos_arr.length];
+            float* x_arr = new float[body_pos_arr.length];
             for (int i = 0; i < body_pos_arr.length; i++) {
                 x_arr[i] = body_pos_arr.elements[i].x;
             }
             filename = "cpp_array_xx.bin";
             saveArrayToFile(x_arr, body_pos_arr.length, filename);
+            delete[] x_arr;
         }
         {
-            float y_arr[body_pos_arr.length];
+            float* y_arr = new float[body_pos_arr.length];
             for (int i = 0; i < body_pos_arr.length; i++) {
                 y_arr[i] = body_pos_arr.elements[i].y;
             }
             filename = "cpp_array_xy.bin";
             saveArrayToFile(y_arr, body_pos_arr.length, filename);
+            delete[] y_arr;
+        }
+        {
+            float* z_arr = new float[body_pos_arr.length];
+            for (int i = 0; i < body_pos_arr.length; i++) {
+                z_arr[i] = body_pos_arr.elements[i].z;
+            }
+            filename = "cpp_array_xz.bin";
+            saveArrayToFile(z_arr, body_pos_arr.length, filename);
+            delete[] z_arr;
         }
 
         filename = "cpp_array_y.bin";
@@ -158,32 +169,34 @@ int main() {
         std::cout << "Cuda took " << duration.count()
                   << " milliseconds to finish." << std::endl;
 
-        // delete [] target_map.elements;
+        delete[] target_map.elements;
 
         {
-            float x_arr2[out2.length];
+            float* x_arr2 = new float[out2.length];
             for (int i = 0; i < out2.length; i++) {
                 x_arr2[i] = out2.elements[i].x;
             }
-            // return x_arr2[0];
             filename = "out_dist_xx.bin";
             saveArrayToFile(x_arr2, out2.length, filename);
+            delete[] x_arr2;
         }
         {
-            float y_arr2[out2.length];
+            float* y_arr2 = new float[out2.length];
             for (long i = 0; i < out2.length; i++) {
                 y_arr2[i] = out2.elements[i].y;
             }
             filename = "out_dist_xy.bin";
             saveArrayToFile(y_arr2, out2.length, filename);
+            delete[] y_arr2;
         }
         {
-            float z_arr2[out2.length];
+            float* z_arr2 = new float[out2.length];
             for (long i = 0; i < out2.length; i++) {
                 z_arr2[i] = out2.elements[i].z;
             }
             filename = "out_dist_xz.bin";
             saveArrayToFile(z_arr2, out2.length, filename);
+            delete[] z_arr2;
         }
     }
 }

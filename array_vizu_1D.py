@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib
+import matplotlib.cm as cm
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import maps
+import open3d as o3d
 
 def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transparency = False):
     """
@@ -50,15 +52,18 @@ filename = 'cpp_array_xx.bin'
 xx = read_array_from_file_with_length(filename, np.float32) 
 filename = 'cpp_array_xy.bin'
 xy = read_array_from_file_with_length(filename, np.float32) 
+filename = 'cpp_array_xz.bin'
+xz = read_array_from_file_with_length(filename, np.float32) 
 
-grid = np.empty(shape=(len(xy), 2))
+grid = np.empty(shape=(len(xy), 3))
 grid[:,0] = xx
 grid[:,1] = xy
+grid[:,2] = xz
 
 filename = 'cpp_array_y.bin'
-y = read_array_from_file_with_length(filename, np.int32)
+reach_count = read_array_from_file_with_length(filename, np.int32)
 
-bool_grid_image(grid, np.clip(y/(y.max()*3/4), 0, 1), black_white=False, transparency=False)
+bool_grid_image(grid[:, [0, 1]], np.clip(reach_count/(reach_count.max()*3/4), 0, 1), black_white=False, transparency=False)
 
 map = maps.random_map
 plt.scatter(map[:, 0], map[:,1], c="red", s=5)
@@ -95,7 +100,47 @@ target = np.empty(shape=(len(tx), 3))
 target[:,0] = tx
 target[:,1] = ty
 target[:,2] = tz
+print(ty)
 
 bool_grid_image(target[:, [0, 2]], np.linalg.norm(dist, axis=1), black_white=False, transparency=False)
 
-plt.savefig("graph2.png")
+plt.savefig("graph2.png", dpi=1000)
+
+if False:
+
+    shaved = target[np.linalg.norm(dist, axis=1) < 1, :]
+    r_pcd = o3d.geometry.PointCloud()
+    r_pcd.points = o3d.utility.Vector3dVector(shaved)
+
+    cmap = cm.get_cmap('viridis')
+    norm = plt.Normalize(vmin=np.min(shaved[:, 2]), vmax=np.max(shaved[:, 2]))
+    colors_rgb = np.array(cmap(norm(shaved[:, 2])))[:, :3]
+    print(colors_rgb)
+
+    r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
+
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(r_pcd,
+                        voxel_size=np.linalg.norm(target[0, :] - target[1, :]))
+
+    o3d.visualization.draw_geometries([voxel_grid])
+
+if True:
+
+
+    map_pcd = o3d.geometry.PointCloud()
+    map_pcd.points = o3d.utility.Vector3dVector(map)
+
+    select = reach_count>1
+    shaved = grid[select, :]
+    r_pcd = o3d.geometry.PointCloud()
+    r_pcd.points = o3d.utility.Vector3dVector(shaved)
+
+    cmap = cm.get_cmap('viridis')
+    norm = plt.Normalize(vmin=np.min(reach_count[select]), vmax=np.max(reach_count[select]))
+    colors_rgb = np.array(cmap(norm(reach_count[select])))[:, :3]
+
+    r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(r_pcd,
+                        voxel_size=np.linalg.norm(grid[0, :] - grid[1, :]))
+
+    o3d.visualization.draw_geometries([map_pcd, voxel_grid])

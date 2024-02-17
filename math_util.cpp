@@ -101,4 +101,68 @@ Array<float3> threeArrays2float3Arr(Array<T> x, Array<T> y, Array<T> z) {
     return out;
 }
 
-template Array<float3> threeArrays2float3Arr<float>(Array<float> x, Array<float> y, Array<float> z);
+template Array<float3>
+threeArrays2float3Arr<float>(Array<float> x, Array<float> y, Array<float> z);
+
+void savef3Arrayto3files(Array<float3> array_to_save, const char* filename) {
+    {
+        const char *str2 = "x";
+        const char *str3 = ".bin";
+        float* z_arr = new float[array_to_save.length];
+        for (int i = 0; i < array_to_save.length; i++) {
+            z_arr[i] = array_to_save.elements[i].x;
+        }
+
+        char* result =
+            (char*)malloc(strlen(filename) + strlen(str2) + strlen(str3) +
+                          1); // Allocate memory for concatenated string
+        strcpy(result, filename); // Copy str1 to result
+        strcat(result, str2); // Concatenate str2 to result
+        strcat(result, str3); // Concatenate str2 to result
+
+        // filename = "cpp_array_xz.bin";
+        saveArrayToFile(z_arr, array_to_save.length, filename);
+        delete[] z_arr;
+        delete[] result;
+    }
+    {
+        const char *str2 = "y";
+        const char *str3 = ".bin";
+        float* z_arr = new float[array_to_save.length];
+        for (int i = 0; i < array_to_save.length; i++) {
+            z_arr[i] = array_to_save.elements[i].y;
+        }
+
+        char* result =
+            (char*)malloc(strlen(filename) + strlen(str2) + strlen(str3) +
+                          1); // Allocate memory for concatenated string
+        strcpy(result, filename); // Copy str1 to result
+        strcat(result, str2); // Concatenate str2 to result
+        strcat(result, str3); // Concatenate str2 to result
+
+        // filename = "cpp_array_xz.bin";
+        saveArrayToFile(z_arr, array_to_save.length, filename);
+        delete[] z_arr;
+        delete[] result;
+    }
+    {
+        const char *str2 = "z";
+        const char *str3 = ".bin";
+        float* z_arr = new float[array_to_save.length];
+        for (int i = 0; i < array_to_save.length; i++) {
+            z_arr[i] = array_to_save.elements[i].z;
+        }
+
+        char* result =
+            (char*)malloc(strlen(filename) + strlen(str2) + strlen(str3) +
+                          1); // Allocate memory for concatenated string
+        strcpy(result, filename); // Copy str1 to result
+        strcat(result, str2); // Concatenate str2 to result
+        strcat(result, str3); // Concatenate str2 to result
+
+        // filename = "cpp_array_xz.bin";
+        saveArrayToFile(z_arr, array_to_save.length, filename);
+        delete[] z_arr;
+        delete[] result;
+    }
+}

@@ -60,8 +60,8 @@ __global__ void find_min_kernel(Array<int>* arrays, int number_of_legs,
         int min_value = arrays[0].elements[i];
 
         for (int j = 1; j < number_of_legs; ++j) {
-            // min_value = min(min_value, arrays[j].elements[i]);
-            min_value = min_value + arrays[j].elements[i];
+            min_value = min(min_value, arrays[j].elements[i]);
+            // min_value = min_value + arrays[j].elements[i];
         }
 
         output.elements[i] = min_value;
