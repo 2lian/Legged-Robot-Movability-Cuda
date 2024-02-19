@@ -5,11 +5,11 @@
  # rm -rf cuda_research_ssh_tmp/
  # mkdir cuda_research_ssh_tmp
  # exit
-SSH_ADDRESS="moonbotj40@10.240.20.111"
+SSH_ADDRESS=${address_jetson}
 SOURCE_DIR="./"
 DESTINATION_DIR="${SSH_ADDRESS}:~/elian_stuff/cuda_research_ssh_tmp/"
 
-rsync -av --exclude='externals/cuda-12.2_linux' --exclude='*Cache*' --exclude='*_win' $SOURCE_DIR $DESTINATION_DIR
+rsync -av --exclude='*.bin' --exclude='image' --exclude='externals/cuda-12.2_linux' --exclude='*Cache*' --exclude='*_win' $SOURCE_DIR $DESTINATION_DIR
 
 # find "$SOURCE_DIR" -type f -not -path '*/\.*' ! $EXCLUDE_DIRS -exec scp {} "$DESTINATION_DIR" \;
 ssh "${SSH_ADDRESS}" <<EOF
@@ -22,3 +22,5 @@ EOF
 # scp -r . moonbotj40@10.240.20.224:/elian_stuff/cuda_research_ssh_tmp/. 
 #
 rsync -av --include='*.png' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}/image"
+rsync -av --include='*.npy' --exclude='*' "${DESTINATION_DIR}" "/home/elian/moonbot_software/src/pcl_reader/pcl_reader/python_package_include/"
+

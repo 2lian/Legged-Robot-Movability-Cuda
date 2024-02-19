@@ -7,7 +7,7 @@ This creates several maps of foothold to be used by the Astar
 """
 import numpy as np
 
-density_in_pt_per_m2 = 17 #10
+density_in_pt_per_m2 = 16 #10
 x_min, x_max = -700, 4000
 y_min, y_max = -700, 4000
 point_density = density_in_pt_per_m2 * 1e-6

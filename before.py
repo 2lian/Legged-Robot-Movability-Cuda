@@ -8,14 +8,15 @@ def save_array_to_binary_file(array, filename):
     return
  
 map = maps.random_map
+np.save("map.npy", map)
 print(map, map.shape)
 save_array_to_binary_file(map[:, 0].astype(np.float32), "numpy_input_tx.bin")
 save_array_to_binary_file(map[:, 1].astype(np.float32), "numpy_input_ty.bin")
 save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
 
-x_map2 = np.arange(map[:, 0].min(), map[:, 0].max(), 50)
-y_map2 = np.arange(map[:, 1].min(), map[:, 1].max(), 50)
-z_map2 = np.arange(50, 400, 50) 
+x_map2 = np.arange(map[:, 0].min(), map[:, 0].max(), 25)
+y_map2 = np.arange(map[:, 1].min(), map[:, 1].max(), 25)
+z_map2 = np.arange(50, 450, 25) 
 X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
 
 body_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
