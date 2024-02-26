@@ -2,6 +2,7 @@ CompileFlags: # Tweak the parse settings
   Add: [
     # --cuda-path=/usr/local/cuda-12.3,
     --cuda-path=/usr/local/cuda,
+    # --cuda-path=/usr/local/cuda/include,
     --cuda-gpu-arch=sm_52,
 
     -Iexternals/eigen-3.4.0, 

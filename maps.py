@@ -80,3 +80,17 @@ flat_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
                            Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
                            Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
 
+x_map2 = np.arange(-500, 501, 100)
+y_map2 = np.arange(-500, 501, 100)
+z_map2 = 0
+X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
+
+step_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
+                           Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
+                           Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
+step_map = np.concatenate([step_map, 
+                           step_map + np.array([1000, 0, 200]),
+                           step_map + np.array([1000, 1000, 400]),
+                           step_map + np.array([0, 1000, 600]),
+                           ])
+

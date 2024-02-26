@@ -48,6 +48,8 @@ def read_array_from_file_with_length(filename, dtype):
         array_data = np.fromfile(file, dtype=dtype)
     return array_data
 
+print("python post process started")
+
 filename = 'cpp_array_xx.bin'
 xx = read_array_from_file_with_length(filename, np.float32) 
 filename = 'cpp_array_xy.bin'
@@ -130,7 +132,9 @@ intensity = reach_count[select]
 np.save("robot_reach.npy", shaved)
 np.save("robot_reach_intens.npy", intensity)
 
-if True:
+print("python post process finished")
+
+if False:
     map_pcd = o3d.geometry.PointCloud()
     map_pcd.points = o3d.utility.Vector3dVector(map)
 

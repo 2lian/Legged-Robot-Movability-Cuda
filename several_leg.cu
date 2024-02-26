@@ -1,6 +1,8 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "collision.cu.h"
 #include "cuda_runtime_api.h"
+#include "driver_types.h"
 #include "one_leg.cu.h"
 #include "vector_types.h"
 #include <cstdio>
@@ -43,6 +45,9 @@ __global__ void reachable_leg_kernel_accu(Array<float3> body_map,
     for (long i = index; i < maxid; i += stride) {
         int body_index = i / target_map.length;
         int target_index = i % target_map.length;
+        if (output.elements[body_index] == -1) {
+            return;
+        }
         float3& target = target_map.elements[target_index];
         float3& body_pos = body_map.elements[body_index];
         if (reachable_rotate_leg(target, body_pos, dim)) {
@@ -111,6 +116,20 @@ Array<int> robot_full_reachable(Array<float3> body_map,
         res_bool_array[leg_num].length = body_map.length;
         cudaMalloc(&(res_bool_array[leg_num].elements),
                    sizeof(int) * res_bool_array[leg_num].length);
+        if (leg_num == 0) {
+            cudaMemset(res_bool_array[leg_num].elements, 0,
+                       sizeof(int) * res_bool_array[leg_num].length);
+            in_cylinder_accu_kernel<<<numBlock, blockSize>>>(
+                body_map, target_map, res_bool_array[leg_num], 180.0f, 300.0f,
+                -50.0f);
+        } else {
+            cudaMemcpy(res_bool_array[leg_num].elements,
+                       res_bool_array[0].elements,
+                       sizeof(int) * res_bool_array[leg_num].length,
+                       cudaMemcpyDeviceToDevice);
+        }
+    }
+    for (int leg_num = 0; leg_num < legs.length; leg_num++) {
         CUDA_CHECK_ERROR("cudaMalloc leg");
         reachable_leg_kernel_accu<<<numBlock, blockSize>>>(
             body_map, target_map, legs.elements[leg_num],
