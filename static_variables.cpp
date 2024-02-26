@@ -1,6 +1,5 @@
 #include "static_variables.h"
 #include <cmath>
-#include <iostream>
 
 LegDimensions get_SCARE_leg(float body_angle) {
 
