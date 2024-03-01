@@ -90,7 +90,7 @@ int main() {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Cuda took " << duration.count()
+        std::cout << "Cuda robot reachability took " << duration.count()
                   << " milliseconds to finish." << std::endl;
 
         /* for (int i = 0; i < body_pos_arr.length; i++) { */
@@ -141,7 +141,6 @@ int main() {
         delete[] legArray.elements;
     }
     {
-
         LegDimensions dim = get_SCARE_leg(0);
         const char* filename = "dist_input_tx.bin";
         Array<float> inputxx = readArrayFromFile<float>(filename);
@@ -166,7 +165,7 @@ int main() {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Cuda took " << duration.count()
+        std::cout << "Cuda distance took " << duration.count()
                   << " milliseconds to finish." << std::endl;
 
         delete[] target_map.elements;
@@ -198,5 +197,38 @@ int main() {
             saveArrayToFile(z_arr2, out2.length, filename);
             delete[] z_arr2;
         }
+    }
+    {
+        LegDimensions dim = get_SCARE_leg(0);
+        const char* filename = "dist_input_tx.bin";
+        Array<float> inputxx = readArrayFromFile<float>(filename);
+        filename = "dist_input_ty.bin";
+        Array<float> inputxy = readArrayFromFile<float>(filename);
+        filename = "dist_input_tz.bin";
+        Array<float> inputxz = readArrayFromFile<float>(filename);
+
+        Array<float3> target_map =
+            threeArrays2float3Arr(inputxx, inputxy, inputxz);
+        delete[] inputxx.elements;
+        delete[] inputxy.elements;
+        delete[] inputxz.elements;
+
+        Array<bool> out2;
+        out2.length = target_map.length;
+        out2.elements = new bool[out2.length];
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        apply_kernel(target_map, dim, reachability_abs_tib_kernel, out2);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Cuda reachability took " << duration.count()
+                  << " milliseconds to finish." << std::endl;
+
+        delete[] target_map.elements;
+
+        filename = "out_reachability.bin";
+        saveArrayToFile(out2.elements, out2.length, filename);
     }
 }

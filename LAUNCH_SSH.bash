@@ -24,3 +24,6 @@ EOF
 rsync -av --include='*.png' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}/image"
 rsync -av --include='*.npy' --exclude='*' "${DESTINATION_DIR}" "/home/elian/moonbot_software/src/pcl_reader/pcl_reader/python_package_include/"
 
+# rsync -av --include='*.bin' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}"
+# python3 array_vizu_1D.py
+

@@ -7,13 +7,13 @@ typedef struct LegDimensions {
   public:
     float body_angle;
     float body;
-    float coxa_angle_deg;
     float coxa_length;
-    float tibia_angle_deg; // 90
     float tibia_length;
-    float tibia_length_squared;
-    float femur_angle_deg; // 120
     float femur_length;    // 200
+    
+    float tibia_absolute_pos;
+    float tibia_absolute_neg;
+
     float max_angle_coxa;
     float min_angle_coxa;
     float max_angle_coxa_w_margin;
@@ -27,16 +27,12 @@ typedef struct LegDimensions {
     float max_femur_to_gripper_dist;
 
     float positiv_saturated_femur[2];
-
     float negativ_saturated_femur[2];
 
-    float fem_tib_min[2];
-
     float min_femur_to_gripper_dist;
-    float middle_TG;
-    float middle_TG_radius;
-    float middle_TG_radius_w_margin;
+    float min_femur_to_gripper_dist_positive;
 
-    float femur_overmargin;
+    float femur_overmargin_negative;
+    float femur_overmargin_positive;
 
 } LegDimensions;

@@ -9,6 +9,10 @@ __global__ void reachability_kernel(const Array<float3> input,
                                     const LegDimensions dimensions,
                                     Array<bool> const output);
 
+__global__ void reachability_abs_tib_kernel(const Array<float3> input,
+                                    const LegDimensions dimensions,
+                                    Array<bool> const output);
+
 __global__ void forward_kine_kernel(const Array<float3> input,
                                     const LegDimensions dimensions,
                                     Array<float3> const output);

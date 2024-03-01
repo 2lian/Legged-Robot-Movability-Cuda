@@ -516,20 +516,22 @@ TEST_CASE("single leg distance", "[distance]") {
         arr.elements[3].x =
             dim.body + dim.coxa_length + dim.max_femur_to_gripper_dist - 1;
 
-        arr.elements[4].x = dim.body + dim.coxa_length +
-                            dim.min_femur_to_gripper_dist *
-                                cos(dim.max_angle_femur + dim.femur_overmargin);
+        arr.elements[4].x =
+            dim.body + dim.coxa_length +
+            dim.min_femur_to_gripper_dist *
+                cos(dim.max_angle_femur + dim.femur_overmargin_negative);
         arr.elements[4].z =
             dim.min_femur_to_gripper_dist *
-                sin(dim.max_angle_femur + dim.femur_overmargin) -
+                sin(dim.max_angle_femur + dim.femur_overmargin_negative) -
             overshoot;
 
-        arr.elements[5].x = dim.body + dim.coxa_length +
-                            dim.min_femur_to_gripper_dist *
-                                cos(dim.min_angle_femur - dim.femur_overmargin);
+        arr.elements[5].x =
+            dim.body + dim.coxa_length +
+            dim.min_femur_to_gripper_dist *
+                cos(dim.min_angle_femur - dim.femur_overmargin_negative);
         arr.elements[5].z =
             dim.min_femur_to_gripper_dist *
-                sin(dim.min_angle_femur - dim.femur_overmargin) +
+                sin(dim.min_angle_femur - dim.femur_overmargin_negative) +
             overshoot;
 
         out.length = arr.length;
@@ -761,7 +763,7 @@ TEST_CASE("single leg distance", "[distance]") {
             for (int a2 = 0; a2 < samples_per_joint; a2++) {
                 float a2r = float(a2) / float(samples_per_joint - 1);
                 float start = dim.max_angle_femur;
-                float end = dim.max_angle_femur + dim.femur_overmargin;
+                float end = dim.max_angle_femur + dim.femur_overmargin_negative;
                 float femur = (start) + a2r * (-(start) + (end));
 
                 arr.elements[counter].x = coxa;
@@ -777,7 +779,7 @@ TEST_CASE("single leg distance", "[distance]") {
             for (int a2 = 0; a2 < samples_per_joint; a2++) {
                 float a2r = float(a2) / float(samples_per_joint - 1);
                 float start = dim.min_angle_femur;
-                float end = dim.min_angle_femur - dim.femur_overmargin;
+                float end = dim.min_angle_femur - dim.femur_overmargin_negative;
                 float femur = (start) + a2r * (-(start) + (end));
 
                 arr.elements[counter].x = coxa;

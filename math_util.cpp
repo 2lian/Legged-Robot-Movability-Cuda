@@ -57,6 +57,8 @@ template void saveArrayToFile<int>(int* array, long length,
                                    const char* filename);
 template void saveArrayToFile<float>(float* array, long length,
                                      const char* filename);
+template void saveArrayToFile<bool>(bool* array, long length,
+                                     const char* filename);
 
 template <typename T> Array<T> readArrayFromFile(const char* filename) {
     std::ifstream file(filename, std::ios::binary);

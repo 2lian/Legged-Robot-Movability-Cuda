@@ -119,9 +119,12 @@ Array<int> robot_full_reachable(Array<float3> body_map,
         if (leg_num == 0) {
             cudaMemset(res_bool_array[leg_num].elements, 0,
                        sizeof(int) * res_bool_array[leg_num].length);
+            float radius = legs.elements[0].body;
+            float plus_z = 75;
+            float minus_z = -75;
             in_cylinder_accu_kernel<<<numBlock, blockSize>>>(
-                body_map, target_map, res_bool_array[leg_num], 180.0f, 300.0f,
-                -50.0f);
+                body_map, target_map, res_bool_array[leg_num], radius, plus_z,
+                minus_z);
         } else {
             cudaMemcpy(res_bool_array[leg_num].elements,
                        res_bool_array[0].elements,

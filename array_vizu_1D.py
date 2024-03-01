@@ -1,12 +1,13 @@
+import open3d as o3d
+import maps
+import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 import matplotlib.cm as cm
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import maps
-import open3d as o3d
 
-def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transparency = False):
+
+def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transparency=False):
     """
     From a grid of coordinates corresponding to pixels positions and the corresponding bool value of that pixel
     draw a matplotlib image (then you have to plt.show() to show this result)
@@ -18,7 +19,8 @@ def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transp
     coord = grid.copy()
     coord[:, 1] = coord[:, 1]
     size = (len(np.unique(coord[:, 0])) - 1, len(np.unique(coord[:, 1])) - 1)
-    xmin, xmax, ymin, ymax = coord[:, 0].min(), coord[:, 0].max(), coord[:, 1].min(), coord[:, 1].max()
+    xmin, xmax, ymin, ymax = coord[:, 0].min(
+    ), coord[:, 0].max(), coord[:, 1].min(), coord[:, 1].max()
     img = np.ones(size, dtype=float)
 
     coord_as_int = np.empty(coord.shape, dtype=int)
@@ -39,7 +41,7 @@ def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transp
     else:
         plt.imshow(img, extent=[xmin, xmax, ymin, ymax])
     return
- 
+
 
 # Function to read binary file into numpy array along with length
 def read_array_from_file_with_length(filename, dtype):
@@ -48,27 +50,29 @@ def read_array_from_file_with_length(filename, dtype):
         array_data = np.fromfile(file, dtype=dtype)
     return array_data
 
+
 print("python post process started")
 
 filename = 'cpp_array_xx.bin'
-xx = read_array_from_file_with_length(filename, np.float32) 
+xx = read_array_from_file_with_length(filename, np.float32)
 filename = 'cpp_array_xy.bin'
-xy = read_array_from_file_with_length(filename, np.float32) 
+xy = read_array_from_file_with_length(filename, np.float32)
 filename = 'cpp_array_xz.bin'
-xz = read_array_from_file_with_length(filename, np.float32) 
+xz = read_array_from_file_with_length(filename, np.float32)
 
 grid = np.empty(shape=(len(xy), 3))
-grid[:,0] = xx
-grid[:,1] = xy
-grid[:,2] = xz
+grid[:, 0] = xx
+grid[:, 1] = xy
+grid[:, 2] = xz
 
 filename = 'cpp_array_y.bin'
 reach_count = read_array_from_file_with_length(filename, np.int32)
 
-bool_grid_image(grid[:, [0, 1]], np.clip(reach_count/(reach_count.max()*3/4), 0, 1), black_white=False, transparency=False)
+bool_grid_image(grid[:, [0, 1]], np.clip(
+    reach_count/(reach_count.max()*3/4), 0, 1), black_white=False, transparency=False)
 
 map = np.load("map.npy")
-plt.scatter(map[:, 0], map[:,1], c="red", s=5)
+plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
 
 # plt.xlabel(f'Index shape: xx{xx.shape} xy{xy.shape}')
 # plt.ylabel('Value')
@@ -80,16 +84,16 @@ plt.savefig("graph1.png")
 plt.clf()
 
 filename = 'out_dist_xx.bin'
-xx = read_array_from_file_with_length(filename, np.float32) 
+xx = read_array_from_file_with_length(filename, np.float32)
 filename = 'out_dist_xy.bin'
-xy = read_array_from_file_with_length(filename, np.float32) 
+xy = read_array_from_file_with_length(filename, np.float32)
 filename = 'out_dist_xz.bin'
-xz = read_array_from_file_with_length(filename, np.float32) 
+xz = read_array_from_file_with_length(filename, np.float32)
 
 dist = np.empty(shape=(len(xx), 3))
-dist[:,0] = xx
-dist[:,1] = xy
-dist[:,2] = xz
+dist[:, 0] = xx
+dist[:, 1] = xy
+dist[:, 2] = xz
 
 filename = 'dist_input_tx.bin'
 tx = read_array_from_file_with_length(filename, np.float32)
@@ -98,19 +102,30 @@ ty = read_array_from_file_with_length(filename, np.float32)
 filename = 'dist_input_tz.bin'
 tz = read_array_from_file_with_length(filename, np.float32)
 
-target = np.empty(shape=(len(tx), 3))
-target[:,0] = tx
-target[:,1] = ty
-target[:,2] = tz
-print(ty)
+targets = np.empty(shape=(len(tx), 3))
+targets[:, 0] = tx
+targets[:, 1] = ty
+targets[:, 2] = tz
 
-bool_grid_image(target[:, [0, 2]], np.linalg.norm(dist, axis=1), black_white=False, transparency=False)
+bool_grid_image(targets[:, [0, 2]], np.linalg.norm(
+    dist, axis=1), black_white=False, transparency=False)
 
-plt.savefig("graph2.png", dpi=1000)
+plt.savefig("distance_result.png", dpi=1000)
+
+filename = 'out_reachability.bin'
+reach = read_array_from_file_with_length(filename, bool).astype(bool)
+
+closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
+zero_plane = targets[targets[:, 1] == closest_to_0]
+
+plt.grid()
+bool_grid_image(zero_plane[:, [0, 2]], reach[targets[:, 1]
+                == closest_to_0], black_white=True, transparency=False)
+
+plt.savefig("reachability_result.png", bbox_inches='tight', dpi=1000)
 
 if False:
-
-    shaved = target[np.linalg.norm(dist, axis=1) < 1, :]
+    shaved = targets[reach, :]
     r_pcd = o3d.geometry.PointCloud()
     r_pcd.points = o3d.utility.Vector3dVector(shaved)
 
@@ -122,11 +137,11 @@ if False:
     r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
 
     voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(r_pcd,
-                        voxel_size=np.linalg.norm(target[0, :] - target[1, :]))
+                                                                voxel_size=np.linalg.norm(targets[0, :] - targets[1, :]))
 
     o3d.visualization.draw_geometries([voxel_grid])
 
-select = reach_count>1
+select = reach_count > 1
 shaved = grid[select, :]
 intensity = reach_count[select]
 np.save("robot_reach.npy", shaved)
@@ -138,7 +153,7 @@ if False:
     map_pcd = o3d.geometry.PointCloud()
     map_pcd.points = o3d.utility.Vector3dVector(map)
 
-    select = reach_count>1
+    select = reach_count > 1
     shaved = grid[select, :]
     intensity = reach_count[select]
     np.save("robot_reach.npy", shaved)
@@ -152,6 +167,6 @@ if False:
 
     r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
     voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(r_pcd,
-                        voxel_size=np.linalg.norm(grid[0, :] - grid[1, :]))
+                                                                voxel_size=np.linalg.norm(grid[0, :] - grid[1, :]))
 
     o3d.visualization.draw_geometries([map_pcd, voxel_grid])
