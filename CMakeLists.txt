@@ -11,16 +11,16 @@ if(WIN32)
     set(SFML_DIR "${CMAKE_SOURCE_DIR}/externals/SFML-2.6.0_win")
     set(CUDA_DIR "${CMAKE_SOURCE_DIR}/externals/cuda-12.2_win")
 elseif(UNIX)
-    # you need sfml installed using 'sudo apt-get install libsfml-dev' to 
+    # you need sfml installed using 'sudo apt-get install libsfml-dev' to
     # use find_package
-    find_package(SFML COMPONENTS graphics window system REQUIRED)
+    # find_package(SFML COMPONENTS graphics window system REQUIRED)
 
     # for cuda 11:
-    set(CUDA_DIR "/usr/local/cuda-11.4")
-    find_package(CUDA 11.0 REQUIRED)
+    # set(CUDA_DIR "/usr/local/cuda-11.4")
+    # find_package(CUDA 11.0 REQUIRED)
     # for cuda 12:
-    # set(CUDA_DIR "/usr/local/cuda-12.3")
-    # find_package(CUDA 12.0 REQUIRED)
+    set(CUDA_DIR "/usr/local/cuda-12.3")
+    find_package(CUDA 12.0 REQUIRED)
 
     find_package(Catch2 3 REQUIRED)
     #install with
@@ -60,7 +60,7 @@ set(CMAKE_CXX_STANDARD 17)
 #     cuda_util.h
 #     )
 
-add_executable(cuda 
+add_executable(cuda
     HeaderCPP.h
     HeaderCUDA.h
     math_util.cpp
