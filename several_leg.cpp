@@ -36,7 +36,7 @@ int main() {
         legArray.elements = new LegDimensions[legArray.length];
         float angle = pI * 2 / legArray.length;
         for (int leg = 0; leg < legArray.length; leg++) {
-            legArray.elements[leg] = get_SCARE_leg(leg * angle);
+            legArray.elements[leg] = get_moonbot_leg(leg * angle);
         }
 
         /* float z = 0; */
@@ -141,7 +141,7 @@ int main() {
         delete[] legArray.elements;
     }
     {
-        LegDimensions dim = get_SCARE_leg(0);
+        LegDimensions dim = get_moonbot_leg(0);
         const char* filename = "dist_input_tx.bin";
         Array<float> inputxx = readArrayFromFile<float>(filename);
         filename = "dist_input_ty.bin";
@@ -199,7 +199,7 @@ int main() {
         }
     }
     {
-        LegDimensions dim = get_SCARE_leg(0);
+        LegDimensions dim = get_moonbot_leg(0);
         const char* filename = "dist_input_tx.bin";
         Array<float> inputxx = readArrayFromFile<float>(filename);
         filename = "dist_input_ty.bin";

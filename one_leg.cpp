@@ -9,7 +9,7 @@
 #include <ostream>
 
 TEST_CASE("single leg reachability") {
-    LegDimensions dim = get_SCARE_leg(0.0f);
+    LegDimensions dim = get_moonbot_leg(0.0f);
     Array<float3> arr{};
     Array<bool> out{};
 
@@ -406,7 +406,7 @@ TEST_CASE("single leg reachability") {
 }
 
 TEST_CASE("single leg distance", "[distance]") {
-    LegDimensions dim = get_SCARE_leg(0.0f);
+    LegDimensions dim = get_moonbot_leg(0.0f);
     Array<float3> arr{};
     Array<float3> out{};
 
@@ -838,7 +838,7 @@ TEST_CASE("single leg distance", "[distance]") {
  * @return
  */
 int mainnot(int argc, char* argv[]) {
-    LegDimensions dim = get_SCARE_leg(0);
+    LegDimensions dim = get_moonbot_leg(0);
 
     Array<float3> arr{};
     arr.length = 10;

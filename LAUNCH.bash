@@ -5,4 +5,5 @@ cmake . || exit
 make || exit
 ./cuda || exit
 python3 array_vizu_1D.py || exit
-# feh -R 1 graph.png
+echo "FINISHED"
+# feh -R 1 reachability_result.png
