@@ -13,14 +13,14 @@ if(WIN32)
 elseif(UNIX)
     # you need sfml installed using 'sudo apt-get install libsfml-dev' to 
     # use find_package
-    find_package(SFML COMPONENTS graphics window system REQUIRED)
+    # find_package(SFML COMPONENTS graphics window system REQUIRED)
 
     # for cuda 11:
-    set(CUDA_DIR "/usr/local/cuda-11.4")
-    find_package(CUDA 11.0 REQUIRED)
+    # set(CUDA_DIR "/usr/local/cuda-11.4")
+    # find_package(CUDA 11.0 REQUIRED)
     # for cuda 12:
-    # set(CUDA_DIR "/usr/local/cuda-12.3")
-    # find_package(CUDA 12.0 REQUIRED)
+    set(CUDA_DIR "/usr/local/cuda-12")
+    find_package(CUDA 12.0 REQUIRED)
 
     find_package(Catch2 3 REQUIRED)
     #install with

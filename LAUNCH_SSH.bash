@@ -7,14 +7,14 @@
  # exit
 SSH_ADDRESS=${address_jetson}
 SOURCE_DIR="./"
-DESTINATION_DIR="${SSH_ADDRESS}:~/elian_stuff/cuda_research_ssh_tmp/"
+DESTINATION_DIR="${SSH_ADDRESS}:~/elian_cuda_tmp"
 
 rsync -av --exclude='*.bin' --exclude='image' --exclude='externals/cuda-12.2_linux' --exclude='*Cache*' --exclude='*_win' $SOURCE_DIR $DESTINATION_DIR
 
 # find "$SOURCE_DIR" -type f -not -path '*/\.*' ! $EXCLUDE_DIRS -exec scp {} "$DESTINATION_DIR" \;
 ssh "${SSH_ADDRESS}" <<EOF
 script -q /dev/null
-cd ~/elian_stuff/cuda_research_ssh_tmp/
+cd ~/elian_cuda_tmp
 . LAUNCH.bash
 exit
 EOF
