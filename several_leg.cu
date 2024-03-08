@@ -26,13 +26,15 @@ __device__ void unrotateInPlace(float3& point, float z_rot, float& cos_memory,
 
 __device__ bool reachable_rotate_leg(float3 target, const float3 body_pos,
                                      const LegDimensions& dim) {
-    float cos_memory;
-    float sin_memory;
-    target.x -= body_pos.x;
-    target.y -= body_pos.y;
-    target.z -= body_pos.z;
-    rotateInPlace(target, -dim.body_angle, cos_memory, sin_memory);
-    return reachability_vect(target, dim);
+    {
+        float cos_memory;
+        float sin_memory;
+        target.x -= body_pos.x;
+        target.y -= body_pos.y;
+        target.z -= body_pos.z;
+        rotateInPlace(target, -dim.body_angle, cos_memory, sin_memory);
+    }
+    return reachability_absolute_tibia_limit(target, dim);
 };
 
 __global__ void reachable_leg_kernel_accu(Array<float3> body_map,
@@ -108,7 +110,7 @@ Array<int> robot_full_reachable(Array<float3> body_map,
 
     Array<int>* res_bool_array;
     res_bool_array = new Array<int>[legs.length];
-    int blockSize = 1024;
+    int blockSize = 1024/1;
     int numBlock =
         (body_map.length * target_map.length + blockSize - 1) / blockSize;
 
@@ -120,8 +122,8 @@ Array<int> robot_full_reachable(Array<float3> body_map,
             cudaMemset(res_bool_array[leg_num].elements, 0,
                        sizeof(int) * res_bool_array[leg_num].length);
             float radius = legs.elements[0].body;
-            float plus_z = 75;
-            float minus_z = -75;
+            float plus_z = 120;
+            float minus_z = -60;
             in_cylinder_accu_kernel<<<numBlock, blockSize>>>(
                 body_map, target_map, res_bool_array[leg_num], radius, plus_z,
                 minus_z);
@@ -132,8 +134,13 @@ Array<int> robot_full_reachable(Array<float3> body_map,
                        cudaMemcpyDeviceToDevice);
         }
     }
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("Cylinder and alloc");
+    blockSize = 1024/2;
+    numBlock =
+        (body_map.length * target_map.length + blockSize - 1) / blockSize;
     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
-        CUDA_CHECK_ERROR("cudaMalloc leg");
+        CUDA_CHECK_ERROR("cudaKernel leg");
         reachable_leg_kernel_accu<<<numBlock, blockSize>>>(
             body_map, target_map, legs.elements[leg_num],
             res_bool_array[leg_num]);
@@ -159,6 +166,7 @@ Array<int> robot_full_reachable(Array<float3> body_map,
         res_bool_array = newpointer;
     }
 
+    blockSize = 1024;
     numBlock = (body_map.length + blockSize - 1) / blockSize;
     find_min_kernel<<<numBlock, blockSize>>>(res_bool_array, legs.length,
                                              final_count);

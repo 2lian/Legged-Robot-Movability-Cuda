@@ -4,6 +4,6 @@ python3 before.py || exit
 cmake . || exit
 make || exit
 ./cuda || exit
-python3 array_vizu_1D.py || exit
+python3 after.py || exit
 echo "FINISHED"
 # feh -R 1 reachability_result.png

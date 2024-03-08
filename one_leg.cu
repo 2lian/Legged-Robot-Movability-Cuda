@@ -279,19 +279,22 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
     float3 result;
     result = point;
     place_over_coxa(result, dim);
-    bool flip_flag = -signbit(result.x);
+    float required_angle_coxa;
+    {
+        bool flip_flag = -signbit(result.x);
 
-    if (flip_flag) {
-        result.x *= -1;
-        result.y *= -1;
-    }
+        if (flip_flag) {
+            result.x *= -1;
+            result.y *= -1;
+        }
 
-    // finding coxa angle
-    float required_angle_coxa = find_coxa_angle(result);
+        // finding coxa angle
+        required_angle_coxa = find_coxa_angle(result);
 
-    if (flip_flag) {
-        result.x *= -1;
-        result.y *= -1;
+        if (flip_flag) {
+            result.x *= -1;
+            result.y *= -1;
+        }
     }
 
     if ((required_angle_coxa > dim.max_angle_coxa) ||
@@ -309,57 +312,76 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
     // Femur as the frame of reference witout rotation
     result.x -= dim.coxa_length;
 
-    float linnorm = norm3df(result.x, result.y, result.z);
+    {
+        float linnorm = norm3df(result.x, result.y, result.z);
 
-    if ((linnorm < dim.min_femur_to_gripper_dist) ||
-        (linnorm > dim.max_femur_to_gripper_dist)) {
-        return false;
+        if ((linnorm < dim.min_femur_to_gripper_dist) ||
+            (linnorm > dim.max_femur_to_gripper_dist)) {
+            return false;
+        }
     }
 
-    float deported_center_negativ[2];
-    sincosf(dim.tibia_absolute_neg, &sin_angle_cox, &cos_angle_cox);
-    deported_center_negativ[0] = dim.tibia_length * cos_angle_cox;
-    deported_center_negativ[1] = dim.tibia_length * sin_angle_cox;
-    // should not be inside
-    bool in_negativ_tib_circle =
-        norm3df(result.x - deported_center_negativ[0], 0,
-                result.z - deported_center_negativ[1]) <= dim.femur_length;
+    bool in_negativ_tib_circle;
+    bool in_positive_sat_circle;
+    bool in_negative_sat_circle;
+    bool inside_femur;
+    bool in_positiv_tib_circle;
 
-    // if (in_negativ_tib_circle) {return false;}
+    {
+        float deported_center_negativ[2];
+        sincosf(dim.tibia_absolute_neg, &sin_angle_cox, &cos_angle_cox);
+        deported_center_negativ[0] = dim.tibia_length * cos_angle_cox;
+        deported_center_negativ[1] = dim.tibia_length * sin_angle_cox;
+        // should not be inside
+        in_negativ_tib_circle =
+            norm3df(result.x - deported_center_negativ[0], 0,
+                    result.z - deported_center_negativ[1]) <= dim.femur_length;
+    }
 
     // finding femur angle
-    float required_angle_femur = atan2f(result.z, result.x);
-    bool inside_femur = (required_angle_femur >= dim.min_angle_femur) &&
-                        (required_angle_femur <= dim.tibia_absolute_pos);
-    // if (inside_femur) {return true;}
-
-    // - saturation is alowed
-    bool in_negative_sat_circle =
-        norm3df(result.x - dim.negativ_saturated_femur[0], 0,
-                result.z - dim.negativ_saturated_femur[1]) <= dim.tibia_length;
-    // if (in_negative_sat_circle) {return true;}
+    {
+        float required_angle_femur = atan2f(result.z, result.x);
+        inside_femur = (required_angle_femur >= dim.min_angle_femur) &&
+                       (required_angle_femur <= dim.tibia_absolute_pos);
+    }
+    {
+        // - saturation is alowed
+        in_negative_sat_circle =
+            norm3df(result.x - dim.negativ_saturated_femur[0], 0,
+                    result.z - dim.negativ_saturated_femur[1]) <=
+            dim.tibia_length;
+    }
 
     // distance to femur at the most extrem  femur position should be less than
     // tibia length to be in the saturation circle, circle center is
     // pre_computed
 
-    // We don´t want + saturation
-    bool in_positive_sat_circle =
-        norm3df(result.x - dim.positiv_saturated_femur[0], 0,
-                result.z - dim.positiv_saturated_femur[1]) <= dim.tibia_length;
+    {
+        // We don´t want + saturation
+        in_positive_sat_circle =
+            norm3df(result.x - dim.positiv_saturated_femur[0], 0,
+                    result.z - dim.positiv_saturated_femur[1]) <=
+            dim.tibia_length;
 
-    float deported_center_positiv[2];
-    sincosf(dim.tibia_absolute_pos, &sin_angle_cox, &cos_angle_cox);
-    deported_center_positiv[0] = dim.tibia_length * cos_angle_cox;
-    deported_center_positiv[1] = dim.tibia_length * sin_angle_cox;
-    // need it inside
-    bool in_positiv_tib_circle =
-        norm3df(result.x - deported_center_positiv[0], 0,
-                result.z - deported_center_positiv[1]) <= dim.femur_length;
+        float deported_center_positiv[2];
+        sincosf(dim.tibia_absolute_pos, &sin_angle_cox, &cos_angle_cox);
+        deported_center_positiv[0] = dim.tibia_length * cos_angle_cox;
+        deported_center_positiv[1] = dim.tibia_length * sin_angle_cox;
+        // need it inside
+        in_positiv_tib_circle =
+            norm3df(result.x - deported_center_positiv[0], 0,
+                    result.z - deported_center_positiv[1]) <= dim.femur_length;
+    }
 
-    bool reachability =
-        (not in_negativ_tib_circle and not in_positive_sat_circle) and
-        ((in_negative_sat_circle or inside_femur or in_positiv_tib_circle));
+    bool reachability;
+    reachability =
+        (((!in_negativ_tib_circle) && (!in_positive_sat_circle))
+         &&
+         (in_negative_sat_circle || inside_femur || in_positiv_tib_circle)
+        );
+    // bool r2 = (in_negative_sat_circle || inside_femur || in_positiv_tib_circle);
+    // reachability = ((reachability) && (r2));
+    // reachability = true;
     return reachability;
 }
 

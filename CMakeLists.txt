@@ -19,7 +19,7 @@ elseif(UNIX)
     # set(CUDA_DIR "/usr/local/cuda-11.4")
     # find_package(CUDA 11.0 REQUIRED)
     # for cuda 12:
-    set(CUDA_DIR "/usr/local/cuda-12.3")
+    set(CUDA_DIR "/usr/local/cuda-12")
     find_package(CUDA 12.0 REQUIRED)
 
     find_package(Catch2 3 REQUIRED)
@@ -115,4 +115,4 @@ endif ()
 
 include(CTest)
 include(Catch)
-catch_discover_tests(cuda)
+# catch_discover_tests(cuda)

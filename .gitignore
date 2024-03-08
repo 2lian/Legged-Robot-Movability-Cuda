@@ -12,6 +12,7 @@ Session.vim
 /.cache
 /.cmake
 /__pycache__
+/cmake
 
 CTestTestfile.cmake
 DartConfiguration.tcl

@@ -121,17 +121,31 @@ plt.savefig("distance_result.png", dpi=1000)
 filename = 'out_reachability.bin'
 reach = read_array_from_file_with_length(filename, bool).astype(bool)
 
-closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
-zero_plane = targets[targets[:, 1] == closest_to_0]
+vertical_slice = False
 
-plt.grid()
-bool_grid_image(zero_plane[:, [0, 2]], reach[targets[:, 1]
-                == closest_to_0], black_white=True, transparency=False)
+if vertical_slice:
+    closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
+    zero_plane = targets[targets[:, 1] == closest_to_0]
+
+    plt.grid()
+    bool_grid_image(zero_plane[:, [0, 2]], reach[targets[:, 1]
+                    == closest_to_0], black_white=True, transparency=False)
+else:
+    closest_to_0 = min(targets[(targets[:, 2] + 175) >= 0, 2])
+    # closest_to_0 = min(targets[(targets[:, 2] + 230) >= 0, 2])
+    zero_plane = targets[targets[:, 2] == closest_to_0]
+
+    plt.grid()
+    bool_grid_image(zero_plane[:, [0, 1]], reach[targets[:, 2]
+                    == closest_to_0], black_white=True, transparency=False)
+
 
 plt.savefig("reachability_result.png", bbox_inches='tight', dpi=300)
 
+shaved = targets[reach, :]
+np.save("leg0_reach.npy", shaved)
+
 if True:
-    shaved = targets[reach, :]
     r_pcd = o3d.geometry.PointCloud()
     r_pcd.points = o3d.utility.Vector3dVector(shaved)
 
@@ -152,6 +166,10 @@ shaved = grid[select, :]
 intensity = reach_count[select]
 np.save("robot_reach.npy", shaved)
 np.save("robot_reach_intens.npy", intensity)
+print(f"robot reachable samples: {select.sum()}")
+delta = max(abs(grid[0, :] - grid[1, :])) / 1_000
+print(delta)
+print(f"robot reachable m^3: {select.sum() * delta**3}")
 
 print("python post process finished")
 

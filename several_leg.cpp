@@ -14,6 +14,10 @@
 
 int main() {
 
+    LegDimensions (*LegToUse)(float body_angle);
+    LegToUse = get_moonbot_leg;
+    // LegToUse = get_M2_leg;
+
     {
         const char* filename = "numpy_input_tx.bin";
         Array<float> inputxx;
@@ -36,32 +40,8 @@ int main() {
         legArray.elements = new LegDimensions[legArray.length];
         float angle = pI * 2 / legArray.length;
         for (int leg = 0; leg < legArray.length; leg++) {
-            legArray.elements[leg] = get_moonbot_leg(leg * angle);
+            legArray.elements[leg] = LegToUse(leg * angle);
         }
-
-        /* float z = 0; */
-        /* float y_min = -500; */
-        /* float y_max = 1000; */
-        /* float x_min = 0; */
-        /* float x_max = 2000; */
-        /* float spacing = 5; */
-        /* int xsamples = (x_max - x_min) / spacing + 1; */
-        /* int ysamples = (y_max - y_min) / spacing + 1; */
-
-        /* Array<float3> target_map; */
-        /* target_map.length = xsamples * ysamples; */
-        /* target_map.elements = new float3[target_map.length]; */
-
-        /* long count = 0; */
-        /* for (float x = x_min; x <= x_max; x += spacing) { */
-        /*     for (float y = y_min; y <= y_max; y += spacing) { */
-        /*         target_map.elements[count].x = x; */
-        /*         target_map.elements[count].y = y; */
-        /*         target_map.elements[count].z = z; */
-        /*         count++; */
-        /*     } */
-        /* } */
-        /* long target_count = count; */
 
         filename = "numpy_input_bx.bin";
         Array<float> body_xx;
@@ -141,7 +121,7 @@ int main() {
         delete[] legArray.elements;
     }
     {
-        LegDimensions dim = get_moonbot_leg(0);
+        LegDimensions dim = LegToUse(0);
         const char* filename = "dist_input_tx.bin";
         Array<float> inputxx = readArrayFromFile<float>(filename);
         filename = "dist_input_ty.bin";
@@ -199,7 +179,7 @@ int main() {
         }
     }
     {
-        LegDimensions dim = get_moonbot_leg(0);
+        LegDimensions dim = LegToUse(0);
         const char* filename = "dist_input_tx.bin";
         Array<float> inputxx = readArrayFromFile<float>(filename);
         filename = "dist_input_ty.bin";

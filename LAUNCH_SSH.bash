@@ -7,7 +7,7 @@
  # exit
 SSH_ADDRESS=${address_jetson}
 SOURCE_DIR="./"
-DESTINATION_DIR="${SSH_ADDRESS}:~/elian_cuda_tmp"
+DESTINATION_DIR="${SSH_ADDRESS}:~/elian_cuda_tmp/"
 
 rsync -av --exclude='*.bin' --exclude='image' --exclude='externals/cuda-12.2_linux' --exclude='*Cache*' --exclude='*_win' $SOURCE_DIR $DESTINATION_DIR
 
