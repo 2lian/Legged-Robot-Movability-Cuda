@@ -5,6 +5,13 @@
 __device__ void place_over_coxa(float3& coordinates, const LegDimensions& dim) {
     // Coxa as the frame of reference without rotation
     coordinates.x -= dim.body;
+    float sin_coxa_memory;
+    float cosine_coxa_memory;
+    sincosf(-dim.coxa_pitch, &sin_coxa_memory, &cosine_coxa_memory);
+    float buffer = coordinates.x * sin_coxa_memory;
+    coordinates.x =
+        coordinates.x * cosine_coxa_memory - coordinates.z * sin_coxa_memory;
+    coordinates.z = buffer + coordinates.z * cosine_coxa_memory;
 }
 
 __device__ float find_coxa_angle(const float3& coordinates) {
@@ -287,8 +294,6 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
         result.y *= -1;
     }
 
-    // flipping angle if above +-90deg
-
     if ((required_angle_coxa > dim.max_angle_coxa) ||
         (required_angle_coxa < dim.min_angle_coxa)) {
         return false;
@@ -319,7 +324,7 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
     bool in_negativ_tib_circle =
         norm3df(result.x - deported_center_negativ[0], 0,
                 result.z - deported_center_negativ[1]) <= dim.femur_length;
-    
+
     // if (in_negativ_tib_circle) {return false;}
 
     // finding femur angle
@@ -353,9 +358,8 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
                 result.z - deported_center_positiv[1]) <= dim.femur_length;
 
     bool reachability =
-        (not in_negativ_tib_circle) and
-        ((in_negative_sat_circle or inside_femur or
-          (in_positiv_tib_circle and not in_positive_sat_circle)));
+        (not in_negativ_tib_circle and not in_positive_sat_circle) and
+        ((in_negative_sat_circle or inside_femur or in_positiv_tib_circle));
     return reachability;
 }
 

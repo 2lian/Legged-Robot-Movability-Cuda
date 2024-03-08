@@ -11,8 +11,13 @@ Session.vim
 /cuda
 /.cache
 /.cmake
+/__pycache__
 
 CTestTestfile.cmake
 DartConfiguration.tcl
 cuda-b12d07c_include.cmake
 cuda-b12d07c_tests.cmake
+
+*.bin
+*.npy
+*.png

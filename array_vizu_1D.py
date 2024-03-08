@@ -7,7 +7,11 @@ import matplotlib.cm as cm
 matplotlib.use('Agg')
 
 
-def bool_grid_image(grid: np.ndarray, data: np.ndarray, black_white=True, transparency=False):
+def bool_grid_image(
+        grid: np.ndarray,
+        data: np.ndarray,
+        black_white=True,
+        transparency=False):
     """
     From a grid of coordinates corresponding to pixels positions and the corresponding bool value of that pixel
     draw a matplotlib image (then you have to plt.show() to show this result)
@@ -68,8 +72,10 @@ grid[:, 2] = xz
 filename = 'cpp_array_y.bin'
 reach_count = read_array_from_file_with_length(filename, np.int32)
 
-bool_grid_image(grid[:, [0, 1]], np.clip(
-    reach_count/(reach_count.max()*3/4), 0, 1), black_white=False, transparency=False)
+bool_grid_image(grid[:, [0, 1]], np.clip(reach_count /
+                                         (reach_count.max() *
+                                          3 /
+                                          4), 0, 1), black_white=False, transparency=False)
 
 map = np.load("map.npy")
 plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
@@ -122,9 +128,9 @@ plt.grid()
 bool_grid_image(zero_plane[:, [0, 2]], reach[targets[:, 1]
                 == closest_to_0], black_white=True, transparency=False)
 
-plt.savefig("reachability_result.png", bbox_inches='tight', dpi=1000)
+plt.savefig("reachability_result.png", bbox_inches='tight', dpi=300)
 
-if False:
+if True:
     shaved = targets[reach, :]
     r_pcd = o3d.geometry.PointCloud()
     r_pcd.points = o3d.utility.Vector3dVector(shaved)
@@ -136,8 +142,8 @@ if False:
 
     r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
 
-    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(r_pcd,
-                                                                voxel_size=np.linalg.norm(targets[0, :] - targets[1, :]))
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(
+        r_pcd, voxel_size=np.linalg.norm(targets[0, :] - targets[1, :]))
 
     o3d.visualization.draw_geometries([voxel_grid])
 
@@ -166,7 +172,7 @@ if False:
     colors_rgb = np.array(cmap(norm(intensity)))[:, :3]
 
     r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
-    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(r_pcd,
-                                                                voxel_size=np.linalg.norm(grid[0, :] - grid[1, :]))
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(
+        r_pcd, voxel_size=np.linalg.norm(grid[0, :] - grid[1, :]))
 
     o3d.visualization.draw_geometries([map_pcd, voxel_grid])

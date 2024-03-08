@@ -1,5 +1,6 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "static_variables.h"
 #include <iostream>
 
 __constant__ __device__ float VirdisData[256 * 3] = {
@@ -1273,7 +1274,7 @@ AutoEstimator::AutoEstimator(int pxWidth, int pxHeight, float scale) {
     verbose = true;
     screenWidth = pxWidth;
     screenHeight = pxHeight;
-    dimensions = get_SCARE_leg(0.0f);
+    dimensions = get_moonbot_leg(0.0f);
     rows = screenWidth * screenHeight;
 
     table_input.width = 3;

@@ -7,6 +7,7 @@ typedef struct LegDimensions {
   public:
     float body_angle;
     float body;
+    float coxa_pitch;
     float coxa_length;
     float tibia_length;
     float femur_length;    // 200
