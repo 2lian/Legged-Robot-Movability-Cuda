@@ -1,10 +1,10 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
 #include "collision.cu.h"
-#include "cuda_runtime_api.h"
-#include "driver_types.h"
 #include "one_leg.cu.h"
-#include "vector_types.h"
+#include "thrust/detail/copy.h"
+#include "thrust/device_vector.h"
+#include "thrust/fill.h"
 #include <cstdio>
 
 __device__ void rotateInPlace(float3& point, float z_rot, float& cos_memory,
@@ -110,7 +110,7 @@ Array<int> robot_full_reachable(Array<float3> body_map,
 
     Array<int>* res_bool_array;
     res_bool_array = new Array<int>[legs.length];
-    int blockSize = 1024/1;
+    int blockSize = 1024 / 1;
     int numBlock =
         (body_map.length * target_map.length + blockSize - 1) / blockSize;
 
@@ -136,7 +136,7 @@ Array<int> robot_full_reachable(Array<float3> body_map,
     }
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("Cylinder and alloc");
-    blockSize = 1024/2;
+    blockSize = 1024 / 2;
     numBlock =
         (body_map.length * target_map.length + blockSize - 1) / blockSize;
     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
@@ -169,6 +169,113 @@ Array<int> robot_full_reachable(Array<float3> body_map,
     blockSize = 1024;
     numBlock = (body_map.length + blockSize - 1) / blockSize;
     find_min_kernel<<<numBlock, blockSize>>>(res_bool_array, legs.length,
+                                             final_count);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("execution find_min_kernel");
+    int* newpointer = new int[final_count.length];
+    {
+        cudaMemcpy(newpointer, final_count.elements,
+                   final_count.length * sizeof(int), cudaMemcpyDeviceToHost);
+        CUDA_CHECK_ERROR("cudaMemcpy final_count");
+        cudaFree(final_count.elements);
+        final_count.elements = newpointer;
+    }
+
+    cudaFree(body_map.elements);
+    cudaFree(target_map.elements);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("cudaFree");
+    return final_count;
+}
+
+Array<int> robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
+                           Array<LegDimensions> legs) {
+    thrust::host_vector<float3> Body(body_map.elements,
+                                     body_map.elements + body_map.length);
+    thrust::host_vector<float3> Target(target_map.elements,
+                                       target_map.elements + target_map.length);
+
+    thrust::device_vector<float3> Body_g = Body;
+    thrust::device_vector<float3> Target_g = Target;
+
+    {
+        float3* newpointer;
+        cudaMalloc(&newpointer, body_map.length * sizeof(float3));
+        CUDA_CHECK_ERROR("cudaMalloc body_map");
+        cudaMemcpy(newpointer, body_map.elements,
+                   body_map.length * sizeof(float3), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR("cudaMemcpy body_map");
+        body_map.elements = newpointer;
+    }
+    {
+        float3* newpointer;
+        cudaMalloc(&newpointer, target_map.length * sizeof(float3));
+        CUDA_CHECK_ERROR("cudaMalloc target_map");
+        cudaMemcpy(newpointer, target_map.elements,
+                   target_map.length * sizeof(float3), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR("cudaMemcpy target_map");
+        target_map.elements = newpointer;
+    }
+    CUDA_CHECK_ERROR("cudaMalloc before leg");
+
+    thrust::device_vector<int>* result_ar;
+    result_ar = new thrust::device_vector<int>[legs.length];
+    int blockSize = 1024 / 1;
+    int numBlock =
+        (Body_g.size() * Target_g.size() + blockSize - 1) / blockSize;
+
+    for (int leg_num = 0; leg_num < legs.length; leg_num++) {
+        thrust::device_vector<int>& this_leg_result = result_ar[leg_num];
+        this_leg_result.resize(Body_g.size());
+        if (leg_num == 0) {
+            thrust::fill(this_leg_result.begin(), this_leg_result.end(), 0);
+            float radius = legs.elements[0].body;
+            float plus_z = 120;
+            float minus_z = -60;
+            in_cylinder_cccl_kernel<<<numBlock, blockSize>>>(
+                thrust::raw_pointer_cast(Body_g.data()), Body_g.size(),
+                thrust::raw_pointer_cast(Target_g.data()), Target_g.size(),
+                thrust::raw_pointer_cast(this_leg_result.data()), radius,
+                plus_z, minus_z);
+            cudaDeviceSynchronize();
+        } else {
+            thrust::copy(result_ar[0].begin(), result_ar[0].end(),
+                         this_leg_result.begin());
+        }
+    }
+    CUDA_CHECK_ERROR("Cylinder and alloc");
+    blockSize = 1024 / 2;
+    numBlock =
+        (body_map.length * target_map.length + blockSize - 1) / blockSize;
+    for (int leg_num = 0; leg_num < legs.length; leg_num++) {
+        CUDA_CHECK_ERROR("cudaKernel leg");
+        reachable_leg_kernel_accu<<<numBlock, blockSize>>>(
+            body_map, target_map, legs.elements[leg_num], result_ar[leg_num]);
+    }
+    cudaDeviceSynchronize();
+
+    CUDA_CHECK_ERROR("cudaMalloc reachable kernel");
+
+    Array<int> final_count;
+    final_count.length = result_ar[0].length;
+
+    cudaMalloc(&final_count.elements, sizeof(int) * final_count.length);
+    cudaMemset(final_count.elements, 0, final_count.length * sizeof(int));
+    CUDA_CHECK_ERROR("cudaMalloc final_count");
+
+    {
+        Array<int>* newpointer;
+        cudaMalloc(&newpointer, legs.length * sizeof(Array<int>));
+        CUDA_CHECK_ERROR("cudaMalloc legdim");
+        cudaMemcpy(newpointer, result_ar, legs.length * sizeof(Array<int>),
+                   cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR("cudaMemcpy legdim");
+        result_ar = newpointer;
+    }
+
+    blockSize = 1024;
+    numBlock = (body_map.length + blockSize - 1) / blockSize;
+    find_min_kernel<<<numBlock, blockSize>>>(result_ar, legs.length,
                                              final_count);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("execution find_min_kernel");

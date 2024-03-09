@@ -15,8 +15,8 @@
 int main() {
 
     LegDimensions (*LegToUse)(float body_angle);
-    LegToUse = get_moonbot_leg;
-    // LegToUse = get_M2_leg;
+    // LegToUse = get_moonbot_leg;
+    LegToUse = get_M2_leg;
 
     {
         const char* filename = "numpy_input_tx.bin";
@@ -65,7 +65,7 @@ int main() {
         Array<int> out;
         auto start = std::chrono::high_resolution_clock::now();
 
-        out = robot_full_reachable(body_pos_arr, target_map, legArray);
+        out = robot_full_cccl(body_pos_arr, target_map, legArray);
 
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =

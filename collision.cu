@@ -40,3 +40,22 @@ __global__ void in_cylinder_accu_kernel(Array<float3> centers,
         }
     }
 };
+
+__global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
+                                        float3* targets, const size_t Nt,
+                                        int* output, const float radius,
+                                        const float plus_z,
+                                        const float minus_z) {
+    auto index = blockIdx.x * blockDim.x + threadIdx.x;
+    auto stride = blockDim.x * gridDim.x;
+    long maxid = (long)Nt * (long)Nc;
+    for (long i = index; i < maxid; i += stride) {
+        auto center_index = i / Nt;
+        auto target_index = i % Nt;
+        const float3 target = targets[target_index];
+        const float3 body_pos = centers[center_index];
+        if (in_cylinder(radius, plus_z, minus_z, target, body_pos)) {
+            output[center_index] = -1;
+        }
+    }
+};

@@ -145,7 +145,7 @@ plt.savefig("reachability_result.png", bbox_inches='tight', dpi=300)
 shaved = targets[reach, :]
 np.save("leg0_reach.npy", shaved)
 
-if True:
+if False:
     r_pcd = o3d.geometry.PointCloud()
     r_pcd.points = o3d.utility.Vector3dVector(shaved)
 
