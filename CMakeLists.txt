@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.26)
 set(CMAKE_CUDA_ARCHITECTURES "native")
-# set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -arch=sm_75)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 project(cuda LANGUAGES CUDA CXX)
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

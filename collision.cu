@@ -10,13 +10,13 @@ __device__ bool in_sphere(const float radius, const float3 sphere_center,
 }
 
 __device__ bool in_cylinder(const float radius, const float plus_z,
-                            const float minus_z, const float3 sphere_center,
+                            const float minus_z, const float3 cyl_center,
                             const float3 target) {
     float3 dist;
-    dist.x = sphere_center.x - target.x;
-    dist.y = sphere_center.y - target.y;
+    dist.x = cyl_center.x - target.x;
+    dist.y = cyl_center.y - target.y;
     bool radial_condition = norm3df(dist.x, dist.y, 0) < radius;
-    dist.z = sphere_center.z - target.z;
+    dist.z = cyl_center.z - target.z;
     bool plus_condition = dist.z < plus_z;
     bool minus_condition = dist.z > minus_z;
     return radial_condition and plus_condition and minus_condition;

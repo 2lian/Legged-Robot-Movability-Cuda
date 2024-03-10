@@ -1,8 +1,12 @@
 #pragma once
 #include "HeaderCPP.h"
+#include <cstddef>
 #include <driver_types.h>
 #include "cuda_runtime_api.h"
 #include <thrust/device_vector.h>
+#include <thrust/copy.h>
+#include <thrust/remove.h>
+#include <thrust/sequence.h>
 #include <thrust/host_vector.h>
 // #include <cub/cub.cuh>
 #include <cuda/std/atomic>
@@ -16,37 +20,37 @@ __device__ constexpr float pIgpu =
 
 template <typename T>
 struct Array {
-    int length;
+    size_t length;
     T* elements;
 };
 
 template <>
 struct Array<float3> {
-    int length;
+    size_t length;
     float3* elements;
 };
 
 template <>
 struct Array<float> {
-    int length;
+    size_t length;
     float* elements;
 };
 
 template <>
 struct Array<bool> {
-    int length;
+    size_t length;
     bool* elements;
 };
 
 template <>
 struct Array<int> {
-    int length;
+    size_t length;
     int* elements;
 };
 
 template <>
 struct Array<LegDimensions> {
-    int length;
+    size_t length;
     LegDimensions* elements;
 };
 
