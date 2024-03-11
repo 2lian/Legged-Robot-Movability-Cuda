@@ -22,3 +22,20 @@ void apply_kernel(const Array<T_in> input, const LegDimensions dim,
                   void (*kernel)(const Array<T_in>, const LegDimensions,
                                  Array<T_out> const),
                   Array<T_out> const output);
+
+template <typename T>
+Array<T> thustVectToArray(thrust::device_vector<T> thrust_vect);
+
+template <typename T>
+Array<T> thustVectToArray(thrust::host_vector<T> thrust_vect);
+
+template <typename T>
+thrust::device_vector<T> arrayToThrustVect(Array<T> array);
+
+template <typename T> thrust::host_vector<T> arrayToThrustVect(Array<T> array);
+
+template <typename MyType>
+struct MinRowElement
+    : public thrust::unary_function<thrust::tuple<MyType, MyType>, MyType> {
+    __device__ MyType operator()(const thrust::tuple<MyType, MyType>& t) const;
+};

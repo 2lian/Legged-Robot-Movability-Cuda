@@ -11,6 +11,7 @@
 #include <chrono>
 #include <iostream>
 #include <ostream>
+#include <tuple>
 
 int main() {
 
@@ -62,10 +63,15 @@ int main() {
         std::cout << (long)body_pos_arr.length * (long)target_map.length *
                          (long)legArray.length
                   << std::endl;
-        Array<int> out;
+        Array<int> out_count;
+        Array<float3> out_body;
         auto start = std::chrono::high_resolution_clock::now();
 
-        out = robot_full_cccl(body_pos_arr, target_map, legArray);
+        std::tie(out_body, out_count) =
+            robot_full_cccl(body_pos_arr, target_map, legArray);
+        delete[] body_pos_arr.elements;
+        body_pos_arr.length = out_body.length;
+        body_pos_arr.elements = out_body.elements;
 
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
@@ -114,10 +120,10 @@ int main() {
         }
 
         filename = "cpp_array_y.bin";
-        saveArrayToFile(out.elements, out.length, filename);
+        saveArrayToFile(out_count.elements, out_count.length, filename);
         delete[] target_map.elements;
         delete[] body_pos_arr.elements;
-        delete[] out.elements;
+        delete[] out_count.elements;
         delete[] legArray.elements;
     }
     {

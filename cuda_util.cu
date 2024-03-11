@@ -1,5 +1,8 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "cuda_runtime_api.h"
+#include "driver_types.h"
+#include "thrust/detail/raw_pointer_cast.h"
 #include <cstdio>
 // #include "cuda_runtime_api.h"
 
@@ -86,3 +89,50 @@ template void apply_kernel<float3, bool>(Array<float3>, LegDimensions,
                                          void (*)(const Array<float3>,
                                                   LegDimensions, Array<bool>),
                                          Array<bool>);
+
+// template <typename T>
+// Array<T> thustVectToArray(thrust::device_vector<T> thrust_vect) {
+//     Array<T> out;
+//     out.length = thrust_vect.size();
+//     cudaMalloc(&out.elements, sizeof(T) * out.length);
+//     cudaMemcpy(out.elements, thrust::raw_pointer_cast(thrust_vect.data()),
+//                sizeof(T) * out.length, cudaMemcpyDeviceToDevice);
+//     return out;
+// }
+
+template <typename T>
+Array<T> thustVectToArray(thrust::host_vector<T> thrust_vect) {
+    Array<T> out;
+    out.length = thrust_vect.size();
+    out.elements = new T[out.length];
+    std::copy(thrust_vect.data(), thrust_vect.data() + thrust_vect.size(),
+              out.elements);
+    return out;
+}
+template Array<float3>
+thustVectToArray<float3>(thrust::host_vector<float3> thrust_vect);
+template Array<int> thustVectToArray<int>(thrust::host_vector<int> thrust_vect);
+
+// template <typename T>
+// thrust::device_vector<T> arrayToThrustVect(Array<T> array) {
+//     thrust::device_vector<float3> vectOut(array.elements,
+//                                           array.elements + array.length);
+//     return vectOut;
+// }
+//
+// template <typename T> thrust::host_vector<T> arrayToThrustVect(Array<T>
+// array) {
+//     thrust::host_vector<float3> vectOut(array.elements,
+//                                         array.elements + array.length);
+//     return vectOut;
+// }
+
+template <typename MyType>
+struct MinRowElement
+    : public thrust::unary_function<thrust::tuple<MyType, MyType>, MyType> {
+    __device__ MyType operator()(const thrust::tuple<MyType, MyType>& t) const {
+        return thrust::min(thrust::get<0>(t), thrust::get<1>(t));
+    }
+};
+// template struct MinRowElement<float>;
+template struct MinRowElement<int>;

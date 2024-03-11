@@ -48,7 +48,7 @@ __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
                                         const float minus_z) {
     auto index = blockIdx.x * blockDim.x + threadIdx.x;
     auto stride = blockDim.x * gridDim.x;
-    long maxid = (long)Nt * (long)Nc;
+    long maxid = Nt * Nc;
     for (long i = index; i < maxid; i += stride) {
         auto center_index = i / Nt;
         auto target_index = i % Nt;
@@ -57,5 +57,37 @@ __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
         if (in_cylinder(radius, plus_z, minus_z, target, body_pos)) {
             output[center_index] = -1;
         }
+    }
+};
+
+__global__ void in_cylinder_rec2(const float3 center, float3* targets,
+                                 const size_t Nt, int* result,
+                                 const float radius, const float plus_z,
+                                 const float minus_z) {
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t target_index = index; target_index < Nt; target_index += stride) {
+        const float3 target = targets[target_index];
+        if (in_cylinder(radius, plus_z, minus_z, center, target)) {
+            // atomicMin(result, (int)(-1));
+            result[0] = -1;
+        }
+    }
+}
+
+__global__ void in_cylinder_rec(float3* centers, const size_t Nc,
+                                float3* targets, const size_t Nt, int* output,
+                                const float radius, const float plus_z,
+                                const float minus_z) {
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    // int blockSize = min(256, (int)Nt);
+    size_t blockSize = 256;
+    size_t numBlock = (Nt + blockSize - 1) / blockSize;
+    for (size_t center_index = index; center_index < Nc; center_index += stride) {
+        const float3 body_pos = centers[center_index];
+        int* result_pointer = &output[center_index];
+        in_cylinder_rec2<<<numBlock, blockSize>>>(
+            body_pos, targets, Nt, result_pointer, radius, plus_z, minus_z);
     }
 };

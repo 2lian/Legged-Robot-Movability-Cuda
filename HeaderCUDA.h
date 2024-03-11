@@ -1,13 +1,13 @@
 #pragma once
 #include "HeaderCPP.h"
+#include "cuda_runtime_api.h"
 #include <cstddef>
 #include <driver_types.h>
-#include "cuda_runtime_api.h"
-#include <thrust/device_vector.h>
 #include <thrust/copy.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
-#include <thrust/host_vector.h>
 // #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 
@@ -18,42 +18,35 @@
 __device__ constexpr float pIgpu =
     3.14159265358979323846264338327950288419716939937510582097f;
 
-template <typename T>
-struct Array {
+template <typename T> struct Array {
     size_t length;
     T* elements;
 };
 
-template <>
-struct Array<float3> {
+template <> struct Array<float3> {
     size_t length;
     float3* elements;
 };
 
-template <>
-struct Array<float> {
+template <> struct Array<float> {
     size_t length;
     float* elements;
 };
 
-template <>
-struct Array<bool> {
+template <> struct Array<bool> {
     size_t length;
     bool* elements;
 };
 
-template <>
-struct Array<int> {
+template <> struct Array<int> {
     size_t length;
     int* elements;
 };
 
-template <>
-struct Array<LegDimensions> {
+template <> struct Array<LegDimensions> {
     size_t length;
     LegDimensions* elements;
 };
-
 
 // Matrices are stored in row-major order:
 // M(row, col) = *(M.elements + row * M.width + col)
