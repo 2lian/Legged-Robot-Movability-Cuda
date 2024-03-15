@@ -16,8 +16,8 @@
 int main() {
 
     LegDimensions (*LegToUse)(float body_angle);
-    LegToUse = get_moonbot_leg;
-    // LegToUse = get_M2_leg;
+    // LegToUse = get_moonbot_leg;
+    LegToUse = get_M2_leg;
 
     {
         const char* filename = "numpy_input_tx.bin";
@@ -79,18 +79,6 @@ int main() {
         std::cout << "Cuda robot reachability took " << duration.count()
                   << " milliseconds to finish." << std::endl;
 
-        /* for (int i = 0; i < body_pos_arr.length; i++) { */
-        /*     if (i < target_map.length) { */
-        /*         std::cout << target_map.elements[i].x << "  |  " */
-        /*                   << target_map.elements[i].y << "  |  " */
-        /*                   << target_map.elements[i].z << std::endl; */
-        /*     } */
-        /*     std::cout << body_pos_arr.elements[i].x << "  |  " */
-        /*               << body_pos_arr.elements[i].y << "  |  " */
-        /*               << body_pos_arr.elements[i].z << std::endl; */
-        /*     std::cout << out.elements[i] << std::endl; */
-        /*     std::cout << std::endl; */
-        /* } */
         {
             float* x_arr = new float[body_pos_arr.length];
             for (int i = 0; i < body_pos_arr.length; i++) {

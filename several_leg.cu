@@ -4,18 +4,22 @@
 #include "cuda_runtime_api.h"
 #include "cuda_util.h"
 #include "one_leg.cu.h"
-#include "thrust/detail/copy.h"
-#include "thrust/detail/raw_pointer_cast.h"
-#include "thrust/device_vector.h"
-#include "thrust/fill.h"
-#include "thrust/transform.h"
+#include "thrust/copy.h"
+#include "unified_math_cuda.cu.h"
+#include "vector_functions.hpp"
 #include <cstdio>
 #include <iostream>
 #include <limits>
+#include <thrust/detail/copy.h>
+#include <thrust/detail/raw_pointer_cast.h>
+#include <thrust/device_vector.h>
+#include <thrust/fill.h>
+#include <thrust/partition.h>
+#include <thrust/transform.h>
 #include <tuple>
 
-__device__ void rotateInPlace(float3& point, float z_rot, float& cos_memory,
-                              float& sin_memory) {
+__device__ inline void rotateInPlace(float3& point, float z_rot,
+                                     float& cos_memory, float& sin_memory) {
     sincosf(z_rot, &sin_memory, &cos_memory);
     float buffer = point.x * sin_memory;
     point.x = point.x * cos_memory - point.y * sin_memory;
@@ -23,8 +27,8 @@ __device__ void rotateInPlace(float3& point, float z_rot, float& cos_memory,
     return;
 }
 
-__device__ void unrotateInPlace(float3& point, float z_rot, float& cos_memory,
-                                float& sin_memory) {
+__device__ inline void unrotateInPlace(float3& point, float z_rot,
+                                       float& cos_memory, float& sin_memory) {
     float buffer = point.x * -sin_memory;
     point.x = point.x * cos_memory - point.y * -sin_memory;
     point.y = buffer + point.y * cos_memory;
@@ -212,22 +216,6 @@ Array<int> robot_full_reachable(Array<float3> body_map,
     return final_count;
 }
 
-struct CylinderFunctor {
-    float radius;
-    float plus_z;
-    float minus_z;
-
-    __host__ __device__ CylinderFunctor(float _radius, float _plus_z,
-                                        float _minus_z)
-        : radius(_radius), plus_z(_plus_z), minus_z(_minus_z) {}
-
-    __device__ int operator()(float3 body, float3 target) const {
-        bool r = in_cylinder(radius, plus_z, minus_z, body, target);
-        // bool r = in_cylinder(10, 10, 10, body, target);
-        return r ? -1 : 0;
-    }
-};
-
 std::tuple<Array<float3>, Array<int>>
 robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
                 Array<LegDimensions> legs) {
@@ -239,13 +227,29 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
     thrust::device_vector<float3> Body_g = Body;
     thrust::device_vector<float3> Target_g = Target;
 
-    thrust::device_vector<int>* result_ar;
     std::cout << Body_g.size() << std::endl;
 
+    thrust::device_vector<float3>::iterator newEndBody = Body_g.end();
+    thrust::device_vector<float3>::iterator newBeginBody = Body_g.begin();
+    // newBeginBody += (newEndBody - newBeginBody) / 2;
+
+    // Quaternion quat = quatFromVectAngle(make_float3(0, 0, 1), pI/2);
+    Quaternion quat = quatFromVectAngle(make_float3(0, 1, 0), 0.4);
+    auto my_func = QuaternionFunctor(quat);
+    std::cout << quat.x << " | " << quat.y << " | " << quat.z << " | " << quat.w
+              << " | " << std::endl;
+
+    thrust::transform(newBeginBody, newEndBody, newBeginBody, my_func);
+    thrust::transform(Target_g.begin(), Target_g.end(), Target_g.begin(),
+                      my_func);
+
+    thrust::device_vector<int>* result_ar;
     result_ar = new thrust::device_vector<int>[legs.length];
     size_t blockSize = 1024 / 1;
     size_t numBlock =
-        (Body_g.size() * Target_g.size() + blockSize - 1) / blockSize;
+        ((newEndBody - newBeginBody) * Target_g.size() + blockSize - 1) /
+        blockSize;
+    thrust::device_vector<int>::iterator newEndResult;
     // int numBlock = (Body_g.size() + blockSize - 1) / blockSize;
     {
         auto dim = legs.elements[0];
@@ -257,48 +261,52 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
             sinr * dim.coxa_length + dim.femur_length + dim.tibia_length;
         float minus_z =
             sinr * dim.coxa_length - dim.femur_length - dim.tibia_length;
-        thrust::device_vector<int> not_far(Body_g.size());
+        thrust::device_vector<int> not_far(newEndBody - newBeginBody);
         thrust::fill(not_far.begin(), not_far.end(), 0);
         cudaDeviceSynchronize();
 
         // in_cylinder_rec<<<1, 1>>>( // -1 if close enough
+        auto ptr = thrust::raw_pointer_cast(Body_g.data()) +
+                   (newBeginBody - Body_g.begin());
+        auto s = newEndBody - newBeginBody;
         in_cylinder_cccl_kernel<<<numBlock, blockSize>>>( // -1 if close enough
-            thrust::raw_pointer_cast(Body_g.data()), Body_g.size(),
-            thrust::raw_pointer_cast(Target_g.data()), Target_g.size(),
+            ptr, s, thrust::raw_pointer_cast(Target_g.data()), Target_g.size(),
             thrust::raw_pointer_cast(not_far.data()), radius, plus_z, minus_z);
         cudaDeviceSynchronize();
 
-        thrust::device_vector<float3>::iterator newEndBody =
-            thrust::remove_if(Body_g.begin(), Body_g.end(), not_far.begin(),
-                              [] __device__(int x) { return x == 0; });
-        Body_g.erase(newEndBody, Body_g.end());
-        std::cout << Body_g.size() << std::endl;
+        newEndBody =
+            thrust::partition(newBeginBody, newEndBody, not_far.begin(),
+                              [] __device__(int x) { return x != 0; });
+        // Body_g.erase(newEndBody, Body_g.end());
+        std::cout << "Part 1 " << (newEndBody - newBeginBody) << std::endl;
     }
     CUDA_CHECK_ERROR("first cylinder and alloc");
 
     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
         thrust::device_vector<int>& this_leg_result = result_ar[leg_num];
-        this_leg_result.resize(Body_g.size());
+        this_leg_result.resize(newEndBody - newBeginBody);
         if (leg_num == 0) {
             thrust::fill(this_leg_result.begin(), this_leg_result.end(), 0);
             float radius = legs.elements[0].body;
             float plus_z = 120;
             float minus_z = -60;
+            auto ptr = thrust::raw_pointer_cast(Body_g.data()) +
+                       (newBeginBody - Body_g.begin());
+            auto s = newEndBody - newBeginBody;
             in_cylinder_cccl_kernel<<<numBlock, blockSize>>>(
-                thrust::raw_pointer_cast(Body_g.data()), Body_g.size(),
-                thrust::raw_pointer_cast(Target_g.data()), Target_g.size(),
+                ptr, s, thrust::raw_pointer_cast(Target_g.data()),
+                Target_g.size(),
                 thrust::raw_pointer_cast(this_leg_result.data()), radius,
                 plus_z, minus_z);
             cudaDeviceSynchronize();
 
-            thrust::device_vector<float3>::iterator newEndBody =
-                thrust::remove_if(Body_g.begin(), Body_g.end(),
-                                  this_leg_result.begin(),
-                                  [] __device__(int x) { return x == -1; });
-            Body_g.erase(newEndBody, Body_g.end());
-            std::cout << Body_g.size() << std::endl;
-            thrust::device_vector<int>::iterator newEndResult = thrust::remove(
-                this_leg_result.begin(), this_leg_result.end(), -1);
+            newEndBody = thrust::partition(
+                newBeginBody, newEndBody, this_leg_result.begin(),
+                [] __device__(int x) { return x != -1; });
+            // Body_g.erase(newEndBody, Body_g.end());
+            std::cout << "Part 2 " << (newEndBody - newBeginBody) << std::endl;
+            newEndResult = thrust::remove(this_leg_result.begin(),
+                                          this_leg_result.end(), -1);
             this_leg_result.erase(newEndResult, this_leg_result.end());
 
         } else {
@@ -308,11 +316,16 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
     }
     CUDA_CHECK_ERROR("Cylinder and alloc");
     blockSize = 1024 / 2;
-    numBlock = (Body_g.size() * Target_g.size() + blockSize - 1) / blockSize;
+    numBlock =
+        ((newEndBody - newBeginBody) * Target_g.size() + blockSize - 1) /
+        blockSize;
+
     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
         CUDA_CHECK_ERROR("cudaKernel leg");
-        Array<float3> b = {Body_g.size(),
-                           thrust::raw_pointer_cast(Body_g.data())};
+        auto ptr = thrust::raw_pointer_cast(Body_g.data()) +
+                   (newBeginBody - Body_g.begin());
+        const size_t s = (newEndBody - newBeginBody);
+        Array<float3> b = {s, ptr};
         Array<float3> t = {Target_g.size(),
                            thrust::raw_pointer_cast(Target_g.data())};
         Array<int> r = {result_ar[leg_num].size(),
@@ -324,8 +337,6 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
 
     CUDA_CHECK_ERROR("cudaMalloc final_count");
 
-    blockSize = 1024;
-    numBlock = (Body_g.size() + blockSize - 1) / blockSize;
     thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(
                           result_ar[0].begin(), result_ar[1].begin())),
                       thrust::make_zip_iterator(thrust::make_tuple(
@@ -342,21 +353,28 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
                           result_ar[0].end(), result_ar[2].end())),
                       result_ar[0].begin(), MinRowElement<int>());
     thrust::device_vector<int> final_count = result_ar[0];
+    // blockSize = 1024;
+    // numBlock = ((newEndBody - newBeginBody) + blockSize - 1) / blockSize;
     // find_min_kernel<<<numBlock, blockSize>>>(result_ar_gpu, legs.length,
     //                                          final_count);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("execution find_min_kernel");
 
-    thrust::device_vector<float3>::iterator newEndBody =
-        thrust::remove_if(Body_g.begin(), Body_g.end(), final_count.begin(),
-                          [] __device__(int x) { return x == 0; });
-    Body_g.erase(newEndBody, Body_g.end());
-    std::cout << Body_g.size() << std::endl;
-    thrust::device_vector<int>::iterator newEndResult =
-        thrust::remove(final_count.begin(), final_count.end(), 0);
+    newEndBody =
+        thrust::partition(newBeginBody, newEndBody, final_count.begin(),
+                          [] __device__(int x) { return x != 0; });
+    // Body_g.erase(newEndBody, Body_g.end());
+    std::cout << (newEndBody - newBeginBody) << std::endl;
+    newEndResult = thrust::remove(final_count.begin(), final_count.end(), 0);
     final_count.erase(newEndResult, final_count.end());
 
-    thrust::host_vector<float3> oncpub = Body_g;
+    auto my_UnFunc = UnQuaternionFunctor(quat);
+    thrust::transform(newBeginBody, newEndBody, newBeginBody, my_UnFunc);
+    thrust::transform(Target_g.begin(), Target_g.end(), Target_g.begin(),
+                      my_UnFunc);
+
+    thrust::host_vector<float3> oncpub(newEndBody - newBeginBody);
+    thrust::copy(newBeginBody, newEndBody, oncpub.begin());
     Array<float3> out_body = thustVectToArray(oncpub);
 
     thrust::host_vector<int> oncpuc = final_count;

@@ -77,6 +77,8 @@ add_executable(cuda
     several_leg.cpp
     collision.cu
     collision.cu.h
+    unified_math_cuda.cu
+    unified_math_cuda.cu.h
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
