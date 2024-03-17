@@ -68,7 +68,7 @@ int main() {
         auto start = std::chrono::high_resolution_clock::now();
 
         std::tie(out_body, out_count) =
-            robot_full_cccl(body_pos_arr, target_map, legArray);
+            robot_full_struct(body_pos_arr, target_map, legArray);
         delete[] body_pos_arr.elements;
         body_pos_arr.length = out_body.length;
         body_pos_arr.elements = out_body.elements;

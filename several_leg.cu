@@ -5,10 +5,13 @@
 #include "cuda_util.h"
 #include "one_leg.cu.h"
 #include "thrust/copy.h"
+#include "thrust/remove.h"
 #include "unified_math_cuda.cu.h"
+#include "vector_functions.h"
 #include "vector_functions.hpp"
 #include <cstdio>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <thrust/detail/copy.h>
 #include <thrust/detail/raw_pointer_cast.h>
@@ -35,8 +38,9 @@ __device__ inline void unrotateInPlace(float3& point, float z_rot,
     return;
 }
 
-__device__ bool reachable_rotate_leg(float3 target, const float3 body_pos,
-                                     const LegDimensions& dim) {
+__device__ inline bool reachable_rotate_leg(float3 target,
+                                            const float3 body_pos,
+                                            const LegDimensions& dim) {
     {
         float cos_memory;
         float sin_memory;
@@ -113,107 +117,398 @@ __global__ void find_min_kernel(thrust::device_vector<int>* arrays,
         }                                                                      \
     } while (0)
 
-Array<int> robot_full_reachable(Array<float3> body_map,
-                                Array<float3> target_map,
-                                Array<LegDimensions> legs) {
-    {
-        float3* newpointer;
-        cudaMalloc(&newpointer, body_map.length * sizeof(float3));
-        CUDA_CHECK_ERROR("cudaMalloc body_map");
-        cudaMemcpy(newpointer, body_map.elements,
-                   body_map.length * sizeof(float3), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR("cudaMemcpy body_map");
-        body_map.elements = newpointer;
-    }
-    {
-        float3* newpointer;
-        cudaMalloc(&newpointer, target_map.length * sizeof(float3));
-        CUDA_CHECK_ERROR("cudaMalloc target_map");
-        cudaMemcpy(newpointer, target_map.elements,
-                   target_map.length * sizeof(float3), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR("cudaMemcpy target_map");
-        target_map.elements = newpointer;
-    }
-    CUDA_CHECK_ERROR("cudaMalloc before leg");
+// Array<int> robot_full_reachable(Array<float3> body_map,
+//                                 Array<float3> target_map,
+//                                 Array<LegDimensions> legs) {
+//     {
+//         float3* newpointer;
+//         cudaMalloc(&newpointer, body_map.length * sizeof(float3));
+//         CUDA_CHECK_ERROR("cudaMalloc body_map");
+//         cudaMemcpy(newpointer, body_map.elements,
+//                    body_map.length * sizeof(float3), cudaMemcpyHostToDevice);
+//         CUDA_CHECK_ERROR("cudaMemcpy body_map");
+//         body_map.elements = newpointer;
+//     }
+//     {
+//         float3* newpointer;
+//         cudaMalloc(&newpointer, target_map.length * sizeof(float3));
+//         CUDA_CHECK_ERROR("cudaMalloc target_map");
+//         cudaMemcpy(newpointer, target_map.elements,
+//                    target_map.length * sizeof(float3),
+//                    cudaMemcpyHostToDevice);
+//         CUDA_CHECK_ERROR("cudaMemcpy target_map");
+//         target_map.elements = newpointer;
+//     }
+//     CUDA_CHECK_ERROR("cudaMalloc before leg");
+//
+//     Array<int>* res_bool_array;
+//     res_bool_array = new Array<int>[legs.length];
+//     int blockSize = 1024 / 1;
+//     int numBlock =
+//         (body_map.length * target_map.length + blockSize - 1) / blockSize;
+//
+//     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
+//         res_bool_array[leg_num].length = body_map.length;
+//         cudaMalloc(&(res_bool_array[leg_num].elements),
+//                    sizeof(int) * res_bool_array[leg_num].length);
+//         if (leg_num == 0) {
+//             cudaMemset(res_bool_array[leg_num].elements, 0,
+//                        sizeof(int) * res_bool_array[leg_num].length);
+//             float radius = legs.elements[0].body;
+//             float plus_z = 120;
+//             float minus_z = -60;
+//             in_cylinder_accu_kernel<<<numBlock, blockSize>>>(
+//                 body_map, target_map, res_bool_array[leg_num], radius,
+//                 plus_z, minus_z);
+//         } else {
+//             cudaMemcpy(res_bool_array[leg_num].elements,
+//                        res_bool_array[0].elements,
+//                        sizeof(int) * res_bool_array[leg_num].length,
+//                        cudaMemcpyDeviceToDevice);
+//         }
+//     }
+//     cudaDeviceSynchronize();
+//     CUDA_CHECK_ERROR("Cylinder and alloc");
+//     blockSize = 1024 / 2;
+//     numBlock =
+//         (body_map.length * target_map.length + blockSize - 1) / blockSize;
+//     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
+//         CUDA_CHECK_ERROR("cudaKernel leg");
+//         reachable_leg_kernel_accu<<<numBlock, blockSize>>>(
+//             body_map, target_map, legs.elements[leg_num],
+//             res_bool_array[leg_num]);
+//     }
+//     cudaDeviceSynchronize();
+//
+//     CUDA_CHECK_ERROR("cudaMalloc reachable kernel");
+//
+//     Array<int> final_count;
+//     final_count.length = res_bool_array[0].length;
+//
+//     cudaMalloc(&final_count.elements, sizeof(int) * final_count.length);
+//     cudaMemset(final_count.elements, 0, final_count.length * sizeof(int));
+//     CUDA_CHECK_ERROR("cudaMalloc final_count");
+//
+//     {
+//         Array<int>* newpointer;
+//         cudaMalloc(&newpointer, legs.length * sizeof(Array<int>));
+//         CUDA_CHECK_ERROR("cudaMalloc legdim");
+//         cudaMemcpy(newpointer, res_bool_array, legs.length *
+//         sizeof(Array<int>),
+//                    cudaMemcpyHostToDevice);
+//         CUDA_CHECK_ERROR("cudaMemcpy legdim");
+//         res_bool_array = newpointer;
+//     }
+//
+//     blockSize = 1024;
+//     numBlock = (body_map.length + blockSize - 1) / blockSize;
+//     find_min_kernel<<<numBlock, blockSize>>>(res_bool_array, legs.length,
+//                                              final_count);
+//     cudaDeviceSynchronize();
+//     CUDA_CHECK_ERROR("execution find_min_kernel");
+//     int* newpointer = new int[final_count.length];
+//     {
+//         cudaMemcpy(newpointer, final_count.elements,
+//                    final_count.length * sizeof(int), cudaMemcpyDeviceToHost);
+//         CUDA_CHECK_ERROR("cudaMemcpy final_count");
+//         cudaFree(final_count.elements);
+//         final_count.elements = newpointer;
+//     }
+//
+//     cudaFree(body_map.elements);
+//     cudaFree(target_map.elements);
+//     cudaDeviceSynchronize();
+//     CUDA_CHECK_ERROR("cudaFree");
+//     return final_count;
+// }
 
-    Array<int>* res_bool_array;
-    res_bool_array = new Array<int>[legs.length];
-    int blockSize = 1024 / 1;
-    int numBlock =
-        (body_map.length * target_map.length + blockSize - 1) / blockSize;
+class multi_rot_estimator {
+  public:
+    thrust::device_vector<float3> bodyWorking;
+    thrust::device_vector<float3> targetRotated;
+    thrust::device_vector<int>* resultLegArray;
+    thrust::device_vector<int>& finalCount;
 
-    for (int leg_num = 0; leg_num < legs.length; leg_num++) {
-        res_bool_array[leg_num].length = body_map.length;
-        cudaMalloc(&(res_bool_array[leg_num].elements),
-                   sizeof(int) * res_bool_array[leg_num].length);
-        if (leg_num == 0) {
-            cudaMemset(res_bool_array[leg_num].elements, 0,
-                       sizeof(int) * res_bool_array[leg_num].length);
-            float radius = legs.elements[0].body;
-            float plus_z = 120;
-            float minus_z = -60;
-            in_cylinder_accu_kernel<<<numBlock, blockSize>>>(
-                body_map, target_map, res_bool_array[leg_num], radius, plus_z,
-                minus_z);
-        } else {
-            cudaMemcpy(res_bool_array[leg_num].elements,
-                       res_bool_array[0].elements,
-                       sizeof(int) * res_bool_array[leg_num].length,
-                       cudaMemcpyDeviceToDevice);
-        }
+    thrust::device_vector<float3> bodyGlobal;
+    thrust::device_vector<float3> targetGlobal;
+    thrust::device_vector<float3>::iterator endBodyView;
+    thrust::device_vector<float3>::iterator beginBodyView;
+    Array<LegDimensions> legs;
+
+    multi_rot_estimator(thrust::device_vector<float3> body,
+                        thrust::device_vector<float3> target,
+                        Array<LegDimensions> legsArray)
+        : resultLegArray(new thrust::device_vector<int>[4]),
+          finalCount(resultLegArray[0]) {
+
+        bodyGlobal.resize(body.size());
+        thrust::copy(body.begin(), body.end(), bodyGlobal.begin());
+        beginBodyView = bodyGlobal.begin();
+        endBodyView = bodyGlobal.end();
+
+        targetGlobal.resize(target.size());
+        thrust::copy(target.begin(), target.end(), targetGlobal.begin());
+
+        legs = legsArray;
+        bodyWorking.resize(bodyGlobal.size());
+        targetRotated.resize(targetGlobal.size());
+        resetWorkingData();
+        std::cout << "Init done" << std::endl;
     }
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("Cylinder and alloc");
-    blockSize = 1024 / 2;
-    numBlock =
-        (body_map.length * target_map.length + blockSize - 1) / blockSize;
-    for (int leg_num = 0; leg_num < legs.length; leg_num++) {
-        CUDA_CHECK_ERROR("cudaKernel leg");
+
+    // multi_rot_estimator(thrust::device_vector<float3> _bodyGlobal,
+    //                     thrust::device_vector<float3> _targetGlobal,
+    //                     Array<LegDimensions> _legs)
+    //     : bodyGlobal(_bodyGlobal), endBodyView(_bodyGlobal.end()),
+    //       beginBodyView(_bodyGlobal.begin()), targetGlobal(_targetGlobal),
+    //       legs(_legs),
+    //       resultLegArray(new thrust::device_vector<int>[_legs.length]),
+    //       finalCount(resultLegArray[0]) {
+    //     bodyWorking.resize(bodyGlobal.size());
+    //     targetRotated.resize(targetGlobal.size());
+    //     resetWorkingData();
+    //     runPipeline(make_float4(0, 0, 0, 1));
+    //     std::cout << "Init done" << std::endl;
+    // }
+
+    void init(thrust::device_vector<float3> body,
+              thrust::device_vector<float3> target,
+              Array<LegDimensions> legsArray) {
+        bodyGlobal.resize(body.size());
+        thrust::copy(body.begin(), body.end(), bodyGlobal.begin());
+        beginBodyView = bodyGlobal.begin();
+        endBodyView = bodyGlobal.end();
+        // targetGlobal = target;
+        targetGlobal.resize(target.size());
+        thrust::copy(target.begin(), target.end(), targetGlobal.begin());
+        legs = legsArray;
+        // resultLegArray = new thrust::device_vector<int>[legs.length];
+        // finalCount = resultLegArray[0];
+        bodyWorking.resize(bodyGlobal.size());
+        targetRotated.resize(targetGlobal.size());
+        // resetWorkingData();
+        // runPipeline(make_float4(0, 0, 0, 1));
+        std::cout << "Init done" << std::endl;
+    }
+
+    void resetWorkingData() {
+        bodyWorking.resize(endBodyView - beginBodyView);
+        thrust::copy(targetGlobal.begin(), targetGlobal.end(),
+                     targetRotated.begin());
+        // std::cout << "body W address " << &(bodyWorking) << std::endl;
+        thrust::copy(beginBodyView, endBodyView, bodyWorking.begin());
+        std::cout << "Reset done" << std::endl;
+        return;
+    }
+
+    ~multi_rot_estimator() { delete[] resultLegArray; }
+
+    void flipWorkingSide() {
+        beginBodyView = endBodyView;
+        endBodyView = bodyGlobal.end();
+    }
+
+    void rotateData(Quaternion quat) {
+        QuaternionFunctor my_func = QuaternionFunctor(quat);
+        std::cout << quat.x << " | " << quat.y << " | " << quat.z << " | "
+                  << quat.w << " | " << std::endl;
+
+        thrust::transform(bodyWorking.begin(), bodyWorking.end(),
+                          bodyWorking.begin(), my_func);
+        thrust::transform(targetRotated.begin(), targetRotated.end(),
+                          targetRotated.begin(), my_func);
+        std::cout << "Rotation done" << std::endl;
+    };
+
+    void eliminateTooFar() {
+        std::cout << "Too far deleting" << std::endl;
+        auto dim = legs.elements[0];
+        float sinr = sin(dim.coxa_pitch);
+        float cosr = cos(dim.coxa_pitch);
+        float radius = dim.body + cosr * dim.coxa_length + dim.femur_length +
+                       dim.tibia_length;
+        float plus_z =
+            sinr * dim.coxa_length + dim.femur_length + dim.tibia_length;
+        float minus_z =
+            sinr * dim.coxa_length - dim.femur_length - dim.tibia_length;
+        thrust::device_vector<int> not_far(bodyWorking.size());
+        thrust::fill(not_far.begin(), not_far.end(), 0);
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR("eliminate too far init");
+
+        // in_cylinder_rec<<<1, 1>>>( // -1 if close enough
+        auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
+        auto sizeBody = bodyWorking.size();
+
+        size_t blockSize = 1024 / 1;
+        size_t numBlock =
+            (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
+        in_cylinder_cccl_kernel<<<numBlock, blockSize>>>( // -1 if close enough
+            ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
+            targetRotated.size(), thrust::raw_pointer_cast(not_far.data()),
+            radius, plus_z, minus_z);
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR("in_cylinder_cccl_kernel");
+
+        endBodyView =
+            thrust::partition(beginBodyView, endBodyView, not_far.begin(),
+                              [] __device__(int x) { return x != 0; });
+        auto newEnd = thrust::remove_if(
+            bodyWorking.begin(), bodyWorking.end(), not_far.begin(),
+            [] __device__(int x) { return x == 0; });
+        bodyWorking.erase(newEnd, bodyWorking.end());
+        std::cout << "eliminateTooFar: " << (endBodyView - beginBodyView)
+                  << std::endl;
+    }
+
+    void eliminateBodyColliding() {
+        thrust::device_vector<int> result(bodyWorking.size());
+        thrust::fill(result.begin(), result.end(), 0);
+        float radius = legs.elements[0].body;
+        float plus_z = 120;
+        float minus_z = -60;
+
+        auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
+        auto sizeBody = bodyWorking.size();
+
+        size_t blockSize = 1024 / 1;
+        size_t numBlock =
+            (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
+        in_cylinder_cccl_kernel<<<numBlock, blockSize>>>(
+            ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
+            targetRotated.size(), thrust::raw_pointer_cast(result.data()),
+            radius, plus_z, minus_z);
+        cudaDeviceSynchronize();
+
+        endBodyView =
+            thrust::partition(beginBodyView, endBodyView, result.begin(),
+                              [] __device__(int x) { return x != -1; });
+        auto newEnd = thrust::remove_if(
+            bodyWorking.begin(), bodyWorking.end(), result.begin(),
+            [] __device__(int x) { return x == -1; });
+        bodyWorking.erase(newEnd, bodyWorking.end());
+
+        std::cout << "eliminateBodyColliding: " << (endBodyView - beginBodyView)
+                  << std::endl;
+        // auto newEnd = thrust::remove(result.begin(), result.end(), -1);
+        // result.erase(newEnd, result.end());
+    }
+
+    void computeIndividualLegReachability(size_t leg_num) {
+        thrust::device_vector<int>& this_leg_result = resultLegArray[leg_num];
+        this_leg_result.resize(bodyWorking.size());
+        thrust::fill(this_leg_result.begin(), this_leg_result.end(), 0);
+
+        auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
+        const size_t sizeBody = bodyWorking.size();
+
+        size_t blockSize = 1024 / 1;
+        size_t numBlock =
+            (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
+
+        Array<float3> b = {sizeBody, ptr};
+        Array<float3> t = {targetRotated.size(),
+                           thrust::raw_pointer_cast(targetRotated.data())};
+        Array<int> r = {this_leg_result.size(),
+                        thrust::raw_pointer_cast(this_leg_result.data())};
         reachable_leg_kernel_accu<<<numBlock, blockSize>>>(
-            body_map, target_map, legs.elements[leg_num],
-            res_bool_array[leg_num]);
-    }
-    cudaDeviceSynchronize();
-
-    CUDA_CHECK_ERROR("cudaMalloc reachable kernel");
-
-    Array<int> final_count;
-    final_count.length = res_bool_array[0].length;
-
-    cudaMalloc(&final_count.elements, sizeof(int) * final_count.length);
-    cudaMemset(final_count.elements, 0, final_count.length * sizeof(int));
-    CUDA_CHECK_ERROR("cudaMalloc final_count");
-
-    {
-        Array<int>* newpointer;
-        cudaMalloc(&newpointer, legs.length * sizeof(Array<int>));
-        CUDA_CHECK_ERROR("cudaMalloc legdim");
-        cudaMemcpy(newpointer, res_bool_array, legs.length * sizeof(Array<int>),
-                   cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR("cudaMemcpy legdim");
-        res_bool_array = newpointer;
+            b, t, legs.elements[leg_num], r);
     }
 
-    blockSize = 1024;
-    numBlock = (body_map.length + blockSize - 1) / blockSize;
-    find_min_kernel<<<numBlock, blockSize>>>(res_bool_array, legs.length,
-                                             final_count);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("execution find_min_kernel");
-    int* newpointer = new int[final_count.length];
-    {
-        cudaMemcpy(newpointer, final_count.elements,
-                   final_count.length * sizeof(int), cudaMemcpyDeviceToHost);
-        CUDA_CHECK_ERROR("cudaMemcpy final_count");
-        cudaFree(final_count.elements);
-        final_count.elements = newpointer;
+    void computeAllLegReachability() {
+        for (int leg_num = 0; leg_num < legs.length; leg_num++) {
+            computeIndividualLegReachability(leg_num);
+        }
+        cudaDeviceSynchronize();
     }
 
-    cudaFree(body_map.elements);
-    cudaFree(target_map.elements);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("cudaFree");
-    return final_count;
+    void agregateReachability() {
+        thrust::transform(
+            thrust::make_zip_iterator(thrust::make_tuple(
+                resultLegArray[0].begin(), resultLegArray[1].begin())),
+            thrust::make_zip_iterator(thrust::make_tuple(
+                resultLegArray[0].end(), resultLegArray[1].end())),
+            resultLegArray[0].begin(), MinRowElement<int>());
+        thrust::transform(
+            thrust::make_zip_iterator(thrust::make_tuple(
+                resultLegArray[2].begin(), resultLegArray[3].begin())),
+            thrust::make_zip_iterator(thrust::make_tuple(
+                resultLegArray[2].end(), resultLegArray[3].end())),
+            resultLegArray[2].begin(), MinRowElement<int>());
+        thrust::transform(
+            thrust::make_zip_iterator(thrust::make_tuple(
+                resultLegArray[0].begin(), resultLegArray[2].begin())),
+            thrust::make_zip_iterator(thrust::make_tuple(
+                resultLegArray[0].end(), resultLegArray[2].end())),
+            resultLegArray[0].begin(), MinRowElement<int>());
+    }
+    void cleanAgregated() {
+        endBodyView =
+            thrust::partition(beginBodyView, endBodyView, finalCount.begin(),
+                              [] __device__(int x) { return x != 0; });
+        auto newEnd = thrust::remove_if(
+            bodyWorking.begin(), bodyWorking.end(), finalCount.begin(),
+            [] __device__(int x) { return x == 0; });
+        bodyWorking.erase(newEnd, bodyWorking.end());
+    }
+    void eliminateUnreachable() {
+        std::cout << "reachabling legs";
+        computeAllLegReachability();
+        std::cout << ", gathering";
+        agregateReachability();
+        std::cout << ", cleaning";
+        cleanAgregated();
+        std::cout << ", done: ";
+        std::cout << (endBodyView - beginBodyView) << std::endl;
+    }
+
+    void runPipeline(Quaternion quat) {
+        resetWorkingData();
+        rotateData(quat);
+        eliminateTooFar();
+        eliminateBodyColliding();
+        eliminateUnreachable();
+        flipWorkingSide();
+    }
+
+    thrust::host_vector<float3> getShavedResult() {
+        thrust::host_vector<float3> oncpub(endBodyView - beginBodyView);
+        thrust::copy(beginBodyView, endBodyView, oncpub.begin());
+        return oncpub;
+    }
+};
+
+std::tuple<Array<float3>, Array<int>>
+robot_full_struct(Array<float3> body_map, Array<float3> target_map,
+                  Array<LegDimensions> legs) {
+
+    thrust::host_vector<float3> Body(body_map.elements,
+                                     body_map.elements + body_map.length);
+    thrust::host_vector<float3> Target(target_map.elements,
+                                       target_map.elements + target_map.length);
+    thrust::device_vector<float3> Body_g = Body;
+    thrust::device_vector<float3> Target_g = Target;
+
+    multi_rot_estimator estimator = multi_rot_estimator(Body_g, Target_g, legs);
+    Quaternion quat = quatFromVectAngle(make_float3(0, 0, 1), 0.0);
+
+    estimator.runPipeline(quat);
+    quat = quatFromVectAngle(make_float3(0, 0, 1), pI / 8);
+    estimator.runPipeline(quat);
+    quat = quatFromVectAngle(make_float3(0, 0, 1), 2 * pI / 8);
+    estimator.runPipeline(quat);
+    quat = quatFromVectAngle(make_float3(0, 0, 1), 3 * pI / 8);
+    estimator.runPipeline(quat);
+
+    thrust::host_vector<float3> outBody = estimator.getShavedResult();
+    thrust::host_vector<int> outCount(outBody.size());
+    thrust::fill(outCount.begin(), outCount.end(), 3);
+
+    Array<float3> out_body = thustVectToArray(outBody);
+    Array<int> out_count = thustVectToArray(outCount);
+    auto out = std::make_tuple(out_body, out_count);
+    std::cout << "cuda done" << std::endl;
+    return out;
 }
 
 std::tuple<Array<float3>, Array<int>>
@@ -234,7 +529,7 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
     // newBeginBody += (newEndBody - newBeginBody) / 2;
 
     // Quaternion quat = quatFromVectAngle(make_float3(0, 0, 1), pI/2);
-    Quaternion quat = quatFromVectAngle(make_float3(0, 1, 0), 0.4);
+    Quaternion quat = quatFromVectAngle(make_float3(0, 0, 1), 0.0);
     auto my_func = QuaternionFunctor(quat);
     std::cout << quat.x << " | " << quat.y << " | " << quat.z << " | " << quat.w
               << " | " << std::endl;
@@ -316,9 +611,8 @@ robot_full_cccl(Array<float3> body_map, Array<float3> target_map,
     }
     CUDA_CHECK_ERROR("Cylinder and alloc");
     blockSize = 1024 / 2;
-    numBlock =
-        ((newEndBody - newBeginBody) * Target_g.size() + blockSize - 1) /
-        blockSize;
+    numBlock = ((newEndBody - newBeginBody) * Target_g.size() + blockSize - 1) /
+               blockSize;
 
     for (int leg_num = 0; leg_num < legs.length; leg_num++) {
         CUDA_CHECK_ERROR("cudaKernel leg");
