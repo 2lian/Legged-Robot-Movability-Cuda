@@ -14,9 +14,9 @@ save_array_to_binary_file(map[:, 0].astype(np.float32), "numpy_input_tx.bin")
 save_array_to_binary_file(map[:, 1].astype(np.float32), "numpy_input_ty.bin")
 save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
 
-x_map2 = np.arange(map[:, 0].min(), map[:, 0].max(), 10)
-y_map2 = np.arange(map[:, 1].min(), map[:, 1].max(), 10)
-z_map2 = np.arange(map[:, 2].min(), map[:, 2].max() + 350, 10)
+x_map2 = np.arange(map[:, 0].min(), map[:, 0].max(), 25)
+y_map2 = np.arange(map[:, 1].min(), map[:, 1].max(), 25)
+z_map2 = np.arange(map[:, 2].min(), map[:, 2].max() + 350, 25)
 # z_map2 = np.arange(50, 450, 25) 
 X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
 

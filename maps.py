@@ -7,7 +7,7 @@ This creates several maps of foothold to be used by the Astar
 """
 import numpy as np
 
-density_in_pt_per_m2 = 16 #10
+density_in_pt_per_m2 = 16  # 10
 x_min, x_max = -700, 4000
 y_min, y_max = -700, 4000
 point_density = density_in_pt_per_m2 * 1e-6
@@ -80,17 +80,17 @@ flat_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
                            Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
                            Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
 
-x_map2 = np.arange(-500, 501, 50)
-y_map2 = np.arange(-500, 501, 50)
+x_map2 = np.arange(-500, 501, 100)
+y_map2 = np.arange(-500, 501, 100)
 z_map2 = 0
 X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
 
 step_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
                            Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
                            Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
-step_map = np.concatenate([step_map, 
-                           step_map + np.array([1000, 0, 200]),
-                           step_map + np.array([1000, 1000, 400]),
-                           step_map + np.array([0, 1000, 600]),
+step_height = 300
+step_map = np.concatenate([step_map,
+                           step_map + np.array([1000, 0, step_height * 1]),
+                           step_map + np.array([1000, 1000, step_height * 2]),
+                           step_map + np.array([0, 1000, step_height * 3]),
                            ])
-

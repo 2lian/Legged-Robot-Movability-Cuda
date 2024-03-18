@@ -92,8 +92,8 @@ configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYO
 set_target_properties(cuda PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 
-target_compile_options(cuda PRIVATE -O0)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+target_compile_options(cuda PRIVATE -O3)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 if(WIN32) # Define the source directory of SFML DLLs
     set(SFML_DLL_DIR "${SFML_DIR}/bin")

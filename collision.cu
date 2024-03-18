@@ -41,6 +41,23 @@ __global__ void in_cylinder_accu_kernel(Array<float3> centers,
     }
 };
 
+__global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
+                                      float3* targets, const size_t Nt,
+                                      int* output, const float radius) {
+    auto index = blockIdx.x * blockDim.x + threadIdx.x;
+    auto stride = blockDim.x * gridDim.x;
+    long maxid = Nt * Nc;
+    for (long i = index; i < maxid; i += stride) {
+        auto center_index = i / Nt;
+        auto target_index = i % Nt;
+        const float3 target = targets[target_index];
+        const float3 body_pos = centers[center_index];
+        if (in_sphere(radius, target, body_pos)) {
+            output[center_index] = -1;
+        }
+    }
+};
+
 __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
                                         float3* targets, const size_t Nt,
                                         int* output, const float radius,
