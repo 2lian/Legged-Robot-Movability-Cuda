@@ -2,7 +2,8 @@
 #include "HeaderCUDA.h"
 #include "one_leg.cu.h"
 
-__device__ void place_over_coxa(float3& coordinates, const LegDimensions& dim) {
+__device__ inline void place_over_coxa(float3& coordinates,
+                                                const LegDimensions& dim) {
     // Coxa as the frame of reference without rotation
     coordinates.x -= dim.body;
     float sin_coxa_memory;
@@ -14,14 +15,15 @@ __device__ void place_over_coxa(float3& coordinates, const LegDimensions& dim) {
     coordinates.z = buffer + coordinates.z * cosine_coxa_memory;
 }
 
-__device__ float find_coxa_angle(const float3& coordinates) {
+__device__ inline float find_coxa_angle(const float3& coordinates) {
     // finding coxa angle
     return atan2f(coordinates.y, coordinates.x);
 }
 
-__device__ void clamp_on_circle(const float* center, const float& radius,
-                                const bool& clamp_direction, float& x,
-                                float& y) {
+__device__ inline void clamp_on_circle(const float* center,
+                                                const float& radius,
+                                                const bool& clamp_direction,
+                                                float& x, float& y) {
     x -= center[0];
     y -= center[1];
     float magnitude = sqrtf(x * x + y * y);
@@ -37,8 +39,8 @@ __device__ void clamp_on_circle(const float* center, const float& radius,
     y -= radius * y / magnitude;
 }
 
-__device__ void place_on_vert_plane(float& x, float& z,
-                                    const LegDimensions& dim) {
+__device__ inline void place_on_vert_plane(float& x, float& z,
+                                                    const LegDimensions& dim) {
     // Femur as the frame of reference witout rotation
     x -= dim.coxa_length;
 
@@ -145,10 +147,10 @@ __device__ void place_on_vert_plane(float& x, float& z,
 //     z -= zeroing_radius * z / magnitude;
 // }
 
-__device__ void cancel_coxa_rotation(float3& coordinates,
-                                     const float& coxa_angle,
-                                     float& cosine_coxa_memory,
-                                     float& sin_coxa_memory) {
+__device__ inline void cancel_coxa_rotation(float3& coordinates,
+                                                     const float& coxa_angle,
+                                                     float& cosine_coxa_memory,
+                                                     float& sin_coxa_memory) {
     // canceling coxa rotation for dist
     // Coxa as the frame of reference with rotation
     sincosf(-coxa_angle, &sin_coxa_memory, &cosine_coxa_memory);
@@ -158,9 +160,9 @@ __device__ void cancel_coxa_rotation(float3& coordinates,
     coordinates.y = buffer + coordinates.y * cosine_coxa_memory;
 }
 
-__device__ void restore_coxa_rotation(float3& coordinates,
-                                      float& cosine_coxa_memory,
-                                      float& sin_coxa_memory) {
+__device__ inline void restore_coxa_rotation(float3& coordinates,
+                                                      float& cosine_coxa_memory,
+                                                      float& sin_coxa_memory) {
 
     float buffer = coordinates.y * sin_coxa_memory;
     coordinates.y =
@@ -168,9 +170,9 @@ __device__ void restore_coxa_rotation(float3& coordinates,
     coordinates.x = coordinates.x * cosine_coxa_memory + buffer;
 }
 
-__device__ void finish_finding_closest(float3& coordinates,
-                                       const LegDimensions& dim,
-                                       const float& coxa_angle) {
+__device__ inline void
+finish_finding_closest(float3& coordinates, const LegDimensions& dim,
+                       const float& coxa_angle) {
     // saturating coxa angle for dist
     float saturated_coxa_angle =
         fmaxf(fminf(coxa_angle, dim.max_angle_coxa_w_margin),
@@ -186,8 +188,8 @@ __device__ void finish_finding_closest(float3& coordinates,
     restore_coxa_rotation(coordinates, cosine_coxa_memory, sin_coxa_memory);
 }
 
-__device__ float3 dist_double_solf3(const float3& point,
-                                    const LegDimensions& dim) {
+__device__ inline float3 dist_double_solf3(const float3& point,
+                                                    const LegDimensions& dim) {
     float3 closest = point;
     place_over_coxa(closest, dim);
     float3 closest_flip = closest;
@@ -375,12 +377,10 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
 
     bool reachability;
     reachability =
-        (((!in_negativ_tib_circle) && (!in_positive_sat_circle))
-         &&
-         (in_negative_sat_circle || inside_femur || in_positiv_tib_circle)
-        );
-    // bool r2 = (in_negative_sat_circle || inside_femur || in_positiv_tib_circle);
-    // reachability = ((reachability) && (r2));
+        (((!in_negativ_tib_circle) && (!in_positive_sat_circle)) &&
+         (in_negative_sat_circle || inside_femur || in_positiv_tib_circle));
+    // bool r2 = (in_negative_sat_circle || inside_femur ||
+    // in_positiv_tib_circle); reachability = ((reachability) && (r2));
     // reachability = true;
     return reachability;
 }
@@ -417,9 +417,10 @@ __global__ void reachability_abs_tib_kernel(const Array<float3> input,
     }
 }
 
-__device__ float3 forward_kinematics(const float coxa, const float femur,
-                                     const float tibia,
-                                     const LegDimensions dim) {
+__device__ inline float3 forward_kinematics(const float coxa,
+                                                     const float femur,
+                                                     const float tibia,
+                                                     const LegDimensions dim) {
     float3 result{0, 0, 0};
     result.x += dim.body;
     float cos_horiz, sin_horiz;

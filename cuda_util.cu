@@ -1,22 +1,20 @@
-#include "HeaderCPP.h"
-#include "HeaderCUDA.h"
-#include "cuda_runtime_api.h"
-#include "driver_types.h"
-#include "thrust/detail/raw_pointer_cast.h"
-#include <cstdio>
-// #include "cuda_runtime_api.h"
+#include "cuda_util.h"
 
 __global__ void empty_kernel() {}
 
-__device__ float sumOfSquares3df(const float* vector) {
-    return vector[0] * vector[0] + vector[1] * vector[1] +
-           vector[2] * vector[2];
-}
+// __host__ float norm3df(float x, float y, float z) {
+//     return sqrtf(x * x + y * y + z * z);
+// };
 
-__device__ float sumOfSquares2df(const float* vector) {
-    return vector[0] * vector[0] + vector[1] * vector[1];
-}
-
+// __device__ float sumOfSquares3df(const float* vector) {
+//     return vector[0] * vector[0] + vector[1] * vector[1] +
+//            vector[2] * vector[2];
+// }
+//
+// __device__ float sumOfSquares2df(const float* vector) {
+//     return vector[0] * vector[0] + vector[1] * vector[1];
+// }
+//
 __global__ void norm3df_kernel(Arrayf3 input, Arrayf output) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -26,15 +24,15 @@ __global__ void norm3df_kernel(Arrayf3 input, Arrayf output) {
     }
 }
 
-#define CUDA_CHECK_ERROR(errorMessage)                                         \
-    do {                                                                       \
-        cudaError_t err = cudaGetLastError();                                  \
-        if (err != cudaSuccess) {                                              \
-            fprintf(stderr, "CUDA error in %s: %s\n", errorMessage,            \
-                    cudaGetErrorString(err));                                  \
-            exit(EXIT_FAILURE);                                                \
-        }                                                                      \
-    } while (0)
+// #define CUDA_CHECK_ERROR(errorMessage)                                         \
+//     do {                                                                       \
+//         cudaError_t err = cudaGetLastError();                                  \
+//         if (err != cudaSuccess) {                                              \
+//             fprintf(stderr, "CUDA error in %s: %s\n", errorMessage,            \
+//                     cudaGetErrorString(err));                                  \
+//             exit(EXIT_FAILURE);                                                \
+//         }                                                                      \
+//     } while (0)
 
 /**
  * @brief applies kernel on provided array to provided array
@@ -128,11 +126,9 @@ template Array<int> thustVectToArray<int>(thrust::host_vector<int> thrust_vect);
 // }
 
 template <typename MyType>
-struct MinRowElement
-    : public thrust::unary_function<thrust::tuple<MyType, MyType>, MyType> {
-    __device__ MyType operator()(const thrust::tuple<MyType, MyType>& t) const {
-        return thrust::min(thrust::get<0>(t), thrust::get<1>(t));
-    }
-};
+__device__ MyType MinRowElement<MyType>::operator()(const thrust::tuple<MyType, MyType>& t) const {
+    return thrust::min(thrust::get<0>(t), thrust::get<1>(t));
+}
+;
 // template struct MinRowElement<float>;
 template struct MinRowElement<int>;

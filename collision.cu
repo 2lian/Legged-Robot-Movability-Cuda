@@ -1,4 +1,5 @@
 #include "collision.cu.h"
+#include <cstddef>
 
 __device__ inline bool in_sphere(const float radius, const float3 sphere_center,
                                  const float3 target) {
@@ -6,17 +7,17 @@ __device__ inline bool in_sphere(const float radius, const float3 sphere_center,
     dist.x = sphere_center.x - target.x;
     dist.y = sphere_center.y - target.y;
     dist.z = sphere_center.z - target.z;
-    return radius > norm3df(dist.x, dist.y, dist.z);
+    return norm3df(dist.x, dist.y, dist.z) < radius;
 }
 
 __device__ inline bool in_cylinder(const float radius, const float plus_z,
                                    const float minus_z, const float3 cyl_center,
                                    const float3 target) {
     float3 dist;
-    dist.x = cyl_center.x - target.x;
-    dist.y = cyl_center.y - target.y;
+    dist.x = target.x - cyl_center.x;
+    dist.y = target.y - cyl_center.y;
     bool radial_condition = norm3df(dist.x, dist.y, 0) < radius;
-    dist.z = cyl_center.z - target.z;
+    dist.z = target.z - cyl_center.z;
     bool plus_condition = dist.z < plus_z;
     bool minus_condition = dist.z > minus_z;
     return radial_condition and plus_condition and minus_condition;
@@ -58,6 +59,55 @@ __global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
     }
 };
 
+__global__ void in_sphere_mem_kernel(float3* centers, const size_t Nc,
+                                     float3* targets, const size_t Nt,
+                                     int* output, const float radius) {
+    __shared__ int local_output;
+    __shared__ float3 body_pos;
+    auto center_index = blockIdx.x;
+    auto target_index = threadIdx.x;
+
+    if (target_index == 0) {
+        local_output = 0;
+        body_pos = centers[center_index];
+    }
+    __syncthreads();
+
+    if ((center_index < Nc) and (target_index < Nt)) {
+        const float3 target = targets[target_index];
+        if (in_sphere(radius, body_pos, target)) {
+            local_output = 1;
+        }
+    }
+
+    __syncthreads();
+    if ((target_index == 0) && (local_output == 1)) {
+        output[center_index] = 1;
+    }
+};
+
+void launch_optimized_mem_in_sphere(float3* centers, const size_t Nc,
+                                    float3* targets, const size_t Nt,
+                                    int* output, const float radius) {
+    size_t processed_index = 0;
+    size_t max_block_size = 1024 / 1;
+    // size_t max_block_size = 1;
+    size_t numBlock = Nc;
+    while (processed_index < Nt) {
+        size_t targets_left_to_process = Nt - processed_index;
+        size_t blockSize = std::min(targets_left_to_process, max_block_size);
+        float3* sub_target_ptr = targets + processed_index;
+        size_t sub_target_size = blockSize;
+
+        // std::cout << "in_sphere_mem_kernel " << numBlock << " " << blockSize
+                  // << std::endl;
+        in_sphere_mem_kernel<<<numBlock, blockSize>>>(
+            centers, Nc, sub_target_ptr, sub_target_size, output, radius);
+
+        processed_index += blockSize;
+    }
+}
+
 __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
                                         float3* targets, const size_t Nt,
                                         int* output, const float radius,
@@ -71,11 +121,62 @@ __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
         auto target_index = i % Nt;
         const float3 target = targets[target_index];
         const float3 body_pos = centers[center_index];
-        if (in_cylinder(radius, plus_z, minus_z, target, body_pos)) {
+        if (in_cylinder(radius, plus_z, minus_z, body_pos, target)) {
             output[center_index] = -1;
         }
     }
 };
+
+__global__ void in_cylinder_mem_kernel(float3* centers, const size_t Nc,
+                                       float3* targets, const size_t Nt,
+                                       int* output, const float radius,
+                                       const float plus_z,
+                                       const float minus_z) {
+    __shared__ int local_output;
+    __shared__ float3 body_pos;
+    auto center_index = blockIdx.x;
+    auto target_index = threadIdx.x;
+
+    if (target_index == 0) {
+        local_output = 0;
+        body_pos = centers[center_index];
+    }
+    __syncthreads();
+
+    if ((center_index < Nc) and (target_index < Nt)) {
+        const float3 target = targets[target_index];
+        if (in_cylinder(radius, plus_z, minus_z, body_pos, target)) {
+            local_output = 1;
+        }
+    }
+
+    __syncthreads();
+    if ((target_index == 0) && (local_output == 1)) {
+        output[center_index] = 1;
+    }
+};
+
+void launch_optimized_mem_in_cylinder(float3* centers, const size_t Nc,
+                                      float3* targets, const size_t Nt,
+                                      int* output, const float radius,
+                                      const float plus_z, const float minus_z) {
+    size_t processed_index = 0;
+    size_t max_block_size = 1024 / 1;
+    // size_t max_block_size = 1;
+    size_t numBlock = Nc;
+    while (processed_index < Nt) {
+        size_t targets_left_to_process = Nt - processed_index;
+        size_t blockSize = std::min(targets_left_to_process, max_block_size);
+        float3* sub_target_ptr = targets + processed_index;
+        size_t sub_target_size = blockSize;
+
+        in_cylinder_mem_kernel<<<numBlock, blockSize>>>(
+            centers, Nc, sub_target_ptr, sub_target_size, output, radius,
+            plus_z, minus_z);
+
+        processed_index += blockSize;
+    }
+}
 
 __global__ void in_cylinder_rec2(const float3 center, float3* targets,
                                  const size_t Nt, int* result,

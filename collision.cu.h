@@ -1,5 +1,6 @@
 #pragma once
 #include "HeaderCUDA.h"
+#include "cuda_util.h"
 
 __global__ void in_cylinder_accu_kernel(Array<float3> centers,
                                         Array<float3> targets,
@@ -12,6 +13,10 @@ __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
                                         int* output, const float radius,
                                         const float plus_z,
                                         const float minus_z);
+void launch_optimized_mem_in_cylinder(float3* centers, const size_t Nc,
+                                      float3* targets, const size_t Nt,
+                                      int* output, const float radius,
+                                      const float plus_z, const float minus_z);
 __global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
                                       float3* targets, const size_t Nt,
                                       int* output, const float radius);
@@ -19,6 +24,9 @@ __global__ void in_cylinder_rec(float3* centers, const size_t Nc,
                                 float3* targets, const size_t Nt, int* output,
                                 const float radius, const float plus_z,
                                 const float minus_z);
+void launch_optimized_mem_in_sphere(float3* centers, const size_t Nc,
+                                    float3* targets, const size_t Nt,
+                                    int* output, const float radius);
 
 struct CylinderFunctor {
     float radius;
