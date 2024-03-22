@@ -45,12 +45,11 @@ __host__ __device__ Quaternion quatFromVectAngle(float3 axis, float angle) {
     sincosf(angle / 2, &sina_2, &cosa_2);
     float mag = magnitude(axis);
     Quaternion result =
-        make_float4(cosa_2, sina_2 * axis.x / mag, sina_2 * axis.y / mag,
-                    sina_2 * axis.z / mag);
+        make_float4(sina_2, cosa_2 * axis.x / mag, cosa_2 * axis.y / mag,
+                    cosa_2 * axis.z / mag);
     // make_float4(sina_2 * axis.x, sina_2 * axis.y, sina_2 * axis.z, cosa_2);
     return result;
 }
-
 
 __host__ __device__ float3 rpyFromQuat(const Quaternion q) {
     float3 rollPitchYaw;
@@ -67,7 +66,8 @@ __host__ __device__ float3 rpyFromQuat(const Quaternion q) {
     // pitch (y-axis rotation)
     double sinp = 2 * (w * y - z * x);
     if (std::abs(sinp) >= 1)
-        rollPitchYaw.y = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+        rollPitchYaw.y =
+            std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
     else
         rollPitchYaw.y = std::asin(sinp);
 

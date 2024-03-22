@@ -17,10 +17,10 @@ save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
 
 side_margin = 300
 x_map2 = np.arange(map[:, 0].min() - side_margin,
-                   map[:, 0].max() + side_margin, 25)
+                   map[:, 0].max() + side_margin, 50)
 y_map2 = np.arange(map[:, 1].min() - side_margin,
-                   map[:, 1].max() + side_margin, 25)
-z_map2 = np.arange(map[:, 2].min(), map[:, 2].max() + 350, 25)
+                   map[:, 1].max() + side_margin, 50)
+z_map2 = np.arange(map[:, 2].min(), map[:, 2].max() + 350, 50)
 # z_map2 = np.arange(50, 450, 25)
 X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
 
@@ -36,9 +36,9 @@ save_array_to_binary_file(body_map[:, 2].astype(
 
 print("body samples shape: ", body_map.shape)
 
-x_map_dist = np.arange(-50, 551, 2)
+x_map_dist = np.arange(-50, 551, 5)
 y_map_dist = np.arange(-400, 400, 20)
-z_map_dist = np.arange(-300, 200, 2) - 50
+z_map_dist = np.arange(-300, 200, 5) - 50
 X_map_dist, Y_map_dist, Z_map_dist = np.meshgrid(
     x_map_dist, y_map_dist, z_map_dist)
 
