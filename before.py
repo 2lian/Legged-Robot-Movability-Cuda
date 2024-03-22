@@ -36,9 +36,9 @@ save_array_to_binary_file(body_map[:, 2].astype(
 
 print("body samples shape: ", body_map.shape)
 
-x_map_dist = np.arange(-50, 551, 20)
+x_map_dist = np.arange(-50, 551, 2)
 y_map_dist = np.arange(-400, 400, 20)
-z_map_dist = np.arange(-300, 200, 20) - 50
+z_map_dist = np.arange(-300, 200, 2) - 50
 X_map_dist, Y_map_dist, Z_map_dist = np.meshgrid(
     x_map_dist, y_map_dist, z_map_dist)
 

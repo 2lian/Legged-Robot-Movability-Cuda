@@ -61,8 +61,8 @@ __global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
 
 __global__ void in_sphere_mem_kernel(float3* centers, const size_t Nc,
                                      float3* targets, const size_t Nt,
-                                     int* output, const float radius) {
-    __shared__ int local_output;
+                                     unsigned char* output, const float radius) {
+    __shared__ unsigned char local_output;
     __shared__ float3 body_pos;
     auto center_index = blockIdx.x;
     auto target_index = threadIdx.x;
@@ -88,7 +88,7 @@ __global__ void in_sphere_mem_kernel(float3* centers, const size_t Nc,
 
 void launch_optimized_mem_in_sphere(float3* centers, const size_t Nc,
                                     float3* targets, const size_t Nt,
-                                    int* output, const float radius) {
+                                    unsigned char* output, const float radius) {
     size_t processed_index = 0;
     size_t max_block_size = 1024 / 1;
     // size_t max_block_size = 1;
@@ -129,10 +129,10 @@ __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
 
 __global__ void in_cylinder_mem_kernel(float3* centers, const size_t Nc,
                                        float3* targets, const size_t Nt,
-                                       int* output, const float radius,
+                                       unsigned char* output, const float radius,
                                        const float plus_z,
                                        const float minus_z) {
-    __shared__ int local_output;
+    __shared__ unsigned char local_output;
     __shared__ float3 body_pos;
     auto center_index = blockIdx.x;
     auto target_index = threadIdx.x;
@@ -158,7 +158,7 @@ __global__ void in_cylinder_mem_kernel(float3* centers, const size_t Nc,
 
 void launch_optimized_mem_in_cylinder(float3* centers, const size_t Nc,
                                       float3* targets, const size_t Nt,
-                                      int* output, const float radius,
+                                      unsigned char* output, const float radius,
                                       const float plus_z, const float minus_z) {
     size_t processed_index = 0;
     size_t max_block_size = 1024 / 1;

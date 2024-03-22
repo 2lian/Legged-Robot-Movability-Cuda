@@ -121,7 +121,7 @@ plt.savefig("distance_result.png", dpi=1000)
 filename = 'out_reachability.bin'
 reach = read_array_from_file_with_length(filename, bool).astype(bool)
 
-vertical_slice = False
+vertical_slice = True
 
 if vertical_slice:
     closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
