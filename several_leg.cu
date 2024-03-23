@@ -8,6 +8,7 @@
 #include "thrust/remove.h"
 #include "unified_math_cuda.cu.h"
 #include <algorithm>
+#include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <iostream>
@@ -63,7 +64,7 @@ __device__ inline bool reachable_rotate_leg(float3 target,
         }
         rotateInPlace(target, -dim.body_angle, cos_memory, sin_memory);
         // if (target.x < 0) {
-            // return false;
+        // return false;
         // }
     }
     // return false;
@@ -101,7 +102,7 @@ __global__ void reach_mem_kernel(float3* body_centers, const size_t Nb,
                                  const Quaternion orientation) {
     __shared__ LegDimensions sdim;
     __shared__ Quaternion sorientation;
-    __shared__ int local_output;
+    __shared__ bool one_reachable;
     __shared__ float3 body_pos;
 
     auto center_index = blockIdx.x;
@@ -110,7 +111,7 @@ __global__ void reach_mem_kernel(float3* body_centers, const size_t Nb,
     if (target_index == 0) {
         sdim = dim;
         sorientation = orientation;
-        local_output = 0;
+        one_reachable = false;
         body_pos = body_centers[center_index];
     }
     __syncthreads();
@@ -118,12 +119,12 @@ __global__ void reach_mem_kernel(float3* body_centers, const size_t Nb,
     if ((center_index < Nb) and (target_index < Nt)) {
         const float3 target = targets[target_index];
         if (reachable_rotate_leg(target, body_pos, sorientation, sdim)) {
-            local_output = 1;
+            one_reachable = true;
         }
     }
 
     __syncthreads();
-    if ((target_index == 0) && (local_output == 1)) {
+    if ((target_index == 0) && (one_reachable)) {
         output[center_index] = 1;
     }
 };
@@ -308,6 +309,7 @@ __global__ void find_min_kernel(thrust::device_vector<int>* arrays,
 class multi_rot_estimator {
   public:
     thrust::device_vector<float3> bodyWorking;
+    thrust::device_vector<float3> targetWorking;
     thrust::device_vector<float3> targetRotated;
     thrust::device_vector<int>* resultLegArray;
     thrust::device_vector<int>& finalCount;
@@ -328,30 +330,43 @@ class multi_rot_estimator {
         bodyGlobal.resize(body.size());
         thrust::copy(body.begin(), body.end(), bodyGlobal.begin());
 
+        targetWorking.resize(target.size());
+        thrust::copy(target.begin(), target.end(), targetWorking.begin());
+
         targetGlobal.resize(target.size());
         thrust::copy(target.begin(), target.end(), targetGlobal.begin());
 
         legs = legsArray;
         legsWorking.length = legs.length;
         legsWorking.elements = new LegDimensions[legsWorking.length];
+        for (int i = 0; i < legs.length; i++) {
+            legsWorking.elements[i] = legs.elements[i];
+        }
+
         bodyWorking.resize(bodyGlobal.size());
         thrust::copy(bodyGlobal.begin(), bodyGlobal.end(), bodyWorking.begin());
-        targetRotated.resize(targetGlobal.size());
-        thrust::copy(targetGlobal.begin(), targetGlobal.end(),
+
+        targetRotated.resize(targetWorking.size());
+        thrust::copy(targetWorking.begin(), targetWorking.end(),
                      targetRotated.begin());
 
         std::cout << "init: " << (bodyGlobal.end() - bodyGlobal.begin())
                   << std::endl;
 
         eliminateAlwaysColliding();
+        eliminateFarBody();
+        // resetWorkingData();
+        eliminateFarTarget();
         resetWorkingData();
+        // raise(1);
     }
 
     void resetWorkingData() {
-        bodyWorking.resize(endBodyView - beginBodyView);
-        thrust::copy(targetGlobal.begin(), targetGlobal.end(),
+        targetRotated.resize(targetWorking.end() - targetWorking.begin());
+        thrust::copy(targetWorking.begin(), targetWorking.end(),
                      targetRotated.begin());
         // std::cout << "body W address " << &(bodyWorking) << std::endl;
+        bodyWorking.resize(endBodyView - beginBodyView);
         thrust::copy(beginBodyView, endBodyView, bodyWorking.begin());
         for (int i = 0; i < legs.length; i++) {
             legsWorking.elements[i] = legs.elements[i];
@@ -372,13 +387,13 @@ class multi_rot_estimator {
     void rotateData(Quaternion quat) {
         QuaternionFunctor my_func = QuaternionFunctor(quat);
         std::cout << quat.x << " | " << quat.y << " | " << quat.z << " | "
-        << quat.w << " | " << std::endl;
+                  << quat.w << " | " << std::endl;
 
         thrust::transform(bodyWorking.begin(), bodyWorking.end(),
                           bodyWorking.begin(), my_func);
         thrust::transform(targetRotated.begin(), targetRotated.end(),
                           targetRotated.begin(), my_func);
-        std::cout << "Rotation done" << std::endl;
+        // std::cout << "Rotation done" << std::endl;
     };
 
     void eliminateAlwaysColliding() {
@@ -389,13 +404,6 @@ class multi_rot_estimator {
         auto ptr = thrust::raw_pointer_cast(bodyGlobal.data());
         auto sizeBody = bodyGlobal.size();
 
-        // size_t blockSize = 1024 / 1;
-        // size_t numBlock =
-        // (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
-        // in_sphere_cccl_kernel<<<numBlock, blockSize>>>(
-        //     ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
-        //     targetRotated.size(), thrust::raw_pointer_cast(result.data()),
-        //     radius);
         launch_optimized_mem_in_sphere(
             ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
             targetRotated.size(), thrust::raw_pointer_cast(result.data()),
@@ -403,14 +411,6 @@ class multi_rot_estimator {
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("eliminateAlwaysColliding");
 
-        // thrust::host_vector<unsigned char> p = result;
-        // std::cout << p[0] << " " << p[1] << " " << p[2] << " " << p[3] <<
-        // "\n"
-        //           << p[0 + 4] << " " << p[1 + 4] << " " << p[2 + 4] << " "
-        //           << p[3 + 4] << "\n"
-        //           << p[0 + 8] << " " << p[1 + 8] << " " << p[2 + 8] << " "
-        //           << p[3 + 8] << std::endl;
-        //
         auto newEnd = thrust::remove_if(
             bodyGlobal.begin(), bodyGlobal.end(), result.begin(),
             [] __device__(unsigned char x) { return x != 0; });
@@ -425,6 +425,70 @@ class multi_rot_estimator {
         std::cout << "eliminateAlwaysColliding: "
                   << (endBodyView - beginBodyView) << std::endl;
         // raise(1);
+    }
+
+    void eliminateFarBody() {
+        // auto dim = legsWorking.elements[0];
+        // float radius =
+            // dim.body + dim.coxa_length + dim.femur_length + dim.tibia_length;
+        float radius = 400;
+
+        thrust::device_vector<unsigned char> not_far(bodyGlobal.size());
+        thrust::fill(not_far.begin(), not_far.end(), 0);
+
+        auto ptr_body = thrust::raw_pointer_cast(bodyGlobal.data());
+        auto size_body = bodyGlobal.size();
+        auto ptr_target = thrust::raw_pointer_cast(targetWorking.data());
+        auto size_target = targetWorking.size();
+
+        launch_optimized_mem_in_sphere( // 1 if close enough
+            ptr_body, size_body, ptr_target, size_target,
+            thrust::raw_pointer_cast(not_far.data()), radius);
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR("eliminateTooFar");
+
+        auto newEnd = thrust::remove_if(
+            bodyGlobal.begin(), bodyGlobal.end(), not_far.begin(),
+            [] __device__(unsigned char x) { return x == 0; });
+        std::cout << "# radius: " << (radius) << std::endl;
+        std::cout << "# body deleted: " << (bodyGlobal.end() - newEnd)
+                  << std::endl;
+        bodyGlobal.erase(newEnd, bodyGlobal.end());
+        newEnd = thrust::remove_if(
+            bodyWorking.begin(), bodyWorking.end(), not_far.begin(),
+            [] __device__(unsigned char x) { return x == 0; });
+        bodyWorking.erase(newEnd, bodyWorking.end());
+        beginBodyView = bodyGlobal.begin();
+        endBodyView = bodyGlobal.end();
+    }
+
+    void eliminateFarTarget() {
+        // auto dim = legsWorking.elements[0];
+        // float radius =
+            // dim.body + dim.coxa_length + dim.femur_length + dim.tibia_length;
+        float radius = 400;
+
+        thrust::device_vector<unsigned char> not_far(targetWorking.size());
+        thrust::fill(not_far.begin(), not_far.end(), 0);
+
+        auto ptr_body = thrust::raw_pointer_cast(bodyWorking.data());
+        auto size_body = bodyWorking.size();
+        auto ptr_target = thrust::raw_pointer_cast(targetWorking.data());
+        auto size_target = targetWorking.size();
+
+        launch_optimized_mem_in_sphere( // 1 if close enough
+            ptr_target, size_target, ptr_body, size_body,
+            thrust::raw_pointer_cast(not_far.data()), radius);
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR("eliminateTooFar");
+
+        auto newEnd = thrust::remove_if(
+            targetWorking.begin(), targetWorking.end(), not_far.begin(),
+            [] __device__(unsigned char x) { return x == 0; });
+        std::cout << "# radius: " << (radius) << std::endl;
+        std::cout << "# target deleted: " << (targetWorking.end() - newEnd)
+                  << std::endl;
+        targetWorking.erase(newEnd, targetWorking.end());
     }
 
     void eliminateTooFar() {
@@ -445,14 +509,6 @@ class multi_rot_estimator {
         auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
         auto sizeBody = bodyWorking.size();
 
-        // size_t blockSize = 1024 / 1;
-        // size_t numBlock =
-        //     (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
-        // in_cylinder_cccl_kernel<<<numBlock, blockSize>>>( // -1 if close
-        // enough
-        //     ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
-        //     targetRotated.size(), thrust::raw_pointer_cast(not_far.data()),
-        //     radius, plus_z, minus_z);
         launch_optimized_mem_in_cylinder( // 1 if close enough
             ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
             targetRotated.size(), thrust::raw_pointer_cast(not_far.data()),
@@ -481,20 +537,25 @@ class multi_rot_estimator {
         auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
         auto sizeBody = bodyWorking.size();
 
-        // size_t blockSize = 1024 / 1;
-        // size_t numBlock =
-        //     (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
-        // in_cylinder_cccl_kernel<<<numBlock, blockSize>>>(
-        //     ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
-        //     targetRotated.size(), thrust::raw_pointer_cast(result.data()),
-        // radius, plus_z, minus_z);
+        // empty_kernel<<<bodyWorking.size(), targetRotated.size()>>>();
+        // cudaDeviceSynchronize();
+
+        // auto start = std::chrono::high_resolution_clock::now();
         launch_optimized_mem_in_cylinder( // 1 if close enough
             ptr, sizeBody, thrust::raw_pointer_cast(targetRotated.data()),
             targetRotated.size(), thrust::raw_pointer_cast(result.data()),
             radius, plus_z, minus_z);
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("eliminateBodyColliding");
+        // auto end = std::chrono::high_resolution_clock::now();
+        // auto duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "launch_optimized_mem_in_cylinder took: "
+        //           << duration.count() << " milliseconds to finish."
+        //           << std::endl;
 
+        // start = std::chrono::high_resolution_clock::now();
         endBodyView = thrust::partition(
             beginBodyView, endBodyView, result.begin(),
             [] __device__(unsigned char x) { return x == 0; });
@@ -502,6 +563,11 @@ class multi_rot_estimator {
             bodyWorking.begin(), bodyWorking.end(), result.begin(),
             [] __device__(unsigned char x) { return x != 0; });
         bodyWorking.erase(newEnd, bodyWorking.end());
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        // std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        // std::cout << "erasing took: " << duration.count()
+        // << " milliseconds to finish." << std::endl;
 
         std::cout << "eliminateBodyColliding: " << (endBodyView - beginBodyView)
                   << std::endl;
@@ -510,15 +576,13 @@ class multi_rot_estimator {
     void computeIndividualLegReachability(size_t leg_num,
                                           Quaternion orientation) {
         thrust::device_vector<int>& this_leg_result = resultLegArray[leg_num];
-        this_leg_result.resize(bodyWorking.size());
-        thrust::fill(this_leg_result.begin(), this_leg_result.end(), 0);
 
         auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
         const size_t sizeBody = bodyWorking.size();
 
-        size_t blockSize = 1024 / 2;
-        size_t numBlock =
-            (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
+        // size_t blockSize = 1024 / 2;
+        // size_t numBlock =
+        // (sizeBody * targetRotated.size() + blockSize - 1) / blockSize;
         // std::cout << "numBlock: " << numBlock << std::endl;
         // std::cout << "sizeBody: " << sizeBody << std::endl;
 
@@ -532,6 +596,15 @@ class multi_rot_estimator {
         launch_opti_mem_reach_kernel(b, t, legsWorking.elements[leg_num],
                                      orientation, r);
         CUDA_CHECK_ERROR("computeIndividualLegReachability");
+    }
+
+    void resetLegsResult() {
+        delete[] resultLegArray;
+        resultLegArray = new thrust::device_vector<int>[legsWorking.length];
+        for (int i = 0; i < legsWorking.length; ++i) {
+            resultLegArray[i].resize(bodyWorking.size());
+            thrust::fill(resultLegArray[i].begin(), resultLegArray[i].end(), 0);
+        }
     }
 
     void computeAllLegReachability(Quaternion orientation) {
@@ -572,14 +645,40 @@ class multi_rot_estimator {
         bodyWorking.erase(newEnd, bodyWorking.end());
     }
     void eliminateUnreachable(Quaternion orientation) {
-        std::cout << "reachabling legs";
+        // auto start = std::chrono::high_resolution_clock::now();
+        resetLegsResult();
+        // auto end = std::chrono::high_resolution_clock::now();
+        // auto duration =
+        // std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        // std::cout << "reset took: " << duration.count()
+        // << " milliseconds to finish." << std::endl;
+        // start = std::chrono::high_resolution_clock::now();
         computeAllLegReachability(orientation);
-        std::cout << ", gathering";
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "computeAllLegReachability took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        // start = std::chrono::high_resolution_clock::now();
         agregateReachability();
-        std::cout << ", cleaning";
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "agregateReachability took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        // start = std::chrono::high_resolution_clock::now();
         cleanAgregated();
-        std::cout << ", done: ";
-        std::cout << (endBodyView - beginBodyView) << std::endl;
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "cleanAgregated took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        // start = std::chrono::high_resolution_clock::now();
+        std::cout << "final count: " << (endBodyView - beginBodyView)
+                  << std::endl;
     }
 
     void rotateOneLegLimit(Quaternion quat, LegDimensions& leg) {
@@ -602,13 +701,70 @@ class multi_rot_estimator {
     }
 
     void runPipeline(Quaternion orientation) {
+        // auto start = std::chrono::high_resolution_clock::now();
         resetWorkingData();
+        // auto end = std::chrono::high_resolution_clock::now();
+        // auto duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "resetWorkingData took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        //
+        // start = std::chrono::high_resolution_clock::now();
         rotateData(orientation);
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "rotateData took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        //
+        // start = std::chrono::high_resolution_clock::now();
         rotateLegsLimits(orientation);
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "rotateLegsLimits took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        //
+        // start = std::chrono::high_resolution_clock::now();
         eliminateTooFar();
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "eliminateTooFar took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        //
+        // start = std::chrono::high_resolution_clock::now();
         eliminateBodyColliding();
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "eliminateBodyColliding took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        //
+        // start = std::chrono::high_resolution_clock::now();
         eliminateUnreachable(orientation);
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "eliminateUnreachable took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        //
+        // start = std::chrono::high_resolution_clock::now();
         flipWorkingSide();
+        // end = std::chrono::high_resolution_clock::now();
+        // duration =
+        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
+        //     start);
+        // std::cout << "flipWorkingSide took: " << duration.count()
+        //           << " milliseconds to finish." << std::endl;
+        // start = std::chrono::high_resolution_clock::now();
+
     } // 1.427 in 132s
 
     thrust::host_vector<float3> getShavedResult() {
@@ -633,30 +789,30 @@ robot_full_struct(Array<float3> body_map, Array<float3> target_map,
     Quaternion quatInit = quatFromVectAngle(make_float3(0, 0, 1), 0);
     // estimator.runPipeline(quatInit);
 
-    // float rollMin = -pI / 4;
-    // float rollMax = pI / 4;
-    float rollMin = 0;
-    float rollMax = 0;
-    int rollSample = 1;
+    float rollMin = -pI / 4;
+    float rollMax = pI / 4;
+    // float rollMin = 0;
+    // float rollMax = 0;
+    int rollSample = 4;
 
-    // float pitchMin = -pI / 4;
-    float pitchMin = 0;
-    // float pitchMax = +pI / 4;
-    float pitchMax = 0;
-    int pitchSample = 1;
+    float pitchMin = -pI / 4;
+    float pitchMax = +pI / 4;
+    // float pitchMin = 0;
+    // float pitchMax = 0;
+    int pitchSample = 4;
 
     float yawMin = 0;
     float yawMax = pI / 2;
     // float yawMax = 0;
-    int yawSample = 1;
+    int yawSample = 4;
 
-    for (int rollN = 0; rollN < rollSample; rollN++) {
+    for (int rollN = 0; rollN <= rollSample; rollN++) {
         float rollX = (float)rollN / (float)rollSample;
         float roll = rollMin + (rollMax - rollMin) * rollX;
         Quaternion quatRoll = quatFromVectAngle(make_float3(1, 0, 0), roll);
         quatRoll = qtMultiply(quatRoll, quatInit);
 
-        for (int pitchN = 0; pitchN < pitchSample; pitchN++) {
+        for (int pitchN = 0; pitchN <= pitchSample; pitchN++) {
             float pitchX = (float)pitchN / (float)pitchSample;
             float pitch = pitchMin + (pitchMax - pitchMin) * pitchX;
             Quaternion quatPitch =

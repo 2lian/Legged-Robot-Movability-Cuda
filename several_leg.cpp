@@ -60,8 +60,8 @@ int main() {
         delete[] body_xy.elements;
         delete[] body_xz.elements;
 
-        std::cout << (long)body_pos_arr.length * (long)target_map.length *
-                         (long)legArray.length
+        std::cout << (size_t)body_pos_arr.length * (size_t)target_map.length *
+                         (size_t)legArray.length
                   << std::endl;
         Array<int> out_count;
         Array<float3> out_body;
@@ -76,6 +76,10 @@ int main() {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Target*Map*legs = "
+                  << (size_t)body_pos_arr.length * (size_t)target_map.length *
+                         (size_t)legArray.length
+                  << std::endl;
         std::cout << "Cuda robot reachability took " << duration.count()
                   << " milliseconds to finish." << std::endl;
 

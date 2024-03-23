@@ -167,11 +167,11 @@ intensity = reach_count[select]
 np.save("robot_reach.npy", shaved)
 np.save("robot_reach_intens.npy", intensity)
 print(f"robot reachable samples: {select.sum()}")
-d = np.linalg.norm(grid[:-1, :] - grid[1:, :])
-d = np.min(d)
-delta = max(abs(grid[0, :] - grid[1, :])) / 1_000
-delta=d
-print(delta)
+d = np.linalg.norm(grid[:-1, :] - grid[1:, :], axis=1)
+d = np.min(d) /1_000
+# delta = max(abs(grid[0, :] - grid[1, :])) / 1_000
+delta = d
+print(f"detected voxel size: {delta}")
 print(f"robot reachable m^3: {select.sum() * delta**3}")
 
 print("python post process finished")

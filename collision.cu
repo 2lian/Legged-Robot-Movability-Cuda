@@ -16,8 +16,9 @@ __device__ inline bool in_cylinder(const float radius, const float plus_z,
     float3 dist;
     dist.x = target.x - cyl_center.x;
     dist.y = target.y - cyl_center.y;
-    bool radial_condition = norm3df(dist.x, dist.y, 0) < radius;
     dist.z = target.z - cyl_center.z;
+
+    bool radial_condition = norm3df(dist.x, dist.y, 0) < radius;
     bool plus_condition = dist.z < plus_z;
     bool minus_condition = dist.z > minus_z;
     return radial_condition and plus_condition and minus_condition;
@@ -62,26 +63,26 @@ __global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
 __global__ void in_sphere_mem_kernel(float3* centers, const size_t Nc,
                                      float3* targets, const size_t Nt,
                                      unsigned char* output, const float radius) {
-    __shared__ unsigned char local_output;
-    __shared__ float3 body_pos;
+    __shared__ bool colliding;
+    __shared__ float3 center_value;
     auto center_index = blockIdx.x;
     auto target_index = threadIdx.x;
 
     if (target_index == 0) {
-        local_output = 0;
-        body_pos = centers[center_index];
+        colliding = false;
+        center_value = centers[center_index];
     }
     __syncthreads();
 
     if ((center_index < Nc) and (target_index < Nt)) {
         const float3 target = targets[target_index];
-        if (in_sphere(radius, body_pos, target)) {
-            local_output = 1;
+        if (in_sphere(radius, center_value, target)) {
+            colliding = true;
         }
     }
 
     __syncthreads();
-    if ((target_index == 0) && (local_output == 1)) {
+    if ((target_index == 0) && (colliding)) {
         output[center_index] = 1;
     }
 };
@@ -132,13 +133,13 @@ __global__ void in_cylinder_mem_kernel(float3* centers, const size_t Nc,
                                        unsigned char* output, const float radius,
                                        const float plus_z,
                                        const float minus_z) {
-    __shared__ unsigned char local_output;
+    __shared__ bool colliding;
     __shared__ float3 body_pos;
     auto center_index = blockIdx.x;
     auto target_index = threadIdx.x;
 
     if (target_index == 0) {
-        local_output = 0;
+        colliding = false;
         body_pos = centers[center_index];
     }
     __syncthreads();
@@ -146,12 +147,12 @@ __global__ void in_cylinder_mem_kernel(float3* centers, const size_t Nc,
     if ((center_index < Nc) and (target_index < Nt)) {
         const float3 target = targets[target_index];
         if (in_cylinder(radius, plus_z, minus_z, body_pos, target)) {
-            local_output = 1;
+            colliding = true;
         }
     }
 
     __syncthreads();
-    if ((target_index == 0) && (local_output == 1)) {
+    if ((target_index == 0) && (colliding)) {
         output[center_index] = 1;
     }
 };
