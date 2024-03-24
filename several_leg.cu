@@ -174,23 +174,6 @@ __global__ void find_min_kernel(Array<int>* arrays, int number_of_legs,
     }
 }
 
-__global__ void find_min_kernel(thrust::device_vector<int>* arrays,
-                                int number_of_legs,
-                                thrust::device_vector<int> output) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int i = index; i < output.size(); i += stride) {
-        // for (int i = index; i < 1; i += stride) {
-        int min_value = arrays[0][i];
-
-        for (int leg = 1; leg < number_of_legs; ++leg) {
-            // min_value = min(min_value, arrays[leg][i]);
-            min_value = min_value + arrays[leg][i];
-        }
-        output[i] = min_value;
-    }
-}
-
 #define CUDA_CHECK_ERROR(errorMessage)                                         \
     do {                                                                       \
         cudaError_t err = cudaGetLastError();                                  \
@@ -430,7 +413,7 @@ class multi_rot_estimator {
     void eliminateFarBody() {
         // auto dim = legsWorking.elements[0];
         // float radius =
-            // dim.body + dim.coxa_length + dim.femur_length + dim.tibia_length;
+        // dim.body + dim.coxa_length + dim.femur_length + dim.tibia_length;
         float radius = 400;
 
         thrust::device_vector<unsigned char> not_far(bodyGlobal.size());
@@ -465,7 +448,7 @@ class multi_rot_estimator {
     void eliminateFarTarget() {
         // auto dim = legsWorking.elements[0];
         // float radius =
-            // dim.body + dim.coxa_length + dim.femur_length + dim.tibia_length;
+        // dim.body + dim.coxa_length + dim.femur_length + dim.tibia_length;
         float radius = 400;
 
         thrust::device_vector<unsigned char> not_far(targetWorking.size());
@@ -701,70 +684,29 @@ class multi_rot_estimator {
     }
 
     void runPipeline(Quaternion orientation) {
-        // auto start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_INIT();
+        CUDA_TIMING_START();
         resetWorkingData();
-        // auto end = std::chrono::high_resolution_clock::now();
-        // auto duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "resetWorkingData took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        //
-        // start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_STOP("\nresetWorkingData")
+        CUDA_TIMING_START();
         rotateData(orientation);
-        // end = std::chrono::high_resolution_clock::now();
-        // duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "rotateData took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        //
-        // start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_STOP("rotateData")
+        CUDA_TIMING_START();
         rotateLegsLimits(orientation);
-        // end = std::chrono::high_resolution_clock::now();
-        // duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "rotateLegsLimits took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        //
-        // start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_STOP("rotateLegsLimits")
+        CUDA_TIMING_START();
         eliminateTooFar();
-        // end = std::chrono::high_resolution_clock::now();
-        // duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "eliminateTooFar took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        //
-        // start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_STOP("eliminateTooFar")
+        CUDA_TIMING_START();
         eliminateBodyColliding();
-        // end = std::chrono::high_resolution_clock::now();
-        // duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "eliminateBodyColliding took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        //
-        // start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_STOP("eliminateBodyColliding")
+        CUDA_TIMING_START();
         eliminateUnreachable(orientation);
-        // end = std::chrono::high_resolution_clock::now();
-        // duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "eliminateUnreachable took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        //
-        // start = std::chrono::high_resolution_clock::now();
+        CUDA_TIMING_STOP("eliminateUnreachable")
+        CUDA_TIMING_START();
         flipWorkingSide();
-        // end = std::chrono::high_resolution_clock::now();
-        // duration =
-        //     std::chrono::duration_cast<std::chrono::milliseconds>(end -
-        //     start);
-        // std::cout << "flipWorkingSide took: " << duration.count()
-        //           << " milliseconds to finish." << std::endl;
-        // start = std::chrono::high_resolution_clock::now();
-
+        CUDA_TIMING_STOP("flipWorkingSide")
+        CUDA_TIMING_START();
     } // 1.427 in 132s
 
     thrust::host_vector<float3> getShavedResult() {
@@ -828,7 +770,10 @@ robot_full_struct(Array<float3> body_map, Array<float3> target_map,
                 Quaternion quatYaw =
                     quatFromVectAngle(make_float3(0, 0, 1), yaw);
                 quatYaw = qtMultiply(quatYaw, quatPitch);
+                CUDA_TIMING_INIT();
+                CUDA_TIMING_START();
                 estimator.runPipeline(quatYaw);
+                CUDA_TIMING_STOP("runPipeline");
             }
         }
     }

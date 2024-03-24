@@ -62,7 +62,8 @@ __global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
 
 __global__ void in_sphere_mem_kernel(float3* centers, const size_t Nc,
                                      float3* targets, const size_t Nt,
-                                     unsigned char* output, const float radius) {
+                                     unsigned char* output,
+                                     const float radius) {
     __shared__ bool colliding;
     __shared__ float3 center_value;
     auto center_index = blockIdx.x;
@@ -101,7 +102,7 @@ void launch_optimized_mem_in_sphere(float3* centers, const size_t Nc,
         size_t sub_target_size = blockSize;
 
         // std::cout << "in_sphere_mem_kernel " << numBlock << " " << blockSize
-                  // << std::endl;
+        // << std::endl;
         in_sphere_mem_kernel<<<numBlock, blockSize>>>(
             centers, Nc, sub_target_ptr, sub_target_size, output, radius);
 
@@ -130,8 +131,8 @@ __global__ void in_cylinder_cccl_kernel(float3* centers, const size_t Nc,
 
 __global__ void in_cylinder_mem_kernel(float3* centers, const size_t Nc,
                                        float3* targets, const size_t Nt,
-                                       unsigned char* output, const float radius,
-                                       const float plus_z,
+                                       unsigned char* output,
+                                       const float radius, const float plus_z,
                                        const float minus_z) {
     __shared__ bool colliding;
     __shared__ float3 body_pos;
@@ -222,3 +223,29 @@ __device__ int CylinderFunctor::operator()(float3 body, float3 target) const {
     bool r = in_cylinder(radius, plus_z, minus_z, body, target);
     return r ? -1 : 0;
 }
+
+struct InOutCylinderFunctor {
+    float radius_out;
+    float plus_z_out;
+    float minus_z_out;
+    float radius_in;
+    float plus_z_in;
+    float minus_z_in;
+
+    __host__ __device__ InOutCylinderFunctor(float _radius_out,
+                                             float _plus_z_out,
+                                             float _minus_z_out,
+                                             float _radius_in, float _plus_z_in,
+                                             float _minus_z_in)
+        : radius_out(_radius_out), plus_z_out(_plus_z_out),
+          minus_z_out(_minus_z_out), radius_in(_radius_in),
+          plus_z_in(_plus_z_in), minus_z_in(_minus_z_in) {}
+
+    __device__ bool operator()(float3 body, float3 target) const {
+        bool inside_inside_cyl =
+            in_cylinder(radius_in, plus_z_in, minus_z_in, body, target);
+        bool inside_outside_cyl =
+            in_cylinder(radius_out, plus_z_out, minus_z_out, body, target);
+        return inside_inside_cyl and (not inside_outside_cyl);
+    };
+};

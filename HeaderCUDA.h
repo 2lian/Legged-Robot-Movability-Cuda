@@ -140,3 +140,36 @@ class AutoEstimator {
 
     void derivate_output();
 };
+
+// Macro for timing measurements
+#define CUDA_TIMING_INIT()                                                    \
+    cudaEvent_t* start;                                                        \
+    cudaEvent_t* stop;                                                         
+
+#define CUDA_TIMING_START()                                                    \
+    start = new cudaEvent_t;                                                   \
+    stop = new cudaEvent_t;                                                    \
+    cudaEventCreate(start);                                                    \
+    cudaEventCreate(stop);                                                     \
+    cudaEventRecord(*start);
+
+#define CUDA_TIMING_STOP(label)                                                \
+    {                                                                          \
+        cudaEventRecord(*stop);                                                \
+        cudaEventSynchronize(*stop);                                           \
+        float milliseconds = 0;                                                \
+        cudaEventElapsedTime(&milliseconds, *start, *stop);                    \
+        printf("%s: Elapsed time: %.2f ms\n", label, milliseconds);            \
+        cudaEventDestroy(*start);                                              \
+        cudaEventDestroy(*stop);                                               \
+        {                                                                      \
+            FILE* file = fopen("timing_results.txt", "a");                     \
+            if (file) {                                                        \
+                fprintf(file, "[%s] Elapsed time: %.2f ms\n", label,           \
+                        milliseconds);                                         \
+                fclose(file);                                                  \
+            }                                                                  \
+        }                                                                      \
+    }                                                                          \
+    delete start;                                                              \
+    delete stop;

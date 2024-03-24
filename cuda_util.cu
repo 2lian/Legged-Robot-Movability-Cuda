@@ -126,9 +126,30 @@ template Array<int> thustVectToArray<int>(thrust::host_vector<int> thrust_vect);
 // }
 
 template <typename MyType>
-__device__ MyType MinRowElement<MyType>::operator()(const thrust::tuple<MyType, MyType>& t) const {
+__device__ MyType MinRowElement<MyType>::operator()(
+    const thrust::tuple<MyType, MyType>& t) const {
     return thrust::min(thrust::get<0>(t), thrust::get<1>(t));
-}
-;
+};
 // template struct MinRowElement<float>;
 template struct MinRowElement<int>;
+
+template <typename Tred, typename Tcheck>
+void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
+                             const size_t Ncheck, unsigned char* output,
+                             void (*kernel)(Tred*, Tcheck*, unsigned char*)) {
+    size_t processed_index = 0;
+    size_t max_block_size = 1024 / 1;
+    // size_t max_block_size = 1;
+    size_t numBlock = Nred;
+    while (processed_index < Ncheck) {
+        size_t targets_left_to_process = Ncheck - processed_index;
+        size_t blockSize = std::min(targets_left_to_process, max_block_size);
+        Tred* sub_target_ptr = toCheck + processed_index;
+        size_t sub_target_size = blockSize;
+
+        kernel<<<numBlock, blockSize>>>(toReduce, Nred, sub_target_ptr,
+                                        sub_target_size, output);
+
+        processed_index += blockSize;
+    }
+}

@@ -1,10 +1,8 @@
-# please follow this if you work on Clion https://www.jetbrains.com/help/clion/cuda-projects.html#set-nvcc
-
 cmake_minimum_required(VERSION 3.26)
+project(cuda LANGUAGES CUDA CXX)
 set(CMAKE_CUDA_ARCHITECTURES "native")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
-project(cuda LANGUAGES CUDA CXX)
-# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# set(CMAKE_CXX_COMPILER "/usr/local/cuda/bin/nvcc")
 
 # Detect the operating system
 if(WIN32)
@@ -19,8 +17,8 @@ elseif(UNIX)
     # set(CUDA_DIR "/usr/local/cuda-11.4")
     # find_package(CUDA 11.0 REQUIRED)
     # for cuda 12:
-    set(CUDA_DIR "/usr/local/cuda-12")
-    find_package(CUDA 12.0 REQUIRED)
+    set(CUDA_DIR "/usr/local/cuda")
+    # find_package(CUDA 12.0 REQUIRED)
 
     find_package(Catch2 3 REQUIRED)
     #install with
@@ -44,8 +42,8 @@ if(WIN32)
     link_directories("${SFML_DIR}/lib")
 endif()
 
-set(CMAKE_CUDA_STANDARD 17)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 23)
+set(CMAKE_CXX_STANDARD 23)
 # add_executable(one_leg
 #     HeaderCPP.h
 #     HeaderCUDA.h
@@ -61,15 +59,9 @@ set(CMAKE_CXX_STANDARD 17)
 #     )
 
 add_executable(cuda
-    HeaderCPP.h
-    HeaderCUDA.h
-    math_util.cpp
-    math_util.h
-    static_variables.cpp
-    static_variables.h
     one_leg.cu
     one_leg.cu.h
-    one_leg.cpp
+    # one_leg.cpp
     cuda_util.cu
     cuda_util.h
     several_leg.cu
@@ -79,6 +71,12 @@ add_executable(cuda
     collision.cu.h
     unified_math_cuda.cu
     unified_math_cuda.cu.h
+    HeaderCPP.h
+    HeaderCUDA.h
+    math_util.cpp
+    math_util.h
+    static_variables.cpp
+    static_variables.h
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
@@ -90,10 +88,15 @@ target_include_directories(cuda PRIVATE "${CUDA_DIR}/include")
 configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYONLY)
 
 set_target_properties(cuda PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON)
+    CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(cuda PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_compile_options(cuda PRIVATE -O3)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -pg")
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g")
 
 if(WIN32) # Define the source directory of SFML DLLs
     set(SFML_DLL_DIR "${SFML_DIR}/bin")
@@ -115,6 +118,6 @@ if(WIN32) # Define the source directory of SFML DLLs
     endforeach()
 endif ()
 
-include(CTest)
-include(Catch)
+# include(CTest)
+# include(Catch)
 # catch_discover_tests(cuda)

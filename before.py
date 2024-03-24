@@ -19,10 +19,10 @@ save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
 side_margin = 100
 voxel_size = 25
 x_map2 = np.arange(map[:, 0].min() - side_margin,
-                   (map[:, 0].max() + side_margin) / 4, voxel_size)
+                   (map[:, 0].max() + side_margin) / 1, voxel_size)
 y_map2 = np.arange(map[:, 1].min() - side_margin,
-                   (map[:, 1].max() + side_margin) / 4, voxel_size) + 2000
-z_map2 = np.arange(map[:, 2].min(), (map[:, 2].max() + 350) / 4, voxel_size)
+                   (map[:, 1].max() + side_margin) / 1, voxel_size) + 0
+z_map2 = np.arange(map[:, 2].min(), (map[:, 2].max() + 350) / 1, voxel_size)
 # z_map2 = np.arange(50, 450, 25)
 X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
 
