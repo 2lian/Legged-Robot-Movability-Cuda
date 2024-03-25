@@ -63,7 +63,7 @@ add_executable(cuda
     one_leg.cu.h
     # one_leg.cpp
     cuda_util.cu
-    cuda_util.h
+    cuda_util.cuh
     several_leg.cu
     several_leg.cu.h
     several_leg.cpp
@@ -77,6 +77,8 @@ add_executable(cuda
     math_util.h
     static_variables.cpp
     static_variables.h
+    cross_compiled.cu
+    cross_compiled.cuh
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)

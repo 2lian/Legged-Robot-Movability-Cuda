@@ -17,7 +17,7 @@ save_array_to_binary_file(map[:, 1].astype(np.float32), "numpy_input_ty.bin")
 save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
 
 side_margin = 100
-voxel_size = 25
+voxel_size = 50
 x_map2 = np.arange(map[:, 0].min() - side_margin,
                    (map[:, 0].max() + side_margin) / 1, voxel_size)
 y_map2 = np.arange(map[:, 1].min() - side_margin,
@@ -29,6 +29,8 @@ X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
 body_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
                            Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
                            Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
+# print(body_map.shape[0]//4)
+body_map = body_map[:body_map.shape[0]//1, :]
 save_array_to_binary_file(body_map[:, 0].astype(
     np.float32), "numpy_input_bx.bin")
 save_array_to_binary_file(body_map[:, 1].astype(

@@ -1,6 +1,6 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
-#include "cuda_util.h"
+#include "cuda_util.cuh"
 #include "one_leg.cu.h"
 #include "static_variables.h"
 #include <catch2/catch_all.hpp>

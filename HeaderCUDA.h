@@ -159,7 +159,6 @@ class AutoEstimator {
         cudaEventSynchronize(*stop);                                           \
         float milliseconds = 0;                                                \
         cudaEventElapsedTime(&milliseconds, *start, *stop);                    \
-        printf("%s: Elapsed time: %.2f ms\n", label, milliseconds);            \
         cudaEventDestroy(*start);                                              \
         cudaEventDestroy(*stop);                                               \
         {                                                                      \

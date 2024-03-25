@@ -34,12 +34,12 @@ __global__ void norm3df_kernel(Arrayf3 input, Arrayf output);
 /*                   void (*kernel)(const Arrayf3, const LegDimensions, Arrayb
  * const), */
 /*                   Arrayb const output); */
-
-template <typename T_in, typename T_out>
-void apply_kernel(const Array<T_in> input, const LegDimensions dim,
-                  void (*kernel)(const Array<T_in>, const LegDimensions,
-                                 Array<T_out> const),
-                  Array<T_out> const output);
+//
+// template <typename T_in, typename T_out>
+// void apply_kernel(const Array<T_in> input, const LegDimensions dim,
+//                   void (*kernel)(const Array<T_in>, const LegDimensions,
+//                                  Array<T_out> const),
+//                   Array<T_out> const output);
 
 template <typename T>
 Array<T> thustVectToArray(thrust::device_vector<T> thrust_vect);
@@ -57,3 +57,15 @@ struct MinRowElement
     : public thrust::unary_function<thrust::tuple<MyType, MyType>, MyType> {
     __device__ MyType operator()(const thrust::tuple<MyType, MyType>& t) const;
 };
+
+template <typename Tred, typename Tcheck, class F>
+__global__ void double_reduction_kernel(Tred* toReduce, size_t Nred,
+                                        Tcheck* toCheck, size_t Ncheck,
+                                        unsigned char* output,
+                                        bool (*checkFunction)(Tred, Tcheck));
+
+template <typename Tred, typename Tcheck, class F>
+void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
+                             const size_t Ncheck, unsigned char* output,
+                             // bool (*checkFunction)(Tred, Tcheck));
+                             F checkFunction);

@@ -1,4 +1,4 @@
-#include "cuda_util.h"
+#include "cuda_util.cuh"
 
 __global__ void empty_kernel() {}
 
@@ -34,59 +34,59 @@ __global__ void norm3df_kernel(Arrayf3 input, Arrayf output) {
 //         }                                                                      \
 //     } while (0)
 
-/**
- * @brief applies kernel on provided array to provided array
- *
- * @tparam T_in
- * @tparam T_out
- * @param input Input array of any type
- * @param dim dimension of the leg
- * @param kernel cuda kernel to be used
- * @param output result is stored here
- */
-template <typename T_in, typename T_out>
-void apply_kernel(const Array<T_in> input, const LegDimensions dim,
-                  void (*kernel)(const Array<T_in>, const LegDimensions,
-                                 Array<T_out> const),
-                  Array<T_out> const output) {
-    Array<T_in> gpu_in{};
-    Array<T_out> gpu_out{};
-    gpu_in.length = input.length;
-    gpu_out.length = output.length;
-    cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(T_in));
-    CUDA_CHECK_ERROR("cudaMalloc gpu_in.elements");
-    cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(T_out));
-    CUDA_CHECK_ERROR("cudaMalloc gpu_out.elements");
-
-    cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(T_in),
-               cudaMemcpyHostToDevice);
-    CUDA_CHECK_ERROR("cudaMemcpy gpu_in.elements");
-
-    int blockSize = 1024;
-    int numBlock = (input.length + blockSize - 1) / blockSize;
-    kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("Kernel launch");
-
-    cudaMemcpy(output.elements, gpu_out.elements, output.length * sizeof(T_out),
-               cudaMemcpyDeviceToHost);
-    CUDA_CHECK_ERROR("cudaMemcpy gpu_out.elements");
-    cudaDeviceSynchronize();
-
-    cudaFree(gpu_in.elements);
-    cudaFree(gpu_out.elements);
-}
-
-// Explicit instantiation for float3, float3
-template void apply_kernel<float3, float3>(
-    Array<float3>, LegDimensions,
-    void (*)(Array<float3>, LegDimensions, Array<float3>), Array<float3>);
-
-// Explicit instantiation for float3, bool
-template void apply_kernel<float3, bool>(Array<float3>, LegDimensions,
-                                         void (*)(const Array<float3>,
-                                                  LegDimensions, Array<bool>),
-                                         Array<bool>);
+// /**
+//  * @brief applies kernel on provided array to provided array
+//  *
+//  * @tparam T_in
+//  * @tparam T_out
+//  * @param input Input array of any type
+//  * @param dim dimension of the leg
+//  * @param kernel cuda kernel to be used
+//  * @param output result is stored here
+//  */
+// template <typename T_in, typename T_out>
+// void apply_kernel(const Array<T_in> input, const LegDimensions dim,
+//                   void (*kernel)(const Array<T_in>, const LegDimensions,
+//                                  Array<T_out> const),
+//                   Array<T_out> const output) {
+//     Array<T_in> gpu_in{};
+//     Array<T_out> gpu_out{};
+//     gpu_in.length = input.length;
+//     gpu_out.length = output.length;
+//     cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(T_in));
+//     CUDA_CHECK_ERROR("cudaMalloc gpu_in.elements");
+//     cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(T_out));
+//     CUDA_CHECK_ERROR("cudaMalloc gpu_out.elements");
+//
+//     cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(T_in),
+//                cudaMemcpyHostToDevice);
+//     CUDA_CHECK_ERROR("cudaMemcpy gpu_in.elements");
+//
+//     int blockSize = 1024;
+//     int numBlock = (input.length + blockSize - 1) / blockSize;
+//     kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
+//     cudaDeviceSynchronize();
+//     CUDA_CHECK_ERROR("Kernel launch");
+//
+//     cudaMemcpy(output.elements, gpu_out.elements, output.length * sizeof(T_out),
+//                cudaMemcpyDeviceToHost);
+//     CUDA_CHECK_ERROR("cudaMemcpy gpu_out.elements");
+//     cudaDeviceSynchronize();
+//
+//     cudaFree(gpu_in.elements);
+//     cudaFree(gpu_out.elements);
+// }
+//
+// // Explicit instantiation for float3, float3
+// template void apply_kernel<float3, float3>(
+//     Array<float3>, LegDimensions,
+//     void (*)(Array<float3>, LegDimensions, Array<float3>), Array<float3>);
+//
+// // Explicit instantiation for float3, bool
+// template void apply_kernel<float3, bool>(Array<float3>, LegDimensions,
+//                                          void (*)(const Array<float3>,
+//                                                   LegDimensions, Array<bool>),
+//                                          Array<bool>);
 
 // template <typename T>
 // Array<T> thustVectToArray(thrust::device_vector<T> thrust_vect) {
@@ -132,24 +132,68 @@ __device__ MyType MinRowElement<MyType>::operator()(
 };
 // template struct MinRowElement<float>;
 template struct MinRowElement<int>;
+template struct MinRowElement<unsigned char>;
 
-template <typename Tred, typename Tcheck>
-void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
-                             const size_t Ncheck, unsigned char* output,
-                             void (*kernel)(Tred*, Tcheck*, unsigned char*)) {
-    size_t processed_index = 0;
-    size_t max_block_size = 1024 / 1;
-    // size_t max_block_size = 1;
-    size_t numBlock = Nred;
-    while (processed_index < Ncheck) {
-        size_t targets_left_to_process = Ncheck - processed_index;
-        size_t blockSize = std::min(targets_left_to_process, max_block_size);
-        Tred* sub_target_ptr = toCheck + processed_index;
-        size_t sub_target_size = blockSize;
-
-        kernel<<<numBlock, blockSize>>>(toReduce, Nred, sub_target_ptr,
-                                        sub_target_size, output);
-
-        processed_index += blockSize;
+__global__ void bring_together_kernel(unsigned char* outValidate,
+                                 unsigned char* outEliminate, size_t N) {
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t i = index; i < N; i += stride) {
+        bool res = (outValidate[i] == 1) && (outEliminate[i] != 1);
+        outValidate[i] = res ? 1 : 0;
     }
 }
+
+// template <typename Tred, typename Tcheck, class F>
+// __global__ void double_reduction_kernel(Tred* toReduce, size_t Nred,
+//                                         Tcheck* toCheck, size_t Ncheck,
+//                                         unsigned char* output,
+//                                         F checkFunction) {
+//     __shared__ bool result;
+//     __shared__ float3 data;
+//     auto data_index = blockIdx.x;
+//     auto target_index = threadIdx.x;
+//
+//     if (target_index == 0) {
+//         result = false;
+//         data = toReduce[data_index];
+//     }
+//     __syncthreads();
+//
+//     if ((data_index < Nred) and (target_index < Ncheck)) {
+//         const float3 target = toCheck[target_index];
+//         if (checkFunction(data, target)) {
+//             result = true;
+//         }
+//     }
+//
+//     __syncthreads();
+//     if ((target_index == 0) && (result)) {
+//         output[data_index] = 1;
+//     }
+// }
+//
+// template <typename Tred, typename Tcheck, class F>
+// void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
+//                              const size_t Ncheck, unsigned char* output,
+//                              // bool (*checkFunction)(Tred, Tcheck)) {
+//                              F checkFunction) {
+//     size_t processed_index = 0;
+//     size_t max_block_size = 1024 / 1;
+//     // size_t max_block_size = 1;
+//     size_t numBlock = Nred;
+//     while (processed_index < Ncheck) {
+//         size_t targets_left_to_process = Ncheck - processed_index;
+//         size_t blockSize = std::min(targets_left_to_process, max_block_size);
+//         Tred* sub_target_ptr = toCheck + processed_index;
+//         size_t sub_target_size = blockSize;
+//
+//         double_reduction_kernel<<<numBlock, blockSize>>>(
+//             toReduce, Nred, sub_target_ptr, sub_target_size, output,
+//             checkFunction);
+//
+//         processed_index += blockSize;
+//     }
+// }
+
+
