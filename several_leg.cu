@@ -820,7 +820,7 @@ robot_full_struct(Array<float3> body_map, Array<float3> target_map,
                 quatFromVectAngle(make_float3(0, 1, 0), pitch);
             quatPitch = qtMultiply(quatPitch, quatRoll);
 
-            for (int yawN = 0; yawN < yawSample; yawN++) {
+            for (int yawN = 0; yawN <= yawSample; yawN++) {
                 float yawX = (float)yawN / (float)yawSample;
                 float yaw = yawMin + (yawMax - yawMin) * yawX;
                 std::cout << "" << std::endl;
