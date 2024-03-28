@@ -37,14 +37,14 @@ __global__ void in_sphere_cccl_kernel(float3* centers, const size_t Nc,
     }
 };
 
-__global__ void in_sphere_mem_kernel(float3* centers, const size_t Nc,
-                                     float3* targets, const size_t Nt,
+__global__ void in_sphere_mem_kernel(float3* centers, const int Nc,
+                                     float3* targets, const int Nt,
                                      unsigned char* output,
                                      const float radius) {
     __shared__ bool colliding;
     __shared__ float3 center_value;
-    auto center_index = blockIdx.x;
-    auto target_index = threadIdx.x;
+    const auto& center_index = blockIdx.x;
+    const auto& target_index = threadIdx.x;
 
     if (target_index == 0) {
         colliding = false;
@@ -72,6 +72,14 @@ void launch_optimized_mem_in_sphere(float3* centers, const size_t Nc,
     size_t max_block_size = 1024 / 1;
     // size_t max_block_size = 1;
     size_t numBlock = Nc;
+
+    size_t number_of_streams = std::min(Nt / max_block_size + 1, (size_t)5);
+    cudaStream_t sub_stream[number_of_streams];
+    for (size_t i = 0; i < number_of_streams; i++) {
+        cudaStreamCreate(&sub_stream[i]);
+    }
+    size_t i = 0;
+
     while (processed_index < Nt) {
         size_t targets_left_to_process = Nt - processed_index;
         size_t blockSize = std::min(targets_left_to_process, max_block_size);
@@ -80,10 +88,12 @@ void launch_optimized_mem_in_sphere(float3* centers, const size_t Nc,
 
         // std::cout << "in_sphere_mem_kernel " << numBlock << " " << blockSize
         // << std::endl;
-        in_sphere_mem_kernel<<<numBlock, blockSize>>>(
+        in_sphere_mem_kernel<<<numBlock, blockSize, 0,
+                               sub_stream[i % number_of_streams]>>>(
             centers, Nc, sub_target_ptr, sub_target_size, output, radius);
 
         processed_index += blockSize;
+        i++;
     }
 }
 

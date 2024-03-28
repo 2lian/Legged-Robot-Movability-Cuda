@@ -63,9 +63,6 @@ __device__ inline bool reachable_rotate_leg(float3 target,
             return false;
         }
         rotateInPlace(target, -dim.body_angle, cos_memory, sin_memory);
-        // if (target.x < 0) {
-        // return false;
-        // }
     }
     // return false;
     return reachability_absolute_tibia_limit(target, dim);
@@ -96,35 +93,43 @@ __global__ void reachable_leg_kernel_accu(Array<float3> body_map,
     }
 };
 
-__global__ void reach_mem_kernel(float3* body_centers, const size_t Nb,
-                                 float3* targets, const size_t Nt,
+__global__ void reach_mem_kernel(float3* body_centers, const int Nb,
+                                 float3* targets, const int Nt,
                                  unsigned char* output, const LegDimensions dim,
                                  const Quaternion orientation) {
     __shared__ LegDimensions sdim;
     __shared__ Quaternion sorientation;
-    __shared__ bool one_reachable;
+    __shared__ bool result;
     __shared__ float3 body_pos;
 
-    auto center_index = blockIdx.x;
-    auto target_index = threadIdx.x;
+    const auto& center_index = blockIdx.x;
+    const auto& target_index = threadIdx.x;
 
     if (target_index == 0) {
         sdim = dim;
         sorientation = orientation;
-        one_reachable = false;
+        result = false;
         body_pos = body_centers[center_index];
     }
     __syncthreads();
 
-    if ((center_index < Nb) and (target_index < Nt)) {
-        const float3 target = targets[target_index];
-        if (reachable_rotate_leg(target, body_pos, sorientation, sdim)) {
-            one_reachable = true;
-        }
+    if (not ((center_index < Nb) and (target_index < Nt))) {
+        return;
     }
+    const float3 target = targets[target_index];
+    int wrap_result =
+        __any_sync(__activemask(),
+                   reachable_rotate_leg(target, body_pos, sorientation, sdim));
+    int laneId = threadIdx.x & 0x1f;
+    if (laneId == 0 and wrap_result != 0) {
+        result = true;
+    }
+    // if (reachable_rotate_leg(target, body_pos, sorientation, sdim)) {
+    // result = true;
+    // }
 
     __syncthreads();
-    if ((target_index == 0) && (one_reachable)) {
+    if ((target_index == 0) && (result)) {
         output[center_index] = 1;
     }
 };
@@ -155,6 +160,43 @@ void launch_opti_mem_reach_kernel(Array<float3> body_map,
             dim, orientation);
 
         processed_index += blockSize;
+    }
+};
+
+void launch_opti_mem_reach_kernel(Array<float3> body_map,
+                                  Array<float3> target_map, LegDimensions dim,
+                                  Quaternion orientation,
+                                  Array<unsigned char> output,
+                                  cudaStream_t strm) {
+    size_t processed_index = 0;
+    size_t max_block_size = 1024 / 1;
+
+    auto Nc = body_map.length;
+    auto body_centers = body_map.elements;
+    auto Nt = target_map.length;
+    auto targets = target_map.elements;
+
+    size_t numBlock = Nc;
+    while (processed_index < Nt) {
+
+        cudaStream_t sub_stream;
+        size_t targets_left_to_process = Nt - processed_index;
+        size_t blockSize = std::min(targets_left_to_process, max_block_size);
+        float3* sub_target_ptr = targets + processed_index;
+        size_t sub_target_size = blockSize;
+
+        processed_index += blockSize;
+        if (processed_index >= Nt) {
+            sub_stream = strm;
+        } else {
+            cudaStreamCreate(&sub_stream);
+        }
+
+        // std::cout << "in_sphere_mem_kernel " << numBlock << " " << blockSize
+        // << std::endl;
+        reach_mem_kernel<<<numBlock, blockSize, 0, sub_stream>>>(
+            body_centers, Nc, sub_target_ptr, sub_target_size, output.elements,
+            dim, orientation);
     }
 };
 
@@ -518,7 +560,7 @@ class multi_rot_estimator {
             targetRotated.size(), thrust::raw_pointer_cast(result.data()),
             func_inside, func_outside);
 
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("eliminateTooFar");
 
         endBodyView = thrust::partition(
@@ -559,7 +601,7 @@ class multi_rot_estimator {
                                 targetRotated.size(),
                                 thrust::raw_pointer_cast(not_far.data()), func);
 
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("eliminateTooFar");
 
         endBodyView = thrust::partition(
@@ -592,7 +634,7 @@ class multi_rot_estimator {
                                 targetRotated.size(),
                                 thrust::raw_pointer_cast(result.data()), func);
 
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("eliminateBodyColliding");
 
         endBodyView = thrust::partition(
@@ -609,6 +651,8 @@ class multi_rot_estimator {
 
     void computeIndividualLegReachability(size_t leg_num,
                                           Quaternion orientation) {
+        // cudaStream_t strm;
+        // cudaStreamCreate(&strm);
         thrust::device_vector<unsigned char>& this_leg_result =
             resultLegArray[leg_num];
         auto dim = legsWorking.elements[leg_num];
@@ -634,6 +678,7 @@ class multi_rot_estimator {
 
         // reachable_leg_kernel_accu<<<numBlock, blockSize>>>(
         //     b, t, legsWorking.elements[leg_num], r);
+        // launch_opti_mem_reach_kernel(b, t, dim, orientation, r, strm);
         launch_opti_mem_reach_kernel(b, t, dim, orientation, r);
         CUDA_CHECK_ERROR("computeIndividualLegReachability");
     }
@@ -652,7 +697,7 @@ class multi_rot_estimator {
         for (int leg_num = 0; leg_num < legsWorking.length; leg_num++) {
             computeIndividualLegReachability(leg_num, orientation);
         }
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("computeAllLegReachability");
     }
 
@@ -778,7 +823,11 @@ class multi_rot_estimator {
 std::tuple<Array<float3>, Array<int>>
 robot_full_struct(Array<float3> body_map, Array<float3> target_map,
                   Array<LegDimensions> legs) {
-
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    cudaDeviceSetLimit(cudaLimitPersistingL2CacheSize,
+                       prop.persistingL2CacheMaxSize);
+    cudaProfilerStart();
     thrust::host_vector<float3> Body(body_map.elements,
                                      body_map.elements + body_map.length);
     thrust::host_vector<float3> Target(target_map.elements,
@@ -853,6 +902,8 @@ robot_full_struct(Array<float3> body_map, Array<float3> target_map,
     auto out = std::make_tuple(out_body, out_count);
     std::cout << "cuda done" << std::endl;
     return out;
+    cudaProfilerStop();
+    // cudaDeviceReset();
 }
 //
 // std::tuple<Array<float3>, Array<int>>

@@ -73,25 +73,32 @@ struct MinRowElement
 
 template <typename Tred, typename Tcheck, class F>
 __global__ void
-double_reduction_kernel(Tred* toReduce, size_t Nred, Tcheck* toCheck,
-                        size_t Ncheck, unsigned char* output, F checkFunction) {
+double_reduction_kernel(Tred* toReduce, int Nred, Tcheck* toCheck, int Ncheck,
+                        unsigned char* output, F checkFunction) {
     __shared__ bool result;
     __shared__ float3 data;
-    auto data_index = blockIdx.x;
-    auto target_index = threadIdx.x;
+    const auto& data_index = blockIdx.x;
+    const auto& target_index = threadIdx.x;
 
     if (target_index == 0) {
         result = false;
         data = toReduce[data_index];
     }
     __syncthreads();
-
-    if ((data_index < Nred) and (target_index < Ncheck)) {
-        const float3 target = toCheck[target_index];
-        if (checkFunction(data, target)) {
-            result = true;
-        }
+    if (not((data_index < Nred) and (target_index < Ncheck))) {
+        return;
     }
+
+    const float3 target = toCheck[target_index];
+    bool r = checkFunction(data, target);
+    int wrap_result = __any_sync(__activemask(), r);
+    int laneId = threadIdx.x & 0x1f;
+    if (laneId == 0 and wrap_result!=0) {
+        result = true;
+    }
+    // if (r) {
+    // result = true;
+    // }
 
     __syncthreads();
     if ((target_index == 0) && (result)) {
@@ -102,7 +109,28 @@ double_reduction_kernel(Tred* toReduce, size_t Nred, Tcheck* toCheck,
 template <typename Tred, typename Tcheck, class F>
 void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
                              const size_t Ncheck, unsigned char* output,
-                             // bool (*checkFunction)(Tred, Tcheck)) {
+                             F checkFunction, cudaStream_t strm) {
+    size_t processed_index = 0;
+    size_t max_block_size = 1024 / 1;
+    // size_t max_block_size = 1;
+    size_t numBlock = Nred;
+    while (processed_index < Ncheck) {
+        size_t targets_left_to_process = Ncheck - processed_index;
+        size_t blockSize = std::min(targets_left_to_process, max_block_size);
+        Tred* sub_target_ptr = toCheck + processed_index;
+        size_t sub_target_size = blockSize;
+
+        double_reduction_kernel<<<numBlock, blockSize, 0, strm>>>(
+            toReduce, Nred, sub_target_ptr, sub_target_size, output,
+            checkFunction);
+
+        processed_index += blockSize;
+    }
+}
+
+template <typename Tred, typename Tcheck, class F>
+void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
+                             const size_t Ncheck, unsigned char* output,
                              F checkFunction) {
     size_t processed_index = 0;
     size_t max_block_size = 1024 / 1;
@@ -123,16 +151,16 @@ void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
 }
 
 template <typename Tred, typename Tcheck, class F1, class F2>
-__global__ void double_reduction_kernel(Tred* toReduce, size_t Nred,
-                                        Tcheck* toCheck, size_t Ncheck,
+__global__ void double_reduction_kernel(Tred* toReduce, const int Nred,
+                                        Tcheck* toCheck, const int Ncheck,
                                         unsigned char* outputValidate,
                                         unsigned char* outputEliminate,
                                         F1 validateFunc, F2 eliminateFunc) {
     __shared__ bool result1;
     __shared__ bool result2;
     __shared__ float3 data;
-    auto data_index = blockIdx.x;
-    auto target_index = threadIdx.x;
+    const auto& data_index = blockIdx.x;
+    const auto& target_index = threadIdx.x;
 
     if (target_index == 0) {
         result1 = false;
@@ -140,16 +168,26 @@ __global__ void double_reduction_kernel(Tred* toReduce, size_t Nred,
         data = toReduce[data_index];
     }
     __syncthreads();
-
-    if ((data_index < Nred) and (target_index < Ncheck)) {
-        const float3 target = toCheck[target_index];
-        if (validateFunc(data, target)) {
-            result1 = true;
-        }
-        if (eliminateFunc(data, target)) {
-            result2 = false;
-        }
+    if (not((data_index < Nred) and (target_index < Ncheck))) {
+        return;
     }
+
+    const float3 target = toCheck[target_index];
+    int thrd_r1 = __any_sync(__activemask(), validateFunc(data, target));
+    int thrd_r2 = __any_sync(__activemask(), eliminateFunc(data, target));
+    int laneId = threadIdx.x & 0x1f;
+    if (laneId == 0 and thrd_r1!=0) {
+        result1 = true;
+    }
+    if (laneId == 0 and thrd_r2!=0) {
+        result2 = false;
+    }
+    // if (validateFunc(data, target)) {
+    //     result1 = true;
+    // }
+    // if (eliminateFunc(data, target)) {
+    //     result2 = false;
+    // }
 
     __syncthreads();
     if ((target_index == 0) && (result1)) {
@@ -168,6 +206,7 @@ void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
                              const size_t Ncheck, unsigned char* output,
                              // bool (*checkFunction)(Tred, Tcheck)) {
                              F1 validateFunc, F2 eliminateFunc) {
+
     size_t processed_index = 0;
     size_t max_block_size = 1024 / 1;
     // size_t max_block_size = 1;
@@ -177,6 +216,8 @@ void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
     cudaMalloc(&outputEliminate, Nred * sizeof(unsigned char));
     cudaMemset(outputEliminate, 0, Nred * sizeof(unsigned char));
     while (processed_index < Ncheck) {
+        // cudaStream_t sub_stream;
+        // cudaStreamCreate(&sub_stream);
         size_t targets_left_to_process = Ncheck - processed_index;
         size_t blockSize = std::min(targets_left_to_process, max_block_size);
         Tred* sub_target_ptr = toCheck + processed_index;
@@ -188,10 +229,10 @@ void launch_double_reduction(Tred* toReduce, const size_t Nred, Tcheck* toCheck,
 
         processed_index += blockSize;
     }
-    cudaDeviceSynchronize();
     int blockSize = 1024;
     numBlock = (Nred + blockSize - 1) / blockSize;
-    bring_together_kernel<<<numBlock, blockSize>>>(outputValidate, outputEliminate,
-                                                   Nred);
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
+    bring_together_kernel<<<numBlock, blockSize>>>(outputValidate,
+                                                   outputEliminate, Nred);
+    // cudaDeviceSynchronize();
 }

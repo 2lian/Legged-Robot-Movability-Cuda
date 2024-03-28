@@ -42,8 +42,8 @@ if(WIN32)
     link_directories("${SFML_DIR}/lib")
 endif()
 
-set(CMAKE_CUDA_STANDARD 23)
-set(CMAKE_CXX_STANDARD 23)
+# set(CMAKE_CUDA_STANDARD 17)
+# set(CMAKE_CXX_STANDARD 17)
 # add_executable(one_leg
 #     HeaderCPP.h
 #     HeaderCUDA.h
@@ -91,9 +91,12 @@ configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYO
 
 set_target_properties(cuda PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(cuda PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# set_target_properties(cuda PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-target_compile_options(cuda PRIVATE -O3)
+# target_compile_options(cuda PRIVATE -O3)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -prec-div=false -prec-sqrt=false -ftz=true")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")

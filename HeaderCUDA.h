@@ -10,6 +10,7 @@
 #include <thrust/sequence.h>
 // #include <cub/cub.cuh>
 #include <cuda/std/atomic>
+#include <cuda_profiler_api.h>
 
 // #include <thrust/device_vector.h>
 // #include <cub/cub.cuh>

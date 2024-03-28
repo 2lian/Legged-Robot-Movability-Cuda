@@ -379,9 +379,6 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
     reachability =
         (((!in_negativ_tib_circle) && (!in_positive_sat_circle)) &&
          (in_negative_sat_circle || inside_femur || in_positiv_tib_circle));
-    // bool r2 = (in_negative_sat_circle || inside_femur ||
-    // in_positiv_tib_circle); reachability = ((reachability) && (r2));
-    // reachability = true;
     return reachability;
 }
 

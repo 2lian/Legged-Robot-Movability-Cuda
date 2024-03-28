@@ -2,29 +2,25 @@
 #include "HeaderCUDA.h"
 #include "cuda_util.cuh"
 
-__device__ inline bool in_sphere(const float radius, const float3 sphere_center,
-                                 const float3 target) {
-    float3 dist;
-    dist.x = sphere_center.x - target.x;
-    dist.y = sphere_center.y - target.y;
-    dist.z = sphere_center.z - target.z;
-    return norm3df(dist.x, dist.y, dist.z) < radius;
+__device__ inline bool in_sphere(const float& radius,
+                                 const float3& sphere_center,
+                                 const float3& target) {
+    return norm3df(sphere_center.x - target.x, sphere_center.y - target.y,
+                   sphere_center.z - target.z) < radius;
 }
 
-__device__ inline bool in_cylinder(const float radius, const float plus_z,
-                                   const float minus_z, const float3 cyl_center,
-                                   const float3 target) {
-    float3 dist;
-    dist.x = target.x - cyl_center.x;
-    dist.y = target.y - cyl_center.y;
-    dist.z = target.z - cyl_center.z;
+__device__ inline bool in_cylinder(const float& radius, const float& plus_z,
+                                   const float& minus_z,
+                                   const float3& cyl_center,
+                                   const float3& target) {
+    float distz = target.z - cyl_center.z;
 
-    bool radial_condition = norm3df(dist.x, dist.y, 0) < radius;
-    bool plus_condition = dist.z < plus_z;
-    bool minus_condition = dist.z > minus_z;
+    bool plus_condition = distz < plus_z;
+    bool minus_condition = distz > minus_z;
+    bool radial_condition =
+        norm3df(target.x - cyl_center.x, target.y - cyl_center.y, 0) < radius;
     return radial_condition and plus_condition and minus_condition;
 }
-
 
 __global__ void in_cylinder_accu_kernel(Array<float3> centers,
                                         Array<float3> targets,
