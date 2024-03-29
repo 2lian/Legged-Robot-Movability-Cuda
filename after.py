@@ -55,8 +55,6 @@ def read_array_from_file_with_length(filename, dtype):
     return array_data
 
 
-print("\npython post process started")
-
 filename = 'cpp_array_xx.bin'
 xx = read_array_from_file_with_length(filename, np.float32)
 filename = 'cpp_array_xy.bin'

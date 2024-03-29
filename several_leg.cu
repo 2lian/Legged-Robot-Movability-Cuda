@@ -533,7 +533,7 @@ class multi_rot_estimator {
 
         float radius_out = dim.body;
         float plus_z_out = 250;
-        float minus_z_out = -60;
+        float minus_z_out = -45;
 
         thrust::device_vector<unsigned char> result(bodyWorking.size());
         thrust::fill(result.begin(), result.end(), 0);
@@ -620,7 +620,7 @@ class multi_rot_estimator {
         thrust::fill(result.begin(), result.end(), 0);
         float radius = legsWorking.elements[0].body;
         float plus_z = 250;
-        float minus_z = -60;
+        float minus_z = -45;
 
         auto ptr = thrust::raw_pointer_cast(bodyWorking.data());
         auto sizeBody = bodyWorking.size();
@@ -839,37 +839,37 @@ robot_full_struct(Array<float3> body_map, Array<float3> target_map,
     Quaternion quatInit = quatFromVectAngle(make_float3(0, 0, 1), 0);
     // estimator.runPipeline(quatInit);
 
-    float rollMin = -pI / 4;
-    float rollMax = pI / 4;
-    // float rollMin = 0;
-    // float rollMax = 0;
-    int rollSample = 4;
+    // float rollMin = -pI / 4;
+    // float rollMax = pI / 4;
+    float rollMin = 0;
+    float rollMax = 0;
+    int rollSample = 1;
 
-    float pitchMin = -pI / 4;
-    float pitchMax = +pI / 4;
-    // float pitchMin = 0;
-    // float pitchMax = 0;
-    int pitchSample = 4;
+    // float pitchMin = -pI / 4;
+    // float pitchMax = +pI / 4;
+    float pitchMin = 0;
+    float pitchMax = 0;
+    int pitchSample = 1;
 
     float yawMin = 0;
     float yawMax = pI / 2;
     // float yawMax = 0;
-    int yawSample = 4;
+    int yawSample = 1;
 
-    for (int rollN = 0; rollN <= rollSample; rollN++) {
+    for (int rollN = 0; rollN < rollSample; rollN++) {
         float rollX = (float)rollN / (float)rollSample;
         float roll = rollMin + (rollMax - rollMin) * rollX;
         Quaternion quatRoll = quatFromVectAngle(make_float3(1, 0, 0), roll);
         quatRoll = qtMultiply(quatRoll, quatInit);
 
-        for (int pitchN = 0; pitchN <= pitchSample; pitchN++) {
+        for (int pitchN = 0; pitchN < pitchSample; pitchN++) {
             float pitchX = (float)pitchN / (float)pitchSample;
             float pitch = pitchMin + (pitchMax - pitchMin) * pitchX;
             Quaternion quatPitch =
                 quatFromVectAngle(make_float3(0, 1, 0), pitch);
             quatPitch = qtMultiply(quatPitch, quatRoll);
 
-            for (int yawN = 0; yawN <= yawSample; yawN++) {
+            for (int yawN = 0; yawN < yawSample; yawN++) {
                 float yawX = (float)yawN / (float)yawSample;
                 float yaw = yawMin + (yawMax - yawMin) * yawX;
                 std::cout << "" << std::endl;

@@ -94,3 +94,25 @@ step_map = np.concatenate([step_map,
                            step_map + np.array([1000, 1000, step_height * 2]),
                            step_map + np.array([0, 1000, step_height * 3]),
                            ])
+
+x_map2 = np.arange(-500, 2001, 50)
+y_map2 = np.arange(-400, 401, 50)
+z_map2 = 0
+X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
+
+fence_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
+                           Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
+                           Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
+
+x_map2 = 1000
+y_map2 = y_map2
+z_map2 = np.arange(200, 201, 50)
+X_map2, Y_map2, Z_map2 = np.meshgrid(x_map2, y_map2, z_map2)
+
+fence = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
+                       Y_map2.flatten().reshape((len(Y_map2.flatten()), 1)),
+                       Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
+step_height = 300
+fence_map = np.concatenate([fence_map,
+                           fence,
+                            ])

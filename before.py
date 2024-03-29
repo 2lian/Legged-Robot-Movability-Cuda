@@ -9,9 +9,9 @@ def save_array_to_binary_file(array, filename):
     return
 
 
-map = maps.step_map
+map = maps.fence_map
 np.save("map.npy", map)
-print("\nmap shape: ", map.shape)
+print("map shape: ", map.shape)
 save_array_to_binary_file(map[:, 0].astype(np.float32), "numpy_input_tx.bin")
 save_array_to_binary_file(map[:, 1].astype(np.float32), "numpy_input_ty.bin")
 save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
@@ -68,4 +68,3 @@ save_array_to_binary_file(dist_map[:, 2].astype(
     np.float32), "dist_input_tz.bin")
 
 print("reachability shape: ", dist_map.shape)
-print("\n")
