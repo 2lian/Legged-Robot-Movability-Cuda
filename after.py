@@ -119,7 +119,8 @@ plt.savefig("distance_result.png", dpi=1000)
 filename = 'out_reachability.bin'
 reach = read_array_from_file_with_length(filename, bool).astype(bool)
 
-vertical_slice = True
+vertical_slice = False
+z_slice_cut = 200
 
 if vertical_slice:
     closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
@@ -129,7 +130,7 @@ if vertical_slice:
     bool_grid_image(zero_plane[:, [0, 2]], reach[targets[:, 1]
                     == closest_to_0], black_white=True, transparency=False)
 else:
-    closest_to_0 = min(targets[(targets[:, 2] + 175) >= 0, 2])
+    closest_to_0 = min(targets[(targets[:, 2] + z_slice_cut) >= 0, 2])
     # closest_to_0 = min(targets[(targets[:, 2] + 230) >= 0, 2])
     zero_plane = targets[targets[:, 2] == closest_to_0]
 
@@ -137,7 +138,18 @@ else:
     bool_grid_image(zero_plane[:, [0, 1]], reach[targets[:, 2]
                     == closest_to_0], black_white=True, transparency=False)
 
+plt.xlabel("x (mm)")
+if vertical_slice:
+    plt.title("Reachable area of Moonbot leg (y=0)")
+    plt.ylabel("z (mm)")
+else:
+    plt.title(f"Reachable area of Moonbot leg (z={-z_slice_cut})")
+    plt.ylabel("y (mm)")
 
+plt.scatter(0, 0, s=0.01, c="black", marker="s",label="Reachable")
+legend = plt.legend(loc = 'upper left')
+for handle in legend.legendHandles:
+    handle.set_sizes([50.0])
 plt.savefig("reachability_result.png", bbox_inches='tight', dpi=300)
 
 shaved = targets[reach, :]

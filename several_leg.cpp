@@ -17,8 +17,8 @@
 int main() {
 
     LegDimensions (*LegToUse)(float body_angle);
-    LegToUse = get_moonbot_leg;
-    // LegToUse = get_M2_leg;
+    // LegToUse = get_moonbot_leg;
+    LegToUse = get_M2_leg;
 
     {
         const char* filename = "numpy_input_tx.bin";

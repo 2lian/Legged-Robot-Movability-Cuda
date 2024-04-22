@@ -9,7 +9,9 @@ def save_array_to_binary_file(array, filename):
     return
 
 
-map = maps.fence_map
+map = maps.step_map
+CUT_AT_X = 300
+CUT_AT_Z = 300
 np.save("map.npy", map)
 print("map shape: ", map.shape)
 save_array_to_binary_file(map[:, 0].astype(np.float32), "numpy_input_tx.bin")
@@ -35,6 +37,8 @@ body_map = np.concatenate([X_map2.flatten().reshape((len(X_map2.flatten()), 1)),
                            Z_map2.flatten().reshape((len(Z_map2.flatten()), 1))], axis=1).astype('float32')
 # print(body_map.shape[0]//4)
 body_map = body_map[:body_map.shape[0]//1, :]
+body_map = body_map[body_map[:, 0]>CUT_AT_X, :]
+body_map = body_map[body_map[:, 2]>CUT_AT_Z, :]
 save_array_to_binary_file(body_map[:, 0].astype(
     np.float32), "numpy_input_bx.bin")
 save_array_to_binary_file(body_map[:, 1].astype(
@@ -44,9 +48,9 @@ save_array_to_binary_file(body_map[:, 2].astype(
 
 print("body samples shape: ", body_map.shape)
 
-x_map_dist = np.arange(-50, 551, 5)
-y_map_dist = np.arange(-400, 400, 20)
-z_map_dist = np.arange(-300, 200, 5) - 50
+x_map_dist = np.arange(-50, 551, 1)
+y_map_dist = np.arange(-400, 400, 1)
+z_map_dist = np.arange(-300, 200, 20) - 50
 X_map_dist, Y_map_dist, Z_map_dist = np.meshgrid(
     x_map_dist, y_map_dist, z_map_dist)
 
