@@ -517,7 +517,7 @@ class multi_rot_estimator {
 
         float radius_out = dim.body;
         float plus_z_out = 250;
-        float minus_z_out = -45;
+        float minus_z_out = -110;
 
         thrust::device_vector<unsigned char> result(bodyWorking.size());
         thrust::fill(result.begin(), result.end(), 0);
@@ -811,17 +811,17 @@ std::tuple<Array<float3>, Array<int>> robot_full_struct(Array<float3> body_map,
     Quaternion quatInit = quatFromVectAngle(make_float3(0, 0, 1), 0);
     // estimator.runPipeline(quatInit);
 
-    float rollMin = -pI / 4;
-    float rollMax = pI / 4;
+    float rollMin = -pI / 8;
+    float rollMax = pI / 8;
     // float rollMin = 0;
     // float rollMax = 0;
-    int rollSample = 4;
+    int rollSample = 2;
 
-    float pitchMin = -pI / 4;
-    float pitchMax = +pI / 4;
+    float pitchMin = -pI / 8;
+    float pitchMax = +pI / 8;
     // float pitchMin = 0;
     // float pitchMax = 0;
-    int pitchSample = 4;
+    int pitchSample = 2;
 
     float yawMin = 0;
     float yawMax = pI / 2;
