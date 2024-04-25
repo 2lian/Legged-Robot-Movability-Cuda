@@ -265,7 +265,7 @@ ground = clip2sphere(
 )
 
 ground = clip2sphere(
-    center=np.array([1500, 0, -320], dtype=float),
+    center=np.array([1500, 0, -150], dtype=float),
     radius=1000,
     map=ground,
     down=False,
