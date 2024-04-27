@@ -250,13 +250,15 @@ for row in range(center_radius.shape[0]):
 #
 
 
+# Crater
 ground = clip2sphere(
-    center=np.array([-2000, -2000, 300], dtype=float),
-    radius=2000,
+    center=np.array([-2000, -3000, 300], dtype=float),
+    radius=3000,
     map=ground,
     down=True,
 )
 
+#cliff
 ground = clip2sphere(
     center=np.array([2000, 4000, -800], dtype=float),
     radius=4000,
@@ -264,6 +266,7 @@ ground = clip2sphere(
     down=False,
 )
 
+# big rock to cliff
 ground = clip2sphere(
     center=np.array([1500, 0, -150], dtype=float),
     radius=1000,
@@ -271,6 +274,7 @@ ground = clip2sphere(
     down=False,
 )
 
+# small rock to cliff
 ground = clip2sphere(
     center=np.array([1500, -1000, -150], dtype=float),
     radius=700,

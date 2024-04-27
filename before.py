@@ -20,7 +20,7 @@ save_array_to_binary_file(map[:, 0].astype(np.float32), "numpy_input_tx.bin")
 save_array_to_binary_file(map[:, 1].astype(np.float32), "numpy_input_ty.bin")
 save_array_to_binary_file(map[:, 2].astype(np.float32), "numpy_input_tz.bin")
 
-side_margin = 100
+side_margin = 0
 voxel_size = 50
 x_map2 = np.arange(
     map[:, 0].min() - side_margin, (map[:, 0].max() + side_margin) / 1, voxel_size
