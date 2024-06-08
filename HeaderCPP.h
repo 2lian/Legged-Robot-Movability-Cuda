@@ -1,8 +1,19 @@
 #pragma once
 #include <tuple>
 
-constexpr float pI =
-    3.14159265358979323846264338327950288419716939937510582097f;
+#define NUMBER_OF_UPPER_CIRCLES 5
+#define NUMBER_OF_MIDDLE_CIRCLES 2
+#define NUMBER_OF_LOWER_CIRCLES 5
+
+constexpr float pI = 3.14159265358979323846264338327950288419716939937510582097f;
+
+typedef struct Circle {
+  public:
+    float x;
+    float y;
+    float radius;
+    bool attractivity;
+} Cricle;
 
 typedef struct LegDimensions {
   public:
@@ -11,8 +22,8 @@ typedef struct LegDimensions {
     float coxa_pitch;
     float coxa_length;
     float tibia_length;
-    float femur_length;    // 200
-    
+    float femur_length; // 200
+
     float tibia_absolute_pos;
     float tibia_absolute_neg;
 

@@ -17,108 +17,108 @@
 int main() {
 
     LegDimensions (*LegToUse)(float body_angle);
-    LegToUse = get_moonbot_leg;
-    // LegToUse = get_M2_leg;
+    // LegToUse = get_moonbot_leg;
+    LegToUse = get_M2_leg;
 
-    {
-        const char* filename = "numpy_input_tx.bin";
-        Array<float> inputxx;
-        inputxx = readArrayFromFile<float>(filename);
-        filename = "numpy_input_ty.bin";
-        Array<float> inputxy;
-        inputxy = readArrayFromFile<float>(filename);
-        filename = "numpy_input_tz.bin";
-        Array<float> inputxz;
-        inputxz = readArrayFromFile<float>(filename);
-
-        Array<float3> target_map =
-            threeArrays2float3Arr(inputxx, inputxy, inputxz);
-        delete[] inputxx.elements;
-        delete[] inputxy.elements;
-        delete[] inputxz.elements;
-
-        Array<LegDimensions> legArray;
-        legArray.length = 4;
-        legArray.elements = new LegDimensions[legArray.length];
-        float angle = pI * 2 / legArray.length;
-        for (int leg = 0; leg < legArray.length; leg++) {
-            legArray.elements[leg] = LegToUse(leg * angle);
-        }
-
-        filename = "numpy_input_bx.bin";
-        Array<float> body_xx;
-        body_xx = readArrayFromFile<float>(filename);
-        filename = "numpy_input_by.bin";
-        Array<float> body_xy;
-        body_xy = readArrayFromFile<float>(filename);
-        filename = "numpy_input_bz.bin";
-        Array<float> body_xz;
-        body_xz = readArrayFromFile<float>(filename);
-
-        Array<float3> body_pos_arr =
-            threeArrays2float3Arr(body_xx, body_xy, body_xz);
-        delete[] body_xx.elements;
-        delete[] body_xy.elements;
-        delete[] body_xz.elements;
-
-        std::cout << (size_t)body_pos_arr.length * (size_t)target_map.length *
-                         (size_t)legArray.length
-                  << std::endl;
-        Array<int> out_count;
-        Array<float3> out_body;
-        auto start = std::chrono::high_resolution_clock::now();
-
-        std::tie(out_body, out_count) =
-            robot_full_struct(body_pos_arr, target_map, legArray);
-        delete[] body_pos_arr.elements;
-        body_pos_arr.length = out_body.length;
-        body_pos_arr.elements = out_body.elements;
-
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Target*Map*legs = "
-                  << (size_t)body_pos_arr.length * (size_t)target_map.length *
-                         (size_t)legArray.length
-                  << std::endl;
-        std::cout << "Cuda robot reachability took " << duration.count()
-                  << " milliseconds to finish." << std::endl;
-
-        {
-            float* x_arr = new float[body_pos_arr.length];
-            for (int i = 0; i < body_pos_arr.length; i++) {
-                x_arr[i] = body_pos_arr.elements[i].x;
-            }
-            filename = "cpp_array_xx.bin";
-            saveArrayToFile(x_arr, body_pos_arr.length, filename);
-            delete[] x_arr;
-        }
-        {
-            float* y_arr = new float[body_pos_arr.length];
-            for (int i = 0; i < body_pos_arr.length; i++) {
-                y_arr[i] = body_pos_arr.elements[i].y;
-            }
-            filename = "cpp_array_xy.bin";
-            saveArrayToFile(y_arr, body_pos_arr.length, filename);
-            delete[] y_arr;
-        }
-        {
-            float* z_arr = new float[body_pos_arr.length];
-            for (int i = 0; i < body_pos_arr.length; i++) {
-                z_arr[i] = body_pos_arr.elements[i].z;
-            }
-            filename = "cpp_array_xz.bin";
-            saveArrayToFile(z_arr, body_pos_arr.length, filename);
-            delete[] z_arr;
-        }
-
-        filename = "cpp_array_y.bin";
-        saveArrayToFile(out_count.elements, out_count.length, filename);
-        delete[] target_map.elements;
-        delete[] body_pos_arr.elements;
-        delete[] out_count.elements;
-        delete[] legArray.elements;
-    }
+    // {
+    //     const char* filename = "numpy_input_tx.bin";
+    //     Array<float> inputxx;
+    //     inputxx = readArrayFromFile<float>(filename);
+    //     filename = "numpy_input_ty.bin";
+    //     Array<float> inputxy;
+    //     inputxy = readArrayFromFile<float>(filename);
+    //     filename = "numpy_input_tz.bin";
+    //     Array<float> inputxz;
+    //     inputxz = readArrayFromFile<float>(filename);
+    //
+    //     Array<float3> target_map =
+    //         threeArrays2float3Arr(inputxx, inputxy, inputxz);
+    //     delete[] inputxx.elements;
+    //     delete[] inputxy.elements;
+    //     delete[] inputxz.elements;
+    //
+    //     Array<LegDimensions> legArray;
+    //     legArray.length = 4;
+    //     legArray.elements = new LegDimensions[legArray.length];
+    //     float angle = pI * 2 / legArray.length;
+    //     for (int leg = 0; leg < legArray.length; leg++) {
+    //         legArray.elements[leg] = LegToUse(leg * angle);
+    //     }
+    //
+    //     filename = "numpy_input_bx.bin";
+    //     Array<float> body_xx;
+    //     body_xx = readArrayFromFile<float>(filename);
+    //     filename = "numpy_input_by.bin";
+    //     Array<float> body_xy;
+    //     body_xy = readArrayFromFile<float>(filename);
+    //     filename = "numpy_input_bz.bin";
+    //     Array<float> body_xz;
+    //     body_xz = readArrayFromFile<float>(filename);
+    //
+    //     Array<float3> body_pos_arr =
+    //         threeArrays2float3Arr(body_xx, body_xy, body_xz);
+    //     delete[] body_xx.elements;
+    //     delete[] body_xy.elements;
+    //     delete[] body_xz.elements;
+    //
+    //     std::cout << (size_t)body_pos_arr.length * (size_t)target_map.length *
+    //                      (size_t)legArray.length
+    //               << std::endl;
+    //     Array<int> out_count;
+    //     Array<float3> out_body;
+    //     auto start = std::chrono::high_resolution_clock::now();
+    //
+    //     std::tie(out_body, out_count) =
+    //         robot_full_struct(body_pos_arr, target_map, legArray);
+    //     delete[] body_pos_arr.elements;
+    //     body_pos_arr.length = out_body.length;
+    //     body_pos_arr.elements = out_body.elements;
+    //
+    //     auto end = std::chrono::high_resolution_clock::now();
+    //     auto duration =
+    //         std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //     std::cout << "Target*Map*legs = "
+    //               << (size_t)body_pos_arr.length * (size_t)target_map.length *
+    //                      (size_t)legArray.length
+    //               << std::endl;
+    //     std::cout << "Cuda robot reachability took " << duration.count()
+    //               << " milliseconds to finish." << std::endl;
+    //
+    //     {
+    //         float* x_arr = new float[body_pos_arr.length];
+    //         for (int i = 0; i < body_pos_arr.length; i++) {
+    //             x_arr[i] = body_pos_arr.elements[i].x;
+    //         }
+    //         filename = "cpp_array_xx.bin";
+    //         saveArrayToFile(x_arr, body_pos_arr.length, filename);
+    //         delete[] x_arr;
+    //     }
+    //     {
+    //         float* y_arr = new float[body_pos_arr.length];
+    //         for (int i = 0; i < body_pos_arr.length; i++) {
+    //             y_arr[i] = body_pos_arr.elements[i].y;
+    //         }
+    //         filename = "cpp_array_xy.bin";
+    //         saveArrayToFile(y_arr, body_pos_arr.length, filename);
+    //         delete[] y_arr;
+    //     }
+    //     {
+    //         float* z_arr = new float[body_pos_arr.length];
+    //         for (int i = 0; i < body_pos_arr.length; i++) {
+    //             z_arr[i] = body_pos_arr.elements[i].z;
+    //         }
+    //         filename = "cpp_array_xz.bin";
+    //         saveArrayToFile(z_arr, body_pos_arr.length, filename);
+    //         delete[] z_arr;
+    //     }
+    //
+    //     filename = "cpp_array_y.bin";
+    //     saveArrayToFile(out_count.elements, out_count.length, filename);
+    //     delete[] target_map.elements;
+    //     delete[] body_pos_arr.elements;
+    //     delete[] out_count.elements;
+    //     delete[] legArray.elements;
+    // }
     {
         LegDimensions dim = LegToUse(0);
         const char* filename = "dist_input_tx.bin";
@@ -145,7 +145,9 @@ int main() {
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "Cuda distance took " << duration.count()
-                  << " milliseconds to finish." << std::endl;
+                  << " milliseconds to finish echability computation." << std::endl;
+        std::cout << "That's " << duration.count() * 1000000 / target_map.length
+                  << " ns per point (total: " << target_map.length << ")" << std::endl;
 
         delete[] target_map.elements;
 
@@ -198,7 +200,7 @@ int main() {
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        apply_kernel(target_map, dim, reachability_abs_tib_kernel, out2);
+        apply_kernel(target_map, dim, reachability_circles_kernel, out2);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
