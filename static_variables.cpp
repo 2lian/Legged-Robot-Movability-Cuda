@@ -206,10 +206,10 @@ LegDimensions leg_factory(float azimut, float body2coxa, float coxa_pitch_deg,
     }
     }
 
-    std::cout << "circles:" << std::endl;
-    for (int i = 0; i < 10; i += 1) {
-        std::cout << circle_list[i].x << " , " << circle_list[i].y << std::endl;
-    }
+    // std::cout << "circles:" << std::endl;
+    // for (int i = 0; i < 10; i += 1) {
+        // std::cout << circle_list[i].x << " , " << circle_list[i].y << std::endl;
+    // }
     return leg;
 }
 

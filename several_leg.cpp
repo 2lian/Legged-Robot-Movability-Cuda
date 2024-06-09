@@ -128,8 +128,7 @@ int main() {
         filename = "dist_input_tz.bin";
         Array<float> inputxz = readArrayFromFile<float>(filename);
 
-        Array<float3> target_map =
-            threeArrays2float3Arr(inputxx, inputxy, inputxz);
+        Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
         delete[] inputxx.elements;
         delete[] inputxy.elements;
         delete[] inputxz.elements;
@@ -137,16 +136,19 @@ int main() {
         Array<float3> out2;
         out2.length = target_map.length;
         out2.elements = new float3[out2.length];
+        apply_kernel(target_map, dim, distance_circles_kernel, out2); // warmup
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        apply_kernel(target_map, dim, dist_kernel, out2);
+        apply_kernel(target_map, dim, distance_circles_kernel, out2);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "Cuda distance took " << duration.count()
-                  << " milliseconds to finish echability computation." << std::endl;
-        std::cout << "That's " << duration.count() * 1000000 / target_map.length
+                  << " milliseconds to finish." << std::endl;
+        double ns_per_point =
+            ((double)duration.count() / (double)target_map.length) * 1000000.0;
+        std::cout << "That's " << ns_per_point
                   << " ns per point (total: " << target_map.length << ")" << std::endl;
 
         delete[] target_map.elements;
@@ -188,8 +190,7 @@ int main() {
         filename = "dist_input_tz.bin";
         Array<float> inputxz = readArrayFromFile<float>(filename);
 
-        Array<float3> target_map =
-            threeArrays2float3Arr(inputxx, inputxy, inputxz);
+        Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
         delete[] inputxx.elements;
         delete[] inputxy.elements;
         delete[] inputxz.elements;
@@ -198,6 +199,7 @@ int main() {
         out2.length = target_map.length;
         out2.elements = new bool[out2.length];
 
+        apply_kernel(target_map, dim, reachability_circles_kernel, out2); //warmup
         auto start = std::chrono::high_resolution_clock::now();
 
         apply_kernel(target_map, dim, reachability_circles_kernel, out2);
@@ -205,7 +207,11 @@ int main() {
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "Cuda reachability took " << duration.count()
-                  << " milliseconds to finish." << std::endl;
+                  << " milliseconds to finish echability computation." << std::endl;
+        double ns_per_point =
+            ((double)duration.count() / (double)target_map.length) * 1000000.0;
+        std::cout << "That's " << ns_per_point
+                  << " ns per point (total: " << target_map.length << ")" << std::endl;
 
         delete[] target_map.elements;
 

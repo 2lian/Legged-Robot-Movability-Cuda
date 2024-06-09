@@ -15,7 +15,7 @@
 // #include <thrust/device_vector.h>
 // #include <cub/cub.cuh>
 // #include <cuda/std/atomic>
-
+typedef unsigned char uchar;
 __device__ constexpr float pIgpu =
     3.14159265358979323846264338327950288419716939937510582097f;
 

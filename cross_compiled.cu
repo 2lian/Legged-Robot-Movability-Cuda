@@ -20,9 +20,9 @@
  * @param kernel cuda kernel to be used
  * @param output result is stored here
  */
-template <typename T_in, typename T_out>
-void apply_kernel(const Array<T_in> input, const LegDimensions dim,
-                  void (*kernel)(const Array<T_in>, const LegDimensions,
+template <typename T_in, typename param, typename T_out>
+void apply_kernel(const Array<T_in> input, const param dim,
+                  void (*kernel)(const Array<T_in>, const param,
                                  Array<T_out> const),
                   Array<T_out> const output) {
     Array<T_in> gpu_in{};
@@ -54,12 +54,23 @@ void apply_kernel(const Array<T_in> input, const LegDimensions dim,
 }
 
 // Explicit instantiation for float3, float3
-template void apply_kernel<float3, float3>(
+template void apply_kernel<float3, LegDimensions, float3>(
     Array<float3>, LegDimensions,
     void (*)(Array<float3>, LegDimensions, Array<float3>), Array<float3>);
 
 // Explicit instantiation for float3, bool
-template void apply_kernel<float3, bool>(Array<float3>, LegDimensions,
+template void apply_kernel<float3, LegDimensions, bool>(Array<float3>, LegDimensions,
                                          void (*)(const Array<float3>,
                                                   LegDimensions, Array<bool>),
+                                         Array<bool>);
+
+// Explicit instantiation for float3, float3
+template void apply_kernel<float3, LegCompact, float3>(
+    Array<float3>, LegCompact,
+    void (*)(Array<float3>, LegCompact, Array<float3>), Array<float3>);
+
+// Explicit instantiation for float3, bool
+template void apply_kernel<float3, LegCompact, bool>(Array<float3>, LegCompact,
+                                         void (*)(const Array<float3>,
+                                                  LegCompact, Array<bool>),
                                          Array<bool>);

@@ -116,14 +116,8 @@ targets[:, 0] = tx
 targets[:, 1] = ty
 targets[:, 2] = tz
 
-bool_grid_image(
-    targets[:, [0, 2]],
-    np.linalg.norm(dist, axis=1),
-    black_white=False,
-    transparency=False,
-)
-
-plt.savefig("distance_result.png", dpi=1000)
+closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
+selection = targets[:, 1] == closest_to_0
 
 filename = "out_reachability.bin"
 reach = read_array_from_file_with_length(filename, bool).astype(bool)
@@ -134,27 +128,20 @@ z_slice_cut = 200
 if vertical_slice:
     closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
     selection = targets[:, 1] == closest_to_0
-    zero_plane = targets[selection]
-
-    plt.grid()
-    bool_grid_image(
-        zero_plane[:, [0, 2]],
-        reach[selection],
-        black_white=True,
-        transparency=False,
-    )
+    zero_plane = targets[selection][:, [0, 2]]
 else:
     closest_to_0 = min(targets[(targets[:, 2] + z_slice_cut) >= 0, 2])
     # closest_to_0 = min(targets[(targets[:, 2] + 230) >= 0, 2])
-    zero_plane = targets[targets[:, 2] == closest_to_0]
+    selection = targets[:, 2] == closest_to_0
+    zero_plane = targets[targets[:, 2] == closest_to_0][:, [0, 1]]
 
-    plt.grid()
-    bool_grid_image(
-        zero_plane[:, [0, 1]],
-        reach[targets[:, 2] == closest_to_0],
-        black_white=True,
-        transparency=False,
-    )
+plt.grid(True)
+bool_grid_image(
+    zero_plane,
+    reach[selection],
+    black_white=True,
+    transparency=False,
+)
 
 plt.xlabel("x (mm)")
 if vertical_slice:
@@ -163,12 +150,41 @@ if vertical_slice:
 else:
     plt.title(f"Reachable area of Moonbot leg (z={-z_slice_cut})")
     plt.ylabel("y (mm)")
-
 plt.scatter(0, 0, s=0.01, c="black", marker="s", label="Reachable")
 legend = plt.legend(loc="upper left")
 for handle in legend.legendHandles:
     handle.set_sizes([50.0])
 plt.savefig("reachability_result.png", bbox_inches="tight", dpi=300)
+plt.clf()
+
+
+plt.grid(True)
+bool_grid_image(
+    zero_plane,
+    np.linalg.norm(dist[selection, :], axis=1),
+    black_white=False,
+    transparency=False,
+)
+sel2 =np.linalg.norm(dist[selection, :], axis=1) < 1
+bool_grid_image(
+    zero_plane,
+    sel2,
+    black_white=True,
+    transparency=True,
+)
+
+plt.xlabel("x (mm)")
+if vertical_slice:
+    plt.title("Distance to reachablity's edge (y=0)")
+    plt.ylabel("z (mm)")
+else:
+    plt.title(f"Distance to reachablity's edge (z={-z_slice_cut})")
+    plt.ylabel("y (mm)")
+plt.scatter(0, 0, s=0.01, c="black", marker="s", label="Reachability's edge")
+legend = plt.legend(loc="upper left")
+for handle in legend.legendHandles:
+    handle.set_sizes([50.0])
+plt.savefig("distance_result.png", bbox_inches="tight", dpi=300)
 
 shaved = targets[reach, :]
 np.save("leg0_reach.npy", shaved)

@@ -1,8 +1,11 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "circles.cu.h"
 #include "one_leg.cu.h"
 
-#define CIRCLE_MARGIN 0.01
+#define CIRCLE_MARGIN 0.1
+#define REACH_USECASE 0
+#define DIST_USECASE 1
 
 __device__ __forceinline__ void place_over_coxa(float3& coordinates,
                                                 const LegDimensions& dim) {
@@ -36,18 +39,19 @@ __device__ __forceinline__ void distance_to_circumf(Circle circle, float x, floa
     distance = circle.radius - magnitude; // if ouside the distance will be negative
     bool inside_the_circle = !signbit(distance); // will be true if distance is +
     validity =
-        (inside_the_circle == circle.attractivity) or fabs(distance) < CIRCLE_MARGIN;
+        (inside_the_circle == circle.attractivity) or (fabs(distance) < CIRCLE_MARGIN);
 }
 __device__ __forceinline__ void force_clamp_on_circle(Circle circle, float& x, float& y,
                                                       float& distance, bool& validity) {
     x -= circle.x;
     y -= circle.y;
     float magnitude = sqrtf(x * x + y * y);
-    distance = circle.radius - magnitude; // if ouside the distance will be negative
+    distance = circle.radius - magnitude;        // if inside the distance will be +
     bool inside_the_circle = !signbit(distance); // will be true if distance is +
-    validity = (inside_the_circle == circle.attractivity);
+    validity =
+        (inside_the_circle == circle.attractivity) or fabs(distance) < CIRCLE_MARGIN;
 
-    if (magnitude < 0.0001f) {
+    if (magnitude < CIRCLE_MARGIN) {
         x = 1;
         y = 0;
         magnitude = 1;
@@ -74,7 +78,8 @@ __device__ __forceinline__ void clamp_on_circle(const float* center, const float
     y -= radius * y / magnitude;
 }
 
-__device__ inline void place_on_vert_plane(float& x, float& z, const LegDimensions& dim) {
+__device__ __forceinline__ void place_on_vert_plane(float& x, float& z,
+                                                    const LegDimensions& dim) {
     // Femur as the frame of reference witout rotation
     x -= dim.coxa_length;
 
@@ -133,59 +138,10 @@ __device__ inline void place_on_vert_plane(float& x, float& z, const LegDimensio
     clamp_on_circle(center, radius, clamp_direction, x, z);
 }
 
-// __device__ void place_on_vert_plane_old(float& x, float& z,
-//                                         const LegDimensions& dim) {
-//     // Femur as the frame of reference witout rotation
-//     x -= dim.coxa_length;
-//
-//     // finding femur angle
-//     float required_overangle_femur = atan2f(z, x);
-//     float angle_overshoot = required_overangle_femur;
-//
-//     float overmargin = dim.femur_overmargin;
-//
-//     // saturating femur angle for dist
-//     required_overangle_femur =
-//         fmaxf(fminf(required_overangle_femur,
-//                     dim.max_angle_femur_w_margin + overmargin),
-//               dim.min_angle_femur_w_margin - overmargin);
-//
-//     angle_overshoot =
-//         abs(angle_overshoot -
-//             fmaxf(fminf(required_overangle_femur, dim.max_angle_femur),
-//                   dim.min_angle_femur));
-//
-//     // canceling femur rotation for dist
-//     float cos_angle_fem;
-//     float sin_angle_fem;
-//     sincosf(required_overangle_femur, &sin_angle_fem, &cos_angle_fem);
-//
-//     // How close we are from the overmargin. 0 means we're at the saturated
-//     // femur, 1 means we're at the saturated femur and tibia
-//     float ratio = fmin(fmax(angle_overshoot / overmargin, 0.f), 1.f);
-//     float radius_adjust_factor = dim.middle_TG_radius * ratio * sinf(ratio);
-//
-//     // middle_TG is now the frame of reference
-//     // if the middle radius is reduced by x in the overgin, middleTG is
-//     brought
-//     // back by x in order to keep the inner circle
-//     (min_femur_to_gripper_dist)
-//     // unchanged
-//     x -= (dim.middle_TG - radius_adjust_factor) * cos_angle_fem;
-//     z -= (dim.middle_TG - radius_adjust_factor) * sin_angle_fem;
-//
-//     // inside this radius the distance is zero
-//     float zeroing_radius =
-//         fmax(dim.middle_TG_radius_w_margin - radius_adjust_factor, 0.f);
-//     float magnitude = fmax(norm3df(x, z, 0.f), zeroing_radius);
-//     // the part of the vector inside the radius gets substracted
-//     x -= zeroing_radius * x / magnitude;
-//     z -= zeroing_radius * z / magnitude;
-// }
-
-__device__ inline void cancel_coxa_rotation(float3& coordinates, const float& coxa_angle,
-                                            float& cosine_coxa_memory,
-                                            float& sin_coxa_memory) {
+__device__ __forceinline__ void cancel_coxa_rotation(float3& coordinates,
+                                                     const float& coxa_angle,
+                                                     float& cosine_coxa_memory,
+                                                     float& sin_coxa_memory) {
     // canceling coxa rotation for dist
     // Coxa as the frame of reference with rotation
     sincosf(-coxa_angle, &sin_coxa_memory, &cosine_coxa_memory);
@@ -194,34 +150,70 @@ __device__ inline void cancel_coxa_rotation(float3& coordinates, const float& co
     coordinates.y = buffer + coordinates.y * cosine_coxa_memory;
 }
 
-__device__ inline void restore_coxa_rotation(float3& coordinates,
-                                             float& cosine_coxa_memory,
-                                             float& sin_coxa_memory) {
+__device__ __forceinline__ void restore_coxa_rotation(float3& coordinates,
+                                                      float& cosine_coxa_memory,
+                                                      float& sin_coxa_memory) {
 
     float buffer = coordinates.y * sin_coxa_memory;
     coordinates.y = -coordinates.x * sin_coxa_memory + coordinates.y * cosine_coxa_memory;
     coordinates.x = coordinates.x * cosine_coxa_memory + buffer;
 }
 
-__device__ inline void finish_finding_closest(float3& coordinates,
-                                              const LegDimensions& dim,
-                                              const float& coxa_angle) {
+template <typename Tout = void, // function vert plane is templated
+          Tout (*vert_plane_func)(float&, float&,
+                                  const LegDimensions&) = place_on_vert_plane>
+__device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
+                                                       const LegDimensions& dim,
+                                                       const float& coxa_angle) {
     // saturating coxa angle for dist
     float saturated_coxa_angle = fmaxf(fminf(coxa_angle, dim.max_angle_coxa_w_margin),
                                        dim.min_angle_coxa_w_margin);
+    bool coxa_saturated = saturated_coxa_angle != coxa_angle;
+    float coxa_limit =
+        (coxa_angle > (dim.max_angle_coxa_w_margin + dim.min_angle_coxa_w_margin) / 2)
+            ? dim.max_angle_coxa_w_margin
+            : dim.min_angle_coxa_w_margin;
 
     float cosine_coxa_memory;
     float sin_coxa_memory;
     cancel_coxa_rotation(coordinates, saturated_coxa_angle, cosine_coxa_memory,
                          sin_coxa_memory);
 
-    place_on_vert_plane(coordinates.x, coordinates.z, dim);
+    static_assert(std::is_same_v<Tout, bool> or std::is_same_v<Tout, void>,
+                  "Type not supported");
+    if constexpr (std::is_same_v<Tout, void>) {
+        vert_plane_func(coordinates.x, coordinates.z, dim);
+        restore_coxa_rotation(coordinates, cosine_coxa_memory, sin_coxa_memory);
+        return;
 
-    restore_coxa_rotation(coordinates, cosine_coxa_memory, sin_coxa_memory);
+    } else if (std::is_same_v<Tout, bool>) {
+        Tout was_valid;
+        float3 save = coordinates;
+        was_valid = vert_plane_func(coordinates.x, coordinates.z, dim);
+        if (was_valid) {
+
+            float cosine_coxa_memory2;
+            float sin_coxa_memory2;
+            cancel_coxa_rotation(save, coxa_limit - saturated_coxa_angle,
+                                 cosine_coxa_memory2, sin_coxa_memory2);
+            save.x = 0;
+            save.z = 0;
+            const auto distance_clamped =
+                norm3df(coordinates.x, coordinates.y, coordinates.z);
+            float distance_to_coxa_lim = norm3df(save.x, save.y, save.z);
+            const bool better_not_clamp = distance_clamped > distance_to_coxa_lim;
+            if (better_not_clamp) {
+                restore_coxa_rotation(save, cosine_coxa_memory2, sin_coxa_memory2);
+                coordinates = save;
+            }
+        }
+        restore_coxa_rotation(coordinates, cosine_coxa_memory, sin_coxa_memory);
+        return was_valid;
+    }
 }
 
-__device__ inline float3 dist_double_solf3(const float3& point,
-                                           const LegDimensions& dim) {
+__device__ __forceinline__ float3 dist_double_solf3(const float3& point,
+                                                    const LegDimensions& dim) {
     float3 closest = point;
     place_over_coxa(closest, dim);
     float3 closest_flip = closest;
@@ -408,168 +400,15 @@ __device__ bool reachability_absolute_tibia_limit(const float3& point,
     return reachability;
 }
 
-__forceinline__ __device__ Circle get_inner_circle(const LegDimensions leg) {
-    Circle too_close;
-    too_close.x = 0;
-    too_close.y = 0;
-    too_close.radius = leg.min_femur_to_gripper_dist;
-    too_close.attractivity = false;
-    return too_close;
-}
-
-__forceinline__ __device__ void get_middle_circles(const LegDimensions leg,
-                                                   Circle* out_size_2) {
-    auto& circles = out_size_2;
-    Circle& too_close = circles[0];
-    too_close = get_inner_circle(leg);
-    Circle& too_far = circles[1];
-    {
-        Circle& the_circle = too_far;
-        the_circle.x = 0;
-        the_circle.y = 0;
-        the_circle.radius = leg.max_femur_to_gripper_dist;
-        the_circle.attractivity = true;
-    }
-}
-
-__forceinline__ __device__ void get_lower_circles(const LegDimensions leg,
-                                                  Circle* out_size_5) {
-    auto& circles = out_size_5;
-    Circle& too_close = circles[0];
-    too_close = get_inner_circle(leg);
-
-    Circle& negativ_winglet = circles[1];
-    {
-        Circle& the_circle = negativ_winglet;
-        the_circle.x = leg.negativ_saturated_femur[0];
-        the_circle.y = leg.negativ_saturated_femur[1];
-        the_circle.radius = leg.tibia_length;
-        the_circle.attractivity = true;
-    }
-
-    Circle& from_above_negat = circles[2];
-    {
-        Circle& the_circle = from_above_negat;
-        the_circle.x = leg.tibia_length * cos(leg.tibia_absolute_neg);
-        the_circle.y = leg.tibia_length * sin(leg.tibia_absolute_neg);
-        the_circle.radius = leg.femur_length;
-        the_circle.attractivity = false;
-    }
-
-    Circle& intersect_04 = circles[3]; // inner and from above neg
-    {
-        Circle& the_circle = intersect_04;
-        // tibia saturates and femur makes it so tibia reaches the from above limit
-        float fem_angle = leg.tibia_absolute_neg - leg.min_angle_tibia;
-        float x_fem = leg.femur_length * cos(fem_angle);
-        float y_fem = leg.femur_length * sin(fem_angle);
-        float tib_angle = leg.min_angle_tibia + fem_angle;
-        float x_tib = leg.femur_length * cos(tib_angle);
-        float y_tib = leg.femur_length * sin(tib_angle);
-        the_circle.x = x_fem + x_tib;
-        the_circle.y = y_fem + y_tib;
-        the_circle.radius = 0;
-        the_circle.attractivity = true;
-    }
-
-    Circle& intersect_24 = circles[4]; // winglet and from above neg
-    {
-        Circle& the_circle = intersect_24;
-        // tibia at the from above limit and femur saturates
-        float fem_angle = leg.min_angle_femur;
-        float x_fem = leg.femur_length * cos(fem_angle);
-        float y_fem = leg.femur_length * sin(fem_angle);
-        float tib_angle = leg.tibia_absolute_neg;
-        float x_tib = leg.femur_length * cos(tib_angle);
-        float y_tib = leg.femur_length * sin(tib_angle);
-        the_circle.x = x_fem + x_tib;
-        the_circle.y = y_fem + y_tib;
-        the_circle.radius = 0;
-        the_circle.attractivity = true;
-    }
-}
-
-__forceinline__ __device__ void get_upper_circles(const LegDimensions leg,
-                                                  Circle* out_size_5) {
-    auto& circles = out_size_5;
-    Circle& too_close = circles[0];
-    too_close = get_inner_circle(leg);
-
-    Circle& positiv_winglet = circles[1];
-    {
-        Circle& the_circle = positiv_winglet;
-        the_circle.x = leg.positiv_saturated_femur[0];
-        the_circle.y = leg.positiv_saturated_femur[1];
-        the_circle.radius = leg.tibia_length;
-        the_circle.attractivity = false;
-    }
-
-    Circle& from_above_pos = circles[2];
-    {
-        Circle& the_circle = from_above_pos;
-        the_circle.x = leg.tibia_length * cos(leg.tibia_absolute_pos);
-        the_circle.y = leg.tibia_length * sin(leg.tibia_absolute_pos);
-        the_circle.radius = leg.femur_length;
-        the_circle.attractivity = true;
-    }
-
-    Circle& intersect_03 = circles[3]; // inner and winglet
-    {
-        Circle& the_circle = intersect_03;
-        // tibia and femur saturates
-        float fem_angle = leg.max_angle_femur;
-        float x_fem = leg.femur_length * cos(fem_angle);
-        float y_fem = leg.femur_length * sin(fem_angle);
-        float tib_angle = leg.min_angle_tibia;
-        float x_tib = leg.femur_length * cos(tib_angle);
-        float y_tib = leg.femur_length * sin(tib_angle);
-        the_circle.x = x_fem + x_tib;
-        the_circle.y = y_fem + y_tib;
-        the_circle.radius = 0;
-        the_circle.attractivity = true;
-    }
-
-    Circle& intersect_35 = circles[4]; // winglet and  from above pos
-    {
-        Circle& the_circle = intersect_35;
-        if (leg.max_angle_tibia + leg.min_angle_femur < leg.tibia_absolute_pos) {
-            // saturated femur and limit from above tibia
-            float fem_angle = leg.max_angle_femur;
-            float x_fem = leg.femur_length * cos(fem_angle);
-            float y_fem = leg.femur_length * sin(fem_angle);
-            float tib_angle = leg.tibia_absolute_pos;
-            float x_tib = leg.femur_length * cos(tib_angle);
-            float y_tib = leg.femur_length * sin(tib_angle);
-            the_circle.x = x_fem + x_tib;
-            the_circle.y = y_fem + y_tib;
-            the_circle.radius = 0;
-            the_circle.attractivity = true;
-
-        } else {
-            // saturated tibia and femur making it reach the from above limit
-            float fem_angle = leg.tibia_absolute_pos - leg.min_angle_tibia;
-            float x_fem = leg.femur_length * cos(fem_angle);
-            float y_fem = leg.femur_length * sin(fem_angle);
-            float tib_angle = leg.min_angle_tibia + fem_angle;
-            float x_tib = leg.femur_length * cos(tib_angle);
-            float y_tib = leg.femur_length * sin(tib_angle);
-            the_circle.x = x_fem + x_tib;
-            the_circle.y = y_fem + y_tib;
-            the_circle.radius = 0;
-            the_circle.attractivity = true;
-        }
-    }
-}
-
 __device__ __forceinline__ bool multi_circle_validate(float x, float y, Circle* circleArr,
                                                       int number_of_circles) {
     for (int i = 0; i < number_of_circles; i++) {
         Circle& circle = circleArr[i];
         float distance;
-        bool validity;
+        bool is_valid;
 
-        distance_to_circumf(circle, x, y, distance, validity);
-        if (!validity) {
+        distance_to_circumf(circle, x, y, distance, is_valid);
+        if (not is_valid) {
             return false;
         }
     }
@@ -578,10 +417,11 @@ __device__ __forceinline__ bool multi_circle_validate(float x, float y, Circle* 
 
 __device__ __forceinline__ bool multi_circle_clamp(float& x, float& y, Circle* circleArr,
                                                    int number_of_circles) {
+    // number_of_circles = 1;
     bool overall_validity = true; // switches to false if one result is false
     float potential_x = 0;
     float potential_y = 0;
-    float min_distance_buffer;
+    float previous_distance = 999999999999999.9;
 
     for (int i = 0; i < number_of_circles; i++) {
         Circle& circle = circleArr[i];
@@ -590,54 +430,76 @@ __device__ __forceinline__ bool multi_circle_clamp(float& x, float& y, Circle* c
         float x_onthe_circle = x;
         float y_onthe_circle = y;
         force_clamp_on_circle(circle, x_onthe_circle, y_onthe_circle, distance, validity);
-        overall_validity = overall_validity && validity;
 
-        bool clamp_is_valid = multi_circle_validate(x_onthe_circle, y_onthe_circle,
-                                                    circleArr, number_of_circles);
-        bool closer_boundary = min_distance_buffer > distance;
+        bool clamp_is_valid;
+        if (abs(circle.radius) > CIRCLE_MARGIN) {
+            clamp_is_valid =
+                multi_circle_validate(x_onthe_circle, y_onthe_circle, circleArr,
+                                      number_of_circles - MAX_INTERSECT);
+            overall_validity = overall_validity && validity;
+        } else {
+            clamp_is_valid = true;
+        }
+        // clamp_is_valid = true;
+        bool closer_boundary = abs(previous_distance) > abs(distance);
+        // closer_boundary = true;
 
         if (clamp_is_valid && closer_boundary) {
-            // found a closer boundary
-            min_distance_buffer = distance;
+            // found a closer valid boundary
+            previous_distance = distance;
             potential_x = x_onthe_circle;
             potential_y = y_onthe_circle;
         }
     }
+    x -= potential_x;
+    y -= potential_y;
     return overall_validity;
 }
 
-__device__ __forceinline__ bool reachability_plane_circles(float& x, float& z,
-                                                           const LegDimensions& dim) {
-    // Femur as the frame of reference witout rotation
-    x -= dim.coxa_length;
+__device__ __forceinline__ uchar find_region(float& x, float& z,
+                                             const LegDimensions& dim) {
     float femur_angle_raw = atan2f(z, x);
     bool lower_region = (femur_angle_raw <= dim.min_angle_femur);
     bool upper_region = (femur_angle_raw >= dim.tibia_absolute_pos);
-
-    int number_of_circles;
+    uchar region;
     if (upper_region) {
-        number_of_circles = NUMBER_OF_UPPER_CIRCLES;
+        region = UPPER_REGION;
     } else if (lower_region) {
-        number_of_circles = NUMBER_OF_LOWER_CIRCLES;
+        region = LOWER_REGION;
     } else {
-        number_of_circles = NUMBER_OF_MIDDLE_CIRCLES;
+        region = MIDDLE_REGION;
     }
+    return region;
+}
+template <int UseCase = REACH_USECASE>
+__device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
+                                                   const LegDimensions& dim) {
+    // Femur as the frame of reference witout rotation
+    x -= dim.coxa_length;
 
-    Circle* circle_list = new Circle[number_of_circles];
-    number_of_circles = min(number_of_circles, 3); 
-    // TODO better to delete circle of size 0
+    uchar region = find_region(x, y, dim);
 
-    if (upper_region) {
-        get_upper_circles(dim, circle_list);
-    } else if (lower_region) {
-        get_lower_circles(dim, circle_list);
+    bool is_valid;
+    if constexpr (UseCase == REACH_USECASE) {
+        Circle circle_list[MAX_CIRCLES];
+        auto* tail = circle_list;
+        tail = insert_circles(dim, region, tail);
+        // uchar number_of_circles = tail - head;
+        const uchar number_of_circles = MAX_CIRCLES;
+
+        is_valid = multi_circle_validate(x, y, circle_list, number_of_circles);
+    } else if (UseCase == DIST_USECASE) {
+        Circle circle_list[MAX_CIRCLE_INTER];
+        auto* tail = circle_list;
+        tail = insert_circles(dim, region, tail);
+        tail = insert_intersec(dim, region, tail);
+        // uchar number_of_circles = tail - circle_list;
+        const uchar number_of_circles = MAX_CIRCLE_INTER;
+
+        is_valid = multi_circle_clamp(x, y, circle_list, number_of_circles);
     } else {
-        get_middle_circles(dim, circle_list);
+        static_assert(UseCase == REACH_USECASE or UseCase == DIST_USECASE, "bad usecase");
     }
-
-    bool is_valid = multi_circle_validate(x, z, circle_list, number_of_circles);
-
-    delete[] circle_list;
 
     return is_valid;
 }
@@ -680,45 +542,40 @@ __device__ __forceinline__ bool reachability_circles(const float3& point,
     float sin_angle_cox;
     cancel_coxa_rotation(result, required_angle_coxa, cos_angle_cox, sin_angle_cox);
 
-    bool reachability = reachability_plane_circles(result.x, result.z, dim);
+    bool reachability = eval_plane_circles<REACH_USECASE>(result.x, result.z, dim);
     return reachability;
 }
 
-__device__ __forceinline__ bool place_on_vert_plane_new(float& x, float& z,
-                                                        const LegDimensions& dim) {
-    // Femur as the frame of reference witout rotation
-    x -= dim.coxa_length;
-    float femur_angle_raw = atan2f(z, x);
-    bool lower_region = (femur_angle_raw <= dim.min_angle_femur);
-    bool upper_region = (femur_angle_raw >= dim.tibia_absolute_pos);
+__device__ __forceinline__ bool place_on_vert_plane_circle(float& x, float& z,
+                                                           const LegDimensions& dim) {
+    return eval_plane_circles<DIST_USECASE>(x, z, dim);
+}
 
-    size_t number_of_circles;
-    if (upper_region) {
-        number_of_circles = NUMBER_OF_UPPER_CIRCLES;
-    } else if (lower_region) {
-        number_of_circles = NUMBER_OF_LOWER_CIRCLES;
-    } else {
-        number_of_circles = NUMBER_OF_MIDDLE_CIRCLES;
-    }
+__device__ __forceinline__ float3 distance_circles(const float3& point,
+                                                   const LegDimensions& dim) {
+    float3 closest = point;
+    place_over_coxa(closest, dim);
+    float3 closest_flip = closest;
 
-    Circle* circle_list = new Circle[number_of_circles];
+    float coxangle = find_coxa_angle(closest);
+    float coxangle_flip = (coxangle > 0) ? coxangle - pIgpu : coxangle + pIgpu;
 
-    if (upper_region) {
-        get_upper_circles(dim, circle_list);
-    } else if (lower_region) {
-        get_lower_circles(dim, circle_list);
-    } else {
-        get_middle_circles(dim, circle_list);
-    }
+    auto res =
+        finish_finding_closest<bool, place_on_vert_plane_circle>(closest, dim, coxangle);
+    auto resflip = finish_finding_closest<bool, place_on_vert_plane_circle>(
+        closest_flip, dim, coxangle_flip);
 
-    auto& clamped_x = x;
-    auto& clamped_z = z; // ! inplace operation
-    bool is_valid =
-        multi_circle_clamp(clamped_x, clamped_z, circle_list, number_of_circles);
+    bool use_direct = norm3df(closest.x, closest.y, closest.z) <
+                      norm3df(closest_flip.x, closest_flip.y, closest_flip.z);
+    // use_direct = true;
+    float3* result_to_use = (use_direct) ? &closest : &closest_flip;
+    // if (!res) {
+    // (*result_to_use).x /= 10;
+    // (*result_to_use).y /= 10;
+    // (*result_to_use).z /= 10;
+    // }
 
-    delete[] circle_list;
-
-    return is_valid;
+    return *result_to_use;
 }
 
 __global__ void dist_kernel(const Array<float3> input, const LegDimensions dimensions,
@@ -753,12 +610,34 @@ __global__ void reachability_abs_tib_kernel(const Array<float3> input,
 }
 
 __global__ void reachability_circles_kernel(const Array<float3> input,
-                                            const LegDimensions dimensions,
+                                            const LegDimensions dim,
                                             Array<bool> const output) {
+    // __shared__ LegDimensions chached_dim;
+    // if (threadIdx.x == 0) {
+    //     chached_dim = dim;
+    // }
+    // __syncthreads();
+
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < input.length; i += stride) {
-        output.elements[i] = reachability_circles(input.elements[i], dimensions);
+        output.elements[i] = reachability_circles(input.elements[i], dim);
+    }
+}
+
+__global__ void distance_circles_kernel(const Array<float3> input,
+                                        const LegDimensions dim,
+                                        Array<float3> const output) {
+    // __shared__ LegDimensions chached_dim;
+    // if (threadIdx.x == 0) {
+    //     chached_dim = dim;
+    // }
+    // __syncthreads();
+
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < input.length; i += stride) {
+        output.elements[i] = distance_circles(input.elements[i], dim);
     }
 }
 
