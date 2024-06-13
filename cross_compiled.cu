@@ -1,4 +1,5 @@
 #include "cross_compiled.cuh"
+#define BLOCSIZE 1024/1
 
 #define CUDA_CHECK_ERROR(errorMessage)                                         \
     do {                                                                       \
@@ -38,7 +39,7 @@ void apply_kernel(const Array<T_in> input, const param dim,
                cudaMemcpyHostToDevice);
     CUDA_CHECK_ERROR("cudaMemcpy gpu_in.elements");
 
-    int blockSize = 1024;
+    constexpr int blockSize = BLOCSIZE;
     int numBlock = (input.length + blockSize - 1) / blockSize;
     kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
     cudaDeviceSynchronize();

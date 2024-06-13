@@ -53,8 +53,8 @@ add_executable(cuda
     # one_leg.cpp
     cuda_util.cu
     cuda_util.cuh
-    several_leg.cu
-    several_leg.cu.h
+    # several_leg.cu
+    # several_leg.cu.h
     several_leg.cpp
     collision.cu
     collision.cu.h

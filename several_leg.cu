@@ -63,7 +63,7 @@ __device__ inline bool reachable_rotate_leg(float3 target, const float3 body_pos
         rotateInPlace(target, -dim.body_angle, cos_memory, sin_memory);
     }
     // return false;
-    return reachability_absolute_tibia_limit(target, dim);
+    return reachability_circles(target, dim);
 };
 
 __global__ void reachable_leg_kernel_accu(Array<float3> body_map,

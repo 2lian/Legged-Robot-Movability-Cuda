@@ -17,8 +17,8 @@
 int main() {
 
     LegDimensions (*LegToUse)(float body_angle);
-    // LegToUse = get_moonbot_leg;
-    LegToUse = get_M2_leg;
+    LegToUse = get_moonbot_leg;
+    // LegToUse = get_M2_leg;
 
     // {
     //     const char* filename = "numpy_input_tx.bin";
@@ -133,6 +133,43 @@ int main() {
         delete[] inputxy.elements;
         delete[] inputxz.elements;
 
+        Array<bool> out2;
+        out2.length = target_map.length;
+        out2.elements = new bool[out2.length];
+
+        apply_kernel(target_map, dim, reachability_circles_kernel, out2); //warmup
+        auto start = std::chrono::high_resolution_clock::now();
+
+        apply_kernel(target_map, dim, reachability_circles_kernel, out2);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Cuda reachability took " << duration.count()
+                  << " milliseconds to finish." << std::endl;
+        double ns_per_point =
+            ((double)duration.count() / (double)target_map.length) * 1000000.0;
+        std::cout << "That's " << ns_per_point
+                  << " ns per point (total: " << target_map.length << ")" << std::endl;
+
+        delete[] target_map.elements;
+
+        filename = "out_reachability.bin";
+        saveArrayToFile(out2.elements, out2.length, filename);
+    }
+    {
+        LegDimensions dim = LegToUse(0);
+        const char* filename = "dist_input_tx.bin";
+        Array<float> inputxx = readArrayFromFile<float>(filename);
+        filename = "dist_input_ty.bin";
+        Array<float> inputxy = readArrayFromFile<float>(filename);
+        filename = "dist_input_tz.bin";
+        Array<float> inputxz = readArrayFromFile<float>(filename);
+
+        Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
+        delete[] inputxx.elements;
+        delete[] inputxy.elements;
+        delete[] inputxz.elements;
+
         Array<float3> out2;
         out2.length = target_map.length;
         out2.elements = new float3[out2.length];
@@ -180,42 +217,5 @@ int main() {
             saveArrayToFile(z_arr2, out2.length, filename);
             delete[] z_arr2;
         }
-    }
-    {
-        LegDimensions dim = LegToUse(0);
-        const char* filename = "dist_input_tx.bin";
-        Array<float> inputxx = readArrayFromFile<float>(filename);
-        filename = "dist_input_ty.bin";
-        Array<float> inputxy = readArrayFromFile<float>(filename);
-        filename = "dist_input_tz.bin";
-        Array<float> inputxz = readArrayFromFile<float>(filename);
-
-        Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
-        delete[] inputxx.elements;
-        delete[] inputxy.elements;
-        delete[] inputxz.elements;
-
-        Array<bool> out2;
-        out2.length = target_map.length;
-        out2.elements = new bool[out2.length];
-
-        apply_kernel(target_map, dim, reachability_circles_kernel, out2); //warmup
-        auto start = std::chrono::high_resolution_clock::now();
-
-        apply_kernel(target_map, dim, reachability_circles_kernel, out2);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Cuda reachability took " << duration.count()
-                  << " milliseconds to finish echability computation." << std::endl;
-        double ns_per_point =
-            ((double)duration.count() / (double)target_map.length) * 1000000.0;
-        std::cout << "That's " << ns_per_point
-                  << " ns per point (total: " << target_map.length << ")" << std::endl;
-
-        delete[] target_map.elements;
-
-        filename = "out_reachability.bin";
-        saveArrayToFile(out2.elements, out2.length, filename);
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "leg_geometry.cu.h"
 
 #define NUMBER_OF_UPPER_CIRCLES 4
 #define NUMBER_OF_MIDDLE_CIRCLES 4
@@ -22,7 +23,7 @@ __forceinline__ __host__ __device__ Circle inner_circle(const LegDimensions leg)
     Circle too_close;
     too_close.x = 0;
     too_close.y = 0;
-    too_close.radius = leg.min_femur_to_gripper_dist;
+    too_close.radius = min_femur_to_gripper_dist(leg);
     too_close.attractivity = false;
     return too_close;
 }
@@ -31,7 +32,7 @@ __forceinline__ __host__ __device__ Circle outer_circle(const LegDimensions leg)
     Circle circle;
     circle.x = 0;
     circle.y = 0;
-    circle.radius = leg.max_femur_to_gripper_dist;
+    circle.radius = max_femur_to_gripper_dist(leg);
     circle.attractivity = true;
     return circle;
 }
@@ -56,8 +57,9 @@ __forceinline__ __host__ __device__ Circle fromabove_neg_circle(const LegDimensi
 
 __forceinline__ __host__ __device__ Circle winglet_pos_circle(const LegDimensions leg) {
     Circle circle;
-    circle.x = leg.positiv_saturated_femur[0];
-    circle.y = leg.positiv_saturated_femur[1];
+    // circle.x = leg.positiv_saturated_femur[0];
+    // circle.y = leg.positiv_saturated_femur[1];
+    saturated_femur<UPPER_SIDE>(leg, circle.x, circle.y);
     circle.radius = leg.tibia_length;
     circle.attractivity = false;
     return circle;
@@ -65,8 +67,9 @@ __forceinline__ __host__ __device__ Circle winglet_pos_circle(const LegDimension
 
 __forceinline__ __host__ __device__ Circle winglet_neg_circle(const LegDimensions leg) {
     Circle circle;
-    circle.x = leg.negativ_saturated_femur[0];
-    circle.y = leg.negativ_saturated_femur[1];
+    // circle.x = leg.negativ_saturated_femur[0];
+    // circle.y = leg.negativ_saturated_femur[1];
+    saturated_femur<LOWER_SIDE>(leg, circle.x, circle.y);
     circle.radius = leg.tibia_length;
     circle.attractivity = true;
     return circle;
@@ -220,14 +223,6 @@ __host__ __device__ Cricle* insert_intersec(const LegDimensions leg, uchar regio
     tail = insert_lower_intersect(leg, tail);
     tail = insert_upper_intersect(leg, tail);
     return tail;
-    // if (region == LOWER_REGION) {
-    //     tail = insert_lower_intersect(leg, tail);
-    // } else if (region == MIDDLE_REGION) {
-    //     tail = insert_middle_intersect(leg, tail);
-    // } else {
-    //     tail = insert_upper_intersect(leg, tail);
-    // }
-    // return tail;
 }
 
 __host__ LegCompact LegDim2LegComp(LegDimensions leg) {
