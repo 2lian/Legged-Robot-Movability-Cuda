@@ -17,8 +17,8 @@
 int main() {
 
     LegDimensions (*LegToUse)(float body_angle);
-    LegToUse = get_moonbot_leg;
-    // LegToUse = get_M2_leg;
+    // LegToUse = get_moonbot_leg;
+    LegToUse = get_M2_leg;
 
     // {
     //     const char* filename = "numpy_input_tx.bin";
@@ -137,17 +137,14 @@ int main() {
         out2.length = target_map.length;
         out2.elements = new bool[out2.length];
 
-        apply_kernel(target_map, dim, reachability_circles_kernel, out2); //warmup
+        apply_kernel(target_map, dim, reachability_circles_kernel, out2); // warmup
         auto start = std::chrono::high_resolution_clock::now();
 
-        apply_kernel(target_map, dim, reachability_circles_kernel, out2);
+        auto duration = apply_kernel(target_map, dim, reachability_circles_kernel, out2);
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Cuda reachability took " << duration.count()
-                  << " milliseconds to finish." << std::endl;
-        double ns_per_point =
-            ((double)duration.count() / (double)target_map.length) * 1000000.0;
+        std::cout << "Cuda reachability took " << duration << " milliseconds to finish."
+                  << std::endl;
+        double ns_per_point = ((double)duration / (double)target_map.length) * 1000000.0;
         std::cout << "That's " << ns_per_point
                   << " ns per point (total: " << target_map.length << ")" << std::endl;
 
@@ -177,14 +174,11 @@ int main() {
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        apply_kernel(target_map, dim, distance_circles_kernel, out2);
+        auto duration = apply_kernel(target_map, dim, distance_circles_kernel, out2);
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Cuda distance took " << duration.count()
-                  << " milliseconds to finish." << std::endl;
-        double ns_per_point =
-            ((double)duration.count() / (double)target_map.length) * 1000000.0;
+        std::cout << "Cuda distance took " << duration << " milliseconds to finish."
+                  << std::endl;
+        double ns_per_point = ((double)duration / (double)target_map.length) * 1000000.0;
         std::cout << "That's " << ns_per_point
                   << " ns per point (total: " << target_map.length << ")" << std::endl;
 

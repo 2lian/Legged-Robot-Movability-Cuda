@@ -1,14 +1,14 @@
 #include "cross_compiled.cuh"
-#define BLOCSIZE 1024/1
+#define BLOCSIZE 1024 / 4
 
-#define CUDA_CHECK_ERROR(errorMessage)                                         \
-    do {                                                                       \
-        cudaError_t err = cudaGetLastError();                                  \
-        if (err != cudaSuccess) {                                              \
-            fprintf(stderr, "CUDA error in %s: %s\n", errorMessage,            \
-                    cudaGetErrorString(err));                                  \
-            exit(EXIT_FAILURE);                                                \
-        }                                                                      \
+#define CUDA_CHECK_ERROR(errorMessage)                                                   \
+    do {                                                                                 \
+        cudaError_t err = cudaGetLastError();                                            \
+        if (err != cudaSuccess) {                                                        \
+            fprintf(stderr, "CUDA error in %s: %s\n", errorMessage,                      \
+                    cudaGetErrorString(err));                                            \
+            exit(EXIT_FAILURE);                                                          \
+        }                                                                                \
     } while (0)
 
 /**
@@ -22,9 +22,8 @@
  * @param output result is stored here
  */
 template <typename T_in, typename param, typename T_out>
-void apply_kernel(const Array<T_in> input, const param dim,
-                  void (*kernel)(const Array<T_in>, const param,
-                                 Array<T_out> const),
+float apply_kernel(const Array<T_in> input, const param dim,
+                  void (*kernel)(const Array<T_in>, const param, Array<T_out> const),
                   Array<T_out> const output) {
     Array<T_in> gpu_in{};
     Array<T_out> gpu_out{};
@@ -41,8 +40,22 @@ void apply_kernel(const Array<T_in> input, const param dim,
 
     constexpr int blockSize = BLOCSIZE;
     int numBlock = (input.length + blockSize - 1) / blockSize;
+    // Prepare
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    // Start record
+    cudaEventRecord(start, 0);
+    // Do something on GPU
     kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out);
-    cudaDeviceSynchronize();
+    // Stop event and sync
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    float elapsedTime;
+    cudaEventElapsedTime(&elapsedTime, start, stop); // that's our time!
+    // Clean up:
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     CUDA_CHECK_ERROR("Kernel launch");
 
     cudaMemcpy(output.elements, gpu_out.elements, output.length * sizeof(T_out),
@@ -52,26 +65,27 @@ void apply_kernel(const Array<T_in> input, const param dim,
 
     cudaFree(gpu_in.elements);
     cudaFree(gpu_out.elements);
+    return elapsedTime;
 }
 
 // Explicit instantiation for float3, float3
-template void apply_kernel<float3, LegDimensions, float3>(
-    Array<float3>, LegDimensions,
-    void (*)(Array<float3>, LegDimensions, Array<float3>), Array<float3>);
+template float apply_kernel<float3, LegDimensions, float3>(
+    Array<float3>, LegDimensions, void (*)(Array<float3>, LegDimensions, Array<float3>),
+    Array<float3>);
 
 // Explicit instantiation for float3, bool
-template void apply_kernel<float3, LegDimensions, bool>(Array<float3>, LegDimensions,
-                                         void (*)(const Array<float3>,
-                                                  LegDimensions, Array<bool>),
-                                         Array<bool>);
+template float apply_kernel<float3, LegDimensions, bool>(
+    Array<float3>, LegDimensions,
+    void (*)(const Array<float3>, LegDimensions, Array<bool>), Array<bool>);
 
 // Explicit instantiation for float3, float3
-template void apply_kernel<float3, LegCompact, float3>(
-    Array<float3>, LegCompact,
-    void (*)(Array<float3>, LegCompact, Array<float3>), Array<float3>);
+template float apply_kernel<float3, LegCompact, float3>(Array<float3>, LegCompact,
+                                                       void (*)(Array<float3>, LegCompact,
+                                                                Array<float3>),
+                                                       Array<float3>);
 
 // Explicit instantiation for float3, bool
-template void apply_kernel<float3, LegCompact, bool>(Array<float3>, LegCompact,
-                                         void (*)(const Array<float3>,
-                                                  LegCompact, Array<bool>),
-                                         Array<bool>);
+template float apply_kernel<float3, LegCompact, bool>(Array<float3>, LegCompact,
+                                                     void (*)(const Array<float3>,
+                                                              LegCompact, Array<bool>),
+                                                     Array<bool>);

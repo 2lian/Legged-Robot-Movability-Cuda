@@ -60,8 +60,9 @@ __device__ __forceinline__ void force_clamp_on_circle(const Circle circle, float
         magnitude = 1;
     }
 
-    x = circle.x + circle.radius * x / magnitude;
-    y = circle.y + circle.radius * y / magnitude;
+    float radius_pre_normailed = circle.radius / magnitude;
+    x = circle.x +  x * radius_pre_normailed;
+    y = circle.y +  y * radius_pre_normailed;
 }
 
 template <bool OnlyCircles = false> // if the array has no points a chek is skipped
