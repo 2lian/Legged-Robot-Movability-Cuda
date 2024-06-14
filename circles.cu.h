@@ -2,6 +2,7 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
 #include "leg_geometry.cu.h"
+#include "unified_math_cuda.cu.h"
 
 #define NUMBER_OF_UPPER_CIRCLES 4
 #define NUMBER_OF_MIDDLE_CIRCLES 4
@@ -12,12 +13,33 @@
 #define MAX_INTERSECT 4
 #define MAX_CIRCLE_INTER (MAX_INTERSECT + MAX_CIRCLES)
 
-#define LOWER_REGION 0
-#define MIDDLE_REGION 1
-#define UPPER_REGION 2
+#define LOWER_WINGLET_REGION 0
+#define LOWER_FROMABOVE_REGION 1
+#define MIDDLE_REGION 2
+#define UPPER_REGION 3
 
 // extern float sin(float x); // shuts up clangd
 // extern float cos(float x);
+// extern float atan2f(float x, float y);
+
+__device__ __forceinline__ uchar find_region(float x, float z, const LegDimensions dim) {
+    float femur_angle_raw = atan2f(z, x);
+    bool lower_fromabove_region = (femur_angle_raw <= dim.tibia_absolute_neg);
+    bool lower_winglet_region = (femur_angle_raw <= dim.min_angle_femur);
+    // bool lower_region = false;
+    bool upper_region = (femur_angle_raw >= dim.tibia_absolute_pos);
+    uchar region;
+    if (upper_region) {
+        region = UPPER_REGION;
+    } else if (lower_fromabove_region) {
+        region = LOWER_FROMABOVE_REGION;
+    } else if (lower_winglet_region) {
+        region = LOWER_WINGLET_REGION;
+    } else {
+        region = MIDDLE_REGION;
+    }
+    return region;
+}
 
 __forceinline__ __host__ __device__ Circle inner_circle(const LegDimensions leg) {
     Circle too_close;
@@ -129,13 +151,13 @@ top_fromabove_winglet_intersect(const LegDimensions leg) {
     float fem_angle;
     float tib_angle;
     // if (leg.max_angle_tibia + leg.min_angle_femur < leg.tibia_absolute_pos) {
-        // saturated femur and limit from above tibia
-        fem_angle = leg.max_angle_femur;
-        tib_angle = leg.tibia_absolute_pos;
+    // saturated femur and limit from above tibia
+    fem_angle = leg.max_angle_femur;
+    tib_angle = leg.tibia_absolute_pos;
     // } else {
-        // saturated tibia and femur making it reach the from above limit
-        // fem_angle = leg.tibia_absolute_pos - leg.min_angle_tibia;
-        // tib_angle = leg.min_angle_tibia + fem_angle;
+    // saturated tibia and femur making it reach the from above limit
+    // fem_angle = leg.tibia_absolute_pos - leg.min_angle_tibia;
+    // tib_angle = leg.min_angle_tibia + fem_angle;
     // }
     float x_fem = leg.femur_length * cos(fem_angle);
     float y_fem = leg.femur_length * sin(fem_angle);
@@ -153,14 +175,25 @@ __forceinline__ __host__ __device__ Cricle* insert_always_circle(const LegDimens
     head[0] = inner_circle(leg);
     head[1] = fromabove_neg_circle(leg);
     head[2] = winglet_pos_circle(leg);
-    auto tail = head + 3;
+    auto tail = head + 1;
     return tail;
 }
 
 __forceinline__ __host__ __device__ Cricle* insert_lower_circle(const LegDimensions leg,
                                                                 Circle* head) {
     head[0] = winglet_neg_circle(leg);
-    auto tail = head + 1;
+    head[1] = fromabove_neg_circle(leg);
+    auto tail = head + 2;
+    return tail;
+}
+
+__forceinline__ __host__ __device__ Cricle*
+insert_lowerFromAbove_circle(const LegDimensions leg, Circle* head) {
+    head[0] = winglet_neg_circle(leg);
+    head[0].attractivity = false;
+    head[1] = fromabove_neg_circle(leg);
+    head[1].attractivity = true;
+    auto tail = head + 2;
     return tail;
 }
 
@@ -174,7 +207,8 @@ __forceinline__ __host__ __device__ Cricle* insert_middle_circle(const LegDimens
 __forceinline__ __host__ __device__ Cricle* insert_upper_circle(const LegDimensions leg,
                                                                 Circle* head) {
     head[0] = fromabove_pos_circle(leg);
-    auto tail = head + 1;
+    head[1] = winglet_pos_circle(leg);
+    auto tail = head + 2;
     return tail;
 }
 
@@ -182,8 +216,10 @@ __host__ __device__ Cricle* insert_circles(const LegDimensions leg, uchar region
                                            Circle* head) {
     // Don't forget to change MAX_CIRCLES if you touch this
     auto tail = insert_always_circle(leg, head);
-    if (region == LOWER_REGION) {
+    if (region == LOWER_WINGLET_REGION) {
         tail = insert_lower_circle(leg, tail);
+    } else if (region == LOWER_FROMABOVE_REGION) {
+        tail = insert_lowerFromAbove_circle(leg, tail);
     } else if (region == MIDDLE_REGION) {
         tail = insert_middle_circle(leg, tail);
     } else {

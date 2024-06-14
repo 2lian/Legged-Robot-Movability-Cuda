@@ -1,7 +1,7 @@
-#include "unified_math_cuda.cu.h"
+// #include "unified_math_cuda.cu.h"
 
 inline __host__ __device__ float magnitude(float3 vec) {
-    return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+    return sqrtf(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
 }
 
 __host__ __device__ float3 qtRotate(Quaternion q, const float3 v) {

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 import matplotlib.cm as cm
+from setting import *
 
 matplotlib.use("Agg")
 
@@ -122,7 +123,6 @@ selection = targets[:, 1] == closest_to_0
 filename = "out_reachability.bin"
 reach = read_array_from_file_with_length(filename, bool).astype(bool)
 
-vertical_slice: bool = 1
 z_slice_cut = 200
 
 if vertical_slice:

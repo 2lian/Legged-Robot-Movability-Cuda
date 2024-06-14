@@ -1,7 +1,9 @@
+#pragma once
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
-#include "circles.cu.h"
 #include "one_leg.cu.h"
+// #include "unified_math_cuda.cu.h"
+#include "circles.cu.h"
 
 #define CIRCLE_MARGIN 0.1       // margin in mm for inside/outside circles
 #define REACH_USECASE 0         // alias for the reachability computation
@@ -61,8 +63,8 @@ __device__ __forceinline__ void force_clamp_on_circle(const Circle circle, float
     }
 
     float radius_pre_normailed = circle.radius / magnitude;
-    x = circle.x +  x * radius_pre_normailed;
-    y = circle.y +  y * radius_pre_normailed;
+    x = circle.x + x * radius_pre_normailed;
+    y = circle.y + y * radius_pre_normailed;
 }
 
 template <bool OnlyCircles = false> // if the array has no points a chek is skipped
@@ -149,21 +151,6 @@ __device__ __forceinline__ void restore_coxa_rotation(float3& coordinates,
     coordinates.x = coordinates.x * cosine_coxa_memory + buffer;
 }
 
-__device__ __forceinline__ uchar find_region(float x, float z, const LegDimensions dim) {
-    float femur_angle_raw = atan2f(z, x);
-    bool lower_region = (femur_angle_raw <= dim.min_angle_femur);
-    bool upper_region = (femur_angle_raw >= dim.tibia_absolute_pos);
-    uchar region;
-    if (upper_region) {
-        region = UPPER_REGION;
-    } else if (lower_region) {
-        region = LOWER_REGION;
-    } else {
-        region = MIDDLE_REGION;
-    }
-    return region;
-}
-
 template <int UseCase = REACH_USECASE>
 __device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
                                                    const LegDimensions dim) {
@@ -181,10 +168,12 @@ __device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
 
     bool is_valid;
     if constexpr (UseCase == REACH_USECASE) { // dircetly validates
-        is_valid = multi_circle_validate<true>(x, y, circle_list, number_of_circles);
+        uchar stack_length = tail - circle_list;
+        is_valid = multi_circle_validate<true>(x, y, circle_list, stack_length);
     } else if constexpr (UseCase == DIST_USECASE) {
         tail = insert_intersec(dim, region, tail); // adds intersection points
-        is_valid = multi_circle_clamp(x, y, circle_list, number_of_circles);
+        uchar stack_length = tail - circle_list;
+        is_valid = multi_circle_clamp(x, y, circle_list, stack_length);
         // validates and computes distance
     }
 
@@ -248,7 +237,8 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
     }
 }
 
-__device__ bool reachability_circles(const float3& point, const LegDimensions& dim)
+__device__ __inline__ bool reachability_circles(const float3& point,
+                                                const LegDimensions& dim)
 // the tibia cannot exceed a specified cangle relative to the BODY
 // this ensures that the tibia is for example always pointing down
 {

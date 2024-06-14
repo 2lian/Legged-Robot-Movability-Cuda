@@ -48,7 +48,8 @@ include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
 #     )
 
 add_executable(cuda
-    one_leg.cu
+    # one_leg.cu
+    one_leg_global.cu
     one_leg.cu.h
     # one_leg.cpp
     cuda_util.cu
@@ -58,7 +59,7 @@ add_executable(cuda
     several_leg.cpp
     collision.cu
     collision.cu.h
-    unified_math_cuda.cu
+    # unified_math_cuda.cu
     unified_math_cuda.cu.h
     HeaderCPP.h
     HeaderCUDA.h

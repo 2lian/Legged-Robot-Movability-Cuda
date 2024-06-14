@@ -4,7 +4,7 @@
 #include "cross_compiled.cuh"
 #include "math_util.h"
 #include "one_leg.cu.h"
-#include "several_leg.cu.h"
+// #include "several_leg.cu.h"
 #include "static_variables.h"
 #include "vector_types.h"
 #include <catch2/catch_all.hpp>
@@ -12,7 +12,7 @@
 #include <chrono>
 #include <iostream>
 #include <ostream>
-#include <tuple>
+// #include <tuple>
 
 int main() {
 
@@ -137,10 +137,10 @@ int main() {
         out2.length = target_map.length;
         out2.elements = new bool[out2.length];
 
-        apply_kernel(target_map, dim, reachability_circles_kernel, out2); // warmup
+        apply_kernel(target_map, dim, reachability_global_kernel, out2); // warmup
         auto start = std::chrono::high_resolution_clock::now();
 
-        auto duration = apply_kernel(target_map, dim, reachability_circles_kernel, out2);
+        auto duration = apply_kernel(target_map, dim, reachability_global_kernel, out2);
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Cuda reachability took " << duration << " milliseconds to finish."
                   << std::endl;
