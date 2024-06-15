@@ -77,7 +77,8 @@ __global__ void reachability_global_kernel(const Array<float3> input,
     // }
     // __syncthreads();
     constexpr Quaternion quat = {1, 0, 0, 0};
-    // constexpr Quaternion quat = {0.996, 0, 0.087, 0};
+    // constexpr Quaternion quat = {0.999, 0, 0.01, 0};
+    // constexpr Quaternion quat = {0.996, 0, -0.087, 0};
     // constexpr Quaternion quat = {0.985, 0, 0.174, 0};
     // constexpr Quaternion quat = {0.924, 0, 0.384, 0}; // y rot 40deg
     // constexpr Quaternion quat = {0.940, 0, 0, 0.342}; // z rot 40deg

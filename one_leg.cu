@@ -12,27 +12,21 @@
 // then points (circles of radius < CIRCLE_MARGIN)
 
 __device__ __forceinline__ void place_over_coxa(float3& coordinates,
-                                                const LegDimensions& dim) {
+                                                const LegDimensions dim) {
     // Coxa as the frame of reference without rotation
     coordinates.x -= dim.body;
-    float sin_coxa_memory;
-    float cosine_coxa_memory;
-    sincosf(-dim.coxa_pitch, &sin_coxa_memory, &cosine_coxa_memory);
-    float buffer = coordinates.x * sin_coxa_memory;
-    coordinates.x = coordinates.x * cosine_coxa_memory - coordinates.z * sin_coxa_memory;
-    coordinates.z = buffer + coordinates.z * cosine_coxa_memory;
+    // return; //TODO delete
+    float sin_memory;
+    float cos_memory;
+    sincosf(-dim.coxa_pitch, &sin_memory, &cos_memory);
+    float buffer = coordinates.x * sin_memory;
+    coordinates.x = coordinates.x * cos_memory - coordinates.z * sin_memory;
+    coordinates.z = buffer + coordinates.z * cos_memory;
 }
 
 __device__ __forceinline__ float find_coxa_angle(const float3 coordinates) {
     // finding coxa angle
     return atan2f(coordinates.y, coordinates.x);
-}
-
-__device__ __forceinline__ bool is_in_circle(const float* center, const float radius,
-                                             float x, float y) {
-    x -= center[0];
-    y -= center[1];
-    return sqrtf(x * x + y * y) < radius;
 }
 
 __device__ __forceinline__ void distance_to_circumf(const Circle circle, float x, float y,

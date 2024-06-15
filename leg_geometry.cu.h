@@ -29,6 +29,13 @@ max_femur_to_gripper_dist(const LegDimensions leg) {
     return leg.tibia_length + leg.femur_length;
 }
 
+__forceinline__ __host__ __device__ void saturated_femur(const LegDimensions leg,
+                                                         float& x_out, float& y_out, bool lower_side) {
+    const float& femur_angle = (lower_side)? leg.min_angle_femur: leg.max_angle_femur;
+    x_out = cosf(femur_angle) * leg.femur_length;
+    y_out = sinf(femur_angle) * leg.femur_length;
+}
+
 template <uchar up_or_down>
 __forceinline__ __host__ __device__ void saturated_femur(const LegDimensions leg,
                                                          float& x_out, float& y_out) {
@@ -38,6 +45,6 @@ __forceinline__ __host__ __device__ void saturated_femur(const LegDimensions leg
     } else {
         femur_angle = leg.max_angle_femur;
     }
-    x_out = cos(femur_angle) * leg.femur_length;
-    y_out = sin(femur_angle) * leg.femur_length;
+    x_out = cosf(femur_angle) * leg.femur_length;
+    y_out = sinf(femur_angle) * leg.femur_length;
 }

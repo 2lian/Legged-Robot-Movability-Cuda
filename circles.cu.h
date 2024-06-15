@@ -30,6 +30,7 @@ struct AreaBitField {
     unsigned UpperRegion : 1;
     unsigned FullyExtended : 1;
     unsigned FemurAngleLimitation : 1;
+    unsigned FemurAngleLimitation_other : 1;
 };
 
 __device__ __forceinline__ bool isPointAboveLine(float x, float y, float theta) {
@@ -38,25 +39,39 @@ __device__ __forceinline__ bool isPointAboveLine(float x, float y, float theta) 
     // Compute y-coordinate on the line for the given x
     float y_line = m * x;
     // Determine if the point is above the line
-    return y > y_line;
+    auto diff = (y_line - y);
+    // if (abs(theta) > PI/2) {diff *= -1;}
+    return 0 > diff;
 }
 
 __device__ __forceinline__ AreaBitField find_region(float x, float y,
                                                     const LegDimensions dim) {
     AreaBitField region = {0};
-    float middle_angle = (dim.tibia_absolute_neg + dim.tibia_absolute_pos) / 2;
-    region.UpperRegion = isPointAboveLine(x, y, middle_angle);
+    auto angle = atan2f(y, x);
+    float middle_angle = (max(dim.tibia_absolute_neg, dim.min_angle_femur) +
+                          min(dim.tibia_absolute_pos, dim.max_angle_femur)) /
+                         2;
+    // region.UpperRegion = not isPointAboveLine(x, y, middle_angle);
+    region.UpperRegion = angle > middle_angle;
 
     float femur_limit = (region.UpperRegion) ? dim.max_angle_femur : dim.min_angle_femur;
     float abs_limit =
         (region.UpperRegion) ? dim.tibia_absolute_pos : dim.tibia_absolute_neg;
+    float femur_limit_other =
+        (not region.UpperRegion) ? dim.max_angle_femur : dim.min_angle_femur;
+    float abs_limit_other =
+        (not region.UpperRegion) ? dim.tibia_absolute_pos : dim.tibia_absolute_neg;
 
     // if upper_region we need to flip the < to a >
     region.FemurAngleLimitation = (not region.UpperRegion) ^ (femur_limit < abs_limit);
+    region.FemurAngleLimitation_other =
+        (not region.UpperRegion) ^ (femur_limit_other < abs_limit_other);
     float full_sat_limit = (region.FemurAngleLimitation) ? femur_limit : abs_limit;
 
     // if upper region is should be below the line
-    region.FullyExtended = region.UpperRegion ^ isPointAboveLine(x, y, full_sat_limit);
+    auto more_than_sat = angle > full_sat_limit;
+    region.FullyExtended = region.UpperRegion ^ more_than_sat;
+    // region.FullyExtended = false;
 
     return region;
 }
@@ -97,23 +112,24 @@ __forceinline__ __host__ __device__ Circle fromabove_neg_circle(const LegDimensi
     return circle;
 }
 
+__forceinline__ __host__ __device__ Circle winglet_circle(const LegDimensions leg,
+                                                          bool lower_side) {
+    Circle circle;
+    saturated_femur(leg, circle.x, circle.y, lower_side);
+    circle.radius = leg.tibia_length;
+    return circle;
+}
 __forceinline__ __host__ __device__ Circle winglet_pos_circle(const LegDimensions leg) {
     Circle circle;
-    // circle.x = leg.positiv_saturated_femur[0];
-    // circle.y = leg.positiv_saturated_femur[1];
     saturated_femur<UPPER_SIDE>(leg, circle.x, circle.y);
     circle.radius = leg.tibia_length;
-    // circle.attractivity = false;
     return circle;
 }
 
 __forceinline__ __host__ __device__ Circle winglet_neg_circle(const LegDimensions leg) {
     Circle circle;
-    // circle.x = leg.negativ_saturated_femur[0];
-    // circle.y = leg.negativ_saturated_femur[1];
     saturated_femur<LOWER_SIDE>(leg, circle.x, circle.y);
     circle.radius = leg.tibia_length;
-    // circle.attractivity = true;
     return circle;
 }
 
@@ -236,34 +252,41 @@ __host__ __device__ Cricle* insert_circles(const LegDimensions leg, AreaBitField
                                            Circle* head) {
     // Don't forget to change MAX_CIRCLES if you touch this
     auto tail = insert_always_circle(leg, head);
-    if (region.UpperRegion) {
-        tail[0] = fromabove_neg_circle(leg);
-    } else {
-        tail[0] = fromabove_pos_circle(leg);
+    bool lower_side = not region.UpperRegion;
+    constexpr uchar negCircle = 0; // useful indexes
+    constexpr uchar posCircle = 1;
+    constexpr uchar winglet = 2;
+    tail[negCircle] = fromabove_neg_circle(leg);
+    tail[posCircle] = fromabove_pos_circle(leg);
+    // this circle will always be repulsif
+    uchar exclC = (region.UpperRegion) ? negCircle : posCircle;
+    if (region.FemurAngleLimitation_other) {
+        tail[exclC] = winglet_circle(leg, not lower_side);
     }
-    tail[0].attractivity = false;
-    tail++;
+    tail[exclC].attractivity = false;
+    // this circle attractiveness is unknown yet
+    uchar otherC = (not region.UpperRegion) ? negCircle : posCircle;
 
-    if (region.UpperRegion) {
-        tail[0] = fromabove_pos_circle(leg);
-        tail[1] = winglet_pos_circle(leg);
-    } else {
-        tail[0] = fromabove_neg_circle(leg);
-        tail[1] = winglet_neg_circle(leg);
-    }
-    tail[0].attractivity = not region.FemurAngleLimitation;
-    tail[1].attractivity = region.FemurAngleLimitation;
+    tail[winglet] = winglet_circle(leg, lower_side);
+
+    // other Circle is attractive if the femur does NOT saturate first
+    tail[otherC].attractivity = not region.FemurAngleLimitation;
+    // and the winglet is attractive if the femur does saturate first
+    tail[winglet].attractivity = region.FemurAngleLimitation;
+
+    // if (not region.UpperRegion) {tail[winglet].attractivity = true;}
 
     if (region.FullyExtended) { // we replace the attractive one by the outer_circle
         int attractive_index;
-        if (tail[0].attractivity) {
-            attractive_index = 0;
+        if (tail[otherC].attractivity) {
+            attractive_index = otherC;
         } else {
-            attractive_index = 1;
+            attractive_index = winglet;
         }
         tail[attractive_index] = outer_circle(leg);
     }
-    tail += 2;
+
+    tail += 3;
     return tail;
 }
 
