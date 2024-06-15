@@ -13,6 +13,9 @@
 #define MAX_INTERSECT 4
 #define MAX_CIRCLE_INTER (MAX_INTERSECT + MAX_CIRCLES)
 
+#define UPPERSIDE_BIT 0
+#define ABS_SAT_BIT 1
+
 #define LOWER_WINGLET_REGION 0
 #define LOWER_FROMABOVE_REGION 1
 #define MIDDLE_REGION 2
@@ -21,23 +24,40 @@
 // extern float sin(float x); // shuts up clangd
 // extern float cos(float x);
 // extern float atan2f(float x, float y);
+// extern float tanf(float y);
 
-__device__ __forceinline__ uchar find_region(float x, float z, const LegDimensions dim) {
-    float femur_angle_raw = atan2f(z, x);
-    bool lower_fromabove_region = (femur_angle_raw <= dim.tibia_absolute_neg);
-    bool lower_winglet_region = (femur_angle_raw <= dim.min_angle_femur);
-    // bool lower_region = false;
-    bool upper_region = (femur_angle_raw >= dim.tibia_absolute_pos);
-    uchar region;
-    if (upper_region) {
-        region = UPPER_REGION;
-    } else if (lower_fromabove_region) {
-        region = LOWER_FROMABOVE_REGION;
-    } else if (lower_winglet_region) {
-        region = LOWER_WINGLET_REGION;
-    } else {
-        region = MIDDLE_REGION;
-    }
+struct AreaBitField {
+    unsigned UpperRegion : 1;
+    unsigned FullyExtended : 1;
+    unsigned FemurAngleLimitation : 1;
+};
+
+__device__ __forceinline__ bool isPointAboveLine(float x, float y, float theta) {
+    // Convert angle to slope
+    float m = tanf(theta);
+    // Compute y-coordinate on the line for the given x
+    float y_line = m * x;
+    // Determine if the point is above the line
+    return y > y_line;
+}
+
+__device__ __forceinline__ AreaBitField find_region(float x, float y,
+                                                    const LegDimensions dim) {
+    AreaBitField region = {0};
+    float middle_angle = (dim.tibia_absolute_neg + dim.tibia_absolute_pos) / 2;
+    region.UpperRegion = isPointAboveLine(x, y, middle_angle);
+
+    float femur_limit = (region.UpperRegion) ? dim.max_angle_femur : dim.min_angle_femur;
+    float abs_limit =
+        (region.UpperRegion) ? dim.tibia_absolute_pos : dim.tibia_absolute_neg;
+
+    // if upper_region we need to flip the < to a >
+    region.FemurAngleLimitation = (not region.UpperRegion) ^ (femur_limit < abs_limit);
+    float full_sat_limit = (region.FemurAngleLimitation) ? femur_limit : abs_limit;
+
+    // if upper region is should be below the line
+    region.FullyExtended = region.UpperRegion ^ isPointAboveLine(x, y, full_sat_limit);
+
     return region;
 }
 
@@ -64,7 +84,7 @@ __forceinline__ __host__ __device__ Circle fromabove_pos_circle(const LegDimensi
     circle.x = leg.tibia_length * cos(leg.tibia_absolute_pos);
     circle.y = leg.tibia_length * sin(leg.tibia_absolute_pos);
     circle.radius = leg.femur_length;
-    circle.attractivity = true;
+    // circle.attractivity = true;
     return circle;
 }
 
@@ -73,7 +93,7 @@ __forceinline__ __host__ __device__ Circle fromabove_neg_circle(const LegDimensi
     circle.x = leg.tibia_length * cos(leg.tibia_absolute_neg);
     circle.y = leg.tibia_length * sin(leg.tibia_absolute_neg);
     circle.radius = leg.femur_length;
-    circle.attractivity = false;
+    // circle.attractivity = false;
     return circle;
 }
 
@@ -83,7 +103,7 @@ __forceinline__ __host__ __device__ Circle winglet_pos_circle(const LegDimension
     // circle.y = leg.positiv_saturated_femur[1];
     saturated_femur<UPPER_SIDE>(leg, circle.x, circle.y);
     circle.radius = leg.tibia_length;
-    circle.attractivity = false;
+    // circle.attractivity = false;
     return circle;
 }
 
@@ -93,7 +113,7 @@ __forceinline__ __host__ __device__ Circle winglet_neg_circle(const LegDimension
     // circle.y = leg.negativ_saturated_femur[1];
     saturated_femur<LOWER_SIDE>(leg, circle.x, circle.y);
     circle.radius = leg.tibia_length;
-    circle.attractivity = true;
+    // circle.attractivity = true;
     return circle;
 }
 
@@ -212,19 +232,38 @@ __forceinline__ __host__ __device__ Cricle* insert_upper_circle(const LegDimensi
     return tail;
 }
 
-__host__ __device__ Cricle* insert_circles(const LegDimensions leg, uchar region,
+__host__ __device__ Cricle* insert_circles(const LegDimensions leg, AreaBitField region,
                                            Circle* head) {
     // Don't forget to change MAX_CIRCLES if you touch this
     auto tail = insert_always_circle(leg, head);
-    if (region == LOWER_WINGLET_REGION) {
-        tail = insert_lower_circle(leg, tail);
-    } else if (region == LOWER_FROMABOVE_REGION) {
-        tail = insert_lowerFromAbove_circle(leg, tail);
-    } else if (region == MIDDLE_REGION) {
-        tail = insert_middle_circle(leg, tail);
+    if (region.UpperRegion) {
+        tail[0] = fromabove_neg_circle(leg);
     } else {
-        tail = insert_upper_circle(leg, tail);
+        tail[0] = fromabove_pos_circle(leg);
     }
+    tail[0].attractivity = false;
+    tail++;
+
+    if (region.UpperRegion) {
+        tail[0] = fromabove_pos_circle(leg);
+        tail[1] = winglet_pos_circle(leg);
+    } else {
+        tail[0] = fromabove_neg_circle(leg);
+        tail[1] = winglet_neg_circle(leg);
+    }
+    tail[0].attractivity = not region.FemurAngleLimitation;
+    tail[1].attractivity = region.FemurAngleLimitation;
+
+    if (region.FullyExtended) { // we replace the attractive one by the outer_circle
+        int attractive_index;
+        if (tail[0].attractivity) {
+            attractive_index = 0;
+        } else {
+            attractive_index = 1;
+        }
+        tail[attractive_index] = outer_circle(leg);
+    }
+    tail += 2;
     return tail;
 }
 
@@ -252,13 +291,17 @@ insert_upper_intersect(const LegDimensions leg, Circle* head) {
     return tail;
 }
 
-__host__ __device__ Cricle* insert_intersec(const LegDimensions leg, uchar region,
-                                            Circle* head) {
+__host__ __device__ Cricle* insert_intersec(const LegDimensions leg, Circle* head) {
     // Don't forget to change MAX_INTERSECT if you touch this
     auto& tail = head;
     tail = insert_lower_intersect(leg, tail);
     tail = insert_upper_intersect(leg, tail);
     return tail;
+}
+
+__host__ __device__ Cricle* insert_intersec(const LegDimensions leg, AreaBitField region,
+                                            Circle* head) {
+    return insert_intersec(leg, head);
 }
 
 __host__ LegCompact LegDim2LegComp(LegDimensions leg) {

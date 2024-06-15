@@ -241,7 +241,7 @@ LegDimensions get_moonbot_leg(float azimut) {
 LegDimensions get_M2_leg(float azimut) {
 
     float body2coxa = 181;
-    float coxa_pitch_deg = -45;
+    float coxa_pitch_deg = 0;
     float coxa2tibia = 65.5;
     float tibia2femur = 129;
     float femur2tip = 160;
@@ -252,11 +252,11 @@ LegDimensions get_M2_leg(float azimut) {
 
     float coxa_angle_deg = 60.0f;
     float femur_angle_deg = 90.0f;  // 90
-    float tibia_angle_deg = 90.0f; // 120
+    float tibia_angle_deg = 120.0f; // 120
 
     float dist_margin = 0.0f;
-    float tib_abs_pos = -50;
-    float tib_abs_neg = -50;
+    float tib_abs_pos = -5;
+    float tib_abs_neg = -5;
 
     return leg_factory(azimut, body2coxa, coxa_pitch_deg, coxa2tibia, tibia2femur,
                        femur2tip, coxa_margin, femur_margin, tibia_margin, coxa_angle_deg,

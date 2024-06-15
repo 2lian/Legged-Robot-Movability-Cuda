@@ -158,7 +158,7 @@ __device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
     // Femur as the frame of reference witout rotation
     x -= dim.coxa_length;
 
-    uchar region = find_region(x, y, dim);
+    auto region = find_region(x, y, dim);
     constexpr uchar number_of_circles =
         (UseCase == REACH_USECASE) ? MAX_CIRCLES : MAX_CIRCLE_INTER;
 
