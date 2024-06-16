@@ -217,7 +217,7 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
     // saturating coxa angle for dist
     float saturated_coxa_angle =
         fmaxf(fminf(coxa_angle, dim.max_angle_coxa), dim.min_angle_coxa);
-    // bool coxa_saturated = saturated_coxa_angle != coxa_angle;
+    bool coxa_saturated = saturated_coxa_angle != coxa_angle;
     float coxa_limit = (coxa_angle > (dim.max_angle_coxa + dim.min_angle_coxa) / 2)
                            ? dim.max_angle_coxa
                            : dim.min_angle_coxa;
@@ -256,7 +256,7 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
             }
         }
         restore_coxa_rotation(coordinates, cosine_coxa_memory, sin_coxa_memory);
-        return was_valid;
+        return was_valid and not coxa_saturated;
     }
 }
 
@@ -301,9 +301,9 @@ __device__ __inline__ bool reachability_circles(const float3& point,
     return reachability;
 }
 
-__device__ __forceinline__ float3 distance_circles(const float3& point,
+__device__ __forceinline__ bool distance_circles(float3& result,
                                                    const LegDimensions& dim) {
-    float3 closest = point;
+    float3 closest = result;
     place_over_coxa(closest, dim);
     float3 closest_flip = closest;
 
@@ -313,12 +313,14 @@ __device__ __forceinline__ float3 distance_circles(const float3& point,
     bool res = finish_finding_closest<bool>(closest, dim, coxangle);
     bool resflip = finish_finding_closest<bool>(closest_flip, dim, coxangle_flip);
 
-    bool use_direct = norm3df(closest.x, closest.y, closest.z) <
-                      norm3df(closest_flip.x, closest_flip.y, closest_flip.z);
+    bool use_direct = (not (res^resflip))? norm3df(closest.x, closest.y, closest.z) <
+                      norm3df(closest_flip.x, closest_flip.y, closest_flip.z): res;
+    // bool use_direct = true;
 
     float3* result_to_use = (use_direct) ? &closest : &closest_flip;
 
-    return *result_to_use;
+    result = *result_to_use;
+    return res or resflip;
 }
 
 __global__ void reachability_circles_kernel(const Array<float3> input,
@@ -349,7 +351,9 @@ __global__ void distance_circles_kernel(const Array<float3> input,
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     for (int i = index; i < input.length; i += stride) {
-        output.elements[i] = distance_circles(input.elements[i], dim);
+        float3 result = input.elements[i];
+        bool reachability = distance_circles(result, dim);
+        output.elements[i] = result;
     }
 }
 

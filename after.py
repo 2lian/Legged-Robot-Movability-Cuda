@@ -93,11 +93,11 @@ plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
 plt.savefig("graph1.png")
 plt.clf()
 
-filename = "out_dist_xx.bin"
+filename = "out_rec_xx.bin"
 xx = read_array_from_file_with_length(filename, np.float32)
-filename = "out_dist_xy.bin"
+filename = "out_rec_xy.bin"
 xy = read_array_from_file_with_length(filename, np.float32)
-filename = "out_dist_xz.bin"
+filename = "out_rec_xz.bin"
 xz = read_array_from_file_with_length(filename, np.float32)
 
 dist = np.empty(shape=(len(xx), 3))

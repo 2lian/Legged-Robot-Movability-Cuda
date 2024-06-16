@@ -170,11 +170,11 @@ int main() {
         Array<float3> out2;
         out2.length = target_map.length;
         out2.elements = new float3[out2.length];
-        apply_kernel(target_map, dim, distance_circles_kernel, out2); // warmup
+        apply_kernel(target_map, dim, distance_global_kernel, out2); // warmup
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        auto duration = apply_kernel(target_map, dim, distance_circles_kernel, out2);
+        auto duration = apply_kernel(target_map, dim, distance_global_kernel, out2);
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Cuda distance took " << duration << " milliseconds to finish."
                   << std::endl;
@@ -208,6 +208,65 @@ int main() {
                 z_arr2[i] = out2.elements[i].z;
             }
             filename = "out_dist_xz.bin";
+            saveArrayToFile(z_arr2, out2.length, filename);
+            delete[] z_arr2;
+        }
+    }
+    {
+        LegDimensions dim = LegToUse(0);
+        const char* filename = "dist_input_tx.bin";
+        Array<float> inputxx = readArrayFromFile<float>(filename);
+        filename = "dist_input_ty.bin";
+        Array<float> inputxy = readArrayFromFile<float>(filename);
+        filename = "dist_input_tz.bin";
+        Array<float> inputxz = readArrayFromFile<float>(filename);
+
+        Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
+        delete[] inputxx.elements;
+        delete[] inputxy.elements;
+        delete[] inputxz.elements;
+
+        Array<float3> out2;
+        out2.length = target_map.length;
+        out2.elements = new float3[out2.length];
+        // apply_kernel(target_map, dim, distance_global_kernel, out2); // warmup
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        auto duration = apply_recurs(target_map, dim, out2);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "Cuda distance octree took " << duration
+                  << " milliseconds to finish." << std::endl;
+        double ns_per_point = ((double)duration / (double)target_map.length) * 1000000.0;
+        std::cout << "That's " << ns_per_point
+                  << " ns per point (total: " << target_map.length << ")" << std::endl;
+
+        delete[] target_map.elements;
+
+        {
+            float* x_arr2 = new float[out2.length];
+            for (int i = 0; i < out2.length; i++) {
+                x_arr2[i] = out2.elements[i].x;
+            }
+            filename = "out_rec_xx.bin";
+            saveArrayToFile(x_arr2, out2.length, filename);
+            delete[] x_arr2;
+        }
+        {
+            float* y_arr2 = new float[out2.length];
+            for (long i = 0; i < out2.length; i++) {
+                y_arr2[i] = out2.elements[i].y;
+            }
+            filename = "out_rec_xy.bin";
+            saveArrayToFile(y_arr2, out2.length, filename);
+            delete[] y_arr2;
+        }
+        {
+            float* z_arr2 = new float[out2.length];
+            for (long i = 0; i < out2.length; i++) {
+                z_arr2[i] = out2.elements[i].z;
+            }
+            filename = "out_rec_xz.bin";
             saveArrayToFile(z_arr2, out2.length, filename);
             delete[] z_arr2;
         }

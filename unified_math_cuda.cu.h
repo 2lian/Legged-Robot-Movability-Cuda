@@ -26,8 +26,7 @@ __forceinline__ __host__ __device__ float3 qtRotate(Quaternion q, const float3 v
 }
 
 __forceinline__ __host__ __device__ Quaternion qtInvert(Quaternion quat) {
-    float qt2 =
-        quat.x * quat.x + quat.y * quat.y + quat.z * quat.z + quat.w * quat.w;
+    float qt2 = quat.x * quat.x + quat.y * quat.y + quat.z * quat.z + quat.w * quat.w;
     Quaternion result =
         make_float4(quat.x / qt2, -quat.y / qt2, -quat.z / qt2, -quat.w / qt2);
     return result;
@@ -45,13 +44,13 @@ __forceinline__ __host__ __device__ Quaternion qtMultiply(Quaternion q1, Quatern
     return make_float4(x, y, z, w);
 }
 
-__forceinline__ __host__ __device__ Quaternion quatFromVectAngle(float3 axis, float angle) {
+__forceinline__ __host__ __device__ Quaternion quatFromVectAngle(float3 axis,
+                                                                 float angle) {
     float sina_2, cosa_2;
     sincosf(angle / 2, &sina_2, &cosa_2);
     float mag = magnitude(axis);
-    Quaternion result =
-        make_float4(sina_2, cosa_2 * axis.x / mag, cosa_2 * axis.y / mag,
-                    cosa_2 * axis.z / mag);
+    Quaternion result = make_float4(sina_2, cosa_2 * axis.x / mag, cosa_2 * axis.y / mag,
+                                    cosa_2 * axis.z / mag);
     // make_float4(sina_2 * axis.x, sina_2 * axis.y, sina_2 * axis.z, cosa_2);
     return result;
 }
@@ -71,8 +70,7 @@ __forceinline__ __host__ __device__ float3 rpyFromQuat(const Quaternion q) {
     // pitch (y-axis rotation)
     double sinp = 2 * (w * y - z * x);
     if (abs(sinp) >= 1)
-        rollPitchYaw.y =
-            copysignf(M_PI / 2, sinp); // use 90 degrees if out of range
+        rollPitchYaw.y = copysignf(M_PI / 2, sinp); // use 90 degrees if out of range
     else
         rollPitchYaw.y = asin(sinp);
 
@@ -104,3 +102,31 @@ struct UnQuaternionFunctor {
         ;
     }
 };
+
+__forceinline__ __host__ __device__ float3 operator/(const float3& vec, float3 scalar) {
+    return make_float3(vec.x / scalar.x, vec.y / scalar.y, vec.z / scalar.z);
+}
+
+__forceinline__ __host__ __device__ float3 operator*(const float3& vec, float3 scalar) {
+    return make_float3(vec.x * scalar.x, vec.y * scalar.y, vec.z * scalar.z);
+}
+
+__forceinline__ __host__ __device__ float3 operator-(const float3& vec, float3 scalar) {
+    return make_float3(vec.x - scalar.x, vec.y - scalar.y, vec.z - scalar.z);
+}
+
+__forceinline__ __host__ __device__ float3 operator+(const float3& vec, float3 scalar) {
+    return make_float3(vec.x + scalar.x, vec.y + scalar.y, vec.z + scalar.z);
+}
+
+__forceinline__ __host__ __device__ float3 operator/(const float3& vec, float scalar) {
+    return make_float3(vec.x / scalar, vec.y / scalar, vec.z / scalar);
+}
+
+__forceinline__ __host__ __device__ float3 operator*(const float3& vec, float scalar) {
+    return make_float3(vec.x * scalar, vec.y * scalar, vec.z * scalar);
+}
+
+__forceinline__ __host__ __device__ float3 abs(const float3& vec) {
+    return make_float3(abs(vec.x), abs(vec.y), abs(vec.z));
+}

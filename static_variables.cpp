@@ -69,7 +69,7 @@ LegDimensions get_moonbot_leg(float azimut) {
 LegDimensions get_M2_leg(float azimut) {
 
     float body2coxa = 181;
-    float coxa_pitch_deg = -45;
+    float coxa_pitch_deg = 0;
     float coxa2tibia = 65.5;
     float tibia2femur = 129;
     float femur2tip = 160;

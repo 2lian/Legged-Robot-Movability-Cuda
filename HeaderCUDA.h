@@ -20,6 +20,12 @@ typedef unsigned char uchar;
 __device__ constexpr float pIgpu =
     3.14159265358979323846264338327950288419716939937510582097f;
 
+typedef struct Box {
+    float3 center;
+    float3 topOffset;
+    // float3 bottom;
+} Box;
+
 template <typename T> struct Array {
     size_t length;
     T* elements;
@@ -146,7 +152,7 @@ class AutoEstimator {
 // // Macro for timing measurements
 // #define CUDA_TIMING_INIT()                                                    \
 //     cudaEvent_t* start;                                                        \
-//     cudaEvent_t* stop;                                                         
+//     cudaEvent_t* stop;
 //
 // #define CUDA_TIMING_START()                                                    \
 //     start = new cudaEvent_t;                                                   \
@@ -176,8 +182,8 @@ class AutoEstimator {
 //     delete stop;
 
 // empty macro
-#define CUDA_TIMING_INIT()                                                    
+#define CUDA_TIMING_INIT()
 
-#define CUDA_TIMING_START()                                                    
+#define CUDA_TIMING_START()
 
-#define CUDA_TIMING_STOP(label)                                                
+#define CUDA_TIMING_STOP(label)
