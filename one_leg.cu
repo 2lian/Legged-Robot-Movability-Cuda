@@ -5,7 +5,7 @@
 // #include "unified_math_cuda.cu.h"
 #include "circles.cu.h"
 
-#define CIRCLE_MARGIN 0.1       // margin in mm for inside/outside circles
+#define CIRCLE_MARGIN 0.001     // margin in mm for inside/outside circles
 #define REACH_USECASE 0         // alias for the reachability computation
 #define DIST_USECASE 1          // alias for the distance computation
 #define CIRCLE_ARR_ORDERED true // signifies that the circle array first holds circles
@@ -104,12 +104,27 @@ __device__ __forceinline__ bool multi_circle_clamp(float& x, float& y, Circle* c
         force_clamp_on_circle(circle, x_onthe_circle, y_onthe_circle, distance, validity);
 
         bool clamp_is_valid;
-        if (abs(circle.radius) > CIRCLE_MARGIN) {
-            clamp_is_valid = multi_circle_validate(x_onthe_circle, y_onthe_circle,
-                                                   circleArr, number_of_circles);
-            overall_validity = overall_validity && validity;
-        } else {
+        bool is_point = abs(circle.radius) < CIRCLE_MARGIN;
+        if (is_point) {
+            if (overall_validity) { // if origin is valid, we do not clamp on ponts
+                if constexpr (CIRCLE_ARR_ORDERED) {
+                    break;
+                } else {
+                    continue;
+                }
+            }
+            overall_validity = overall_validity;
             clamp_is_valid = true;
+        } else {
+            if constexpr (CIRCLE_ARR_ORDERED) {
+                clamp_is_valid = multi_circle_validate<true>(
+                    x_onthe_circle, y_onthe_circle, circleArr, MAX_CIRCLES);
+            } else {
+                clamp_is_valid = multi_circle_validate(x_onthe_circle, y_onthe_circle,
+                                                       circleArr, number_of_circles);
+            }
+            overall_validity = overall_validity && validity;
+            // clamp_is_valid = false;
         }
         bool closer_boundary = abs(previous_distance) > abs(distance);
 
@@ -165,8 +180,22 @@ __device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
         uchar stack_length = tail - circle_list;
         is_valid = multi_circle_validate<true>(x, y, circle_list, stack_length);
     } else if constexpr (UseCase == DIST_USECASE) {
-        tail = insert_intersec(dim, region, tail); // adds intersection points
-        uchar stack_length = tail - circle_list;
+        // __shared__ Circle sinter[MAX_CIRCLE_INTER];
+        // __shared__ Circle* s_tail;
+        // if (threadIdx.x == 0){
+        //     s_tail = insert_intersecv2(dim, sinter);
+        // }
+        // __syncthreads();
+        // auto tail_int = tail;
+        // for (auto scp = sinter; scp < s_tail; scp++) {
+        //     tail_int[0].x = scp[0].x;
+        //     tail_int[0].y = scp[0].y;
+        //     tail_int[0].radius = scp[0].radius;
+        //     tail_int++;
+        // }
+        auto tail_int = insert_intersecv2(dim, tail); // adds intersection points
+
+        uchar stack_length = tail_int - circle_list;
         is_valid = multi_circle_clamp(x, y, circle_list, stack_length);
         // validates and computes distance
     }

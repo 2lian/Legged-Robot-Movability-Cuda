@@ -4,13 +4,14 @@
 #include "leg_geometry.cu.h"
 #include "unified_math_cuda.cu.h"
 
+#define EPS 0.001
 #define NUMBER_OF_UPPER_CIRCLES 4
 #define NUMBER_OF_MIDDLE_CIRCLES 4
 #define NUMBER_OF_LOWER_CIRCLES 4
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MAX_CIRCLES                                                                      \
     MAX(MAX(NUMBER_OF_UPPER_CIRCLES, NUMBER_OF_MIDDLE_CIRCLES), NUMBER_OF_LOWER_CIRCLES)
-#define MAX_INTERSECT 4
+#define MAX_INTERSECT 10
 #define MAX_CIRCLE_INTER (MAX_INTERSECT + MAX_CIRCLES)
 
 #define UPPERSIDE_BIT 0
@@ -134,6 +135,23 @@ __forceinline__ __host__ __device__ Circle winglet_neg_circle(const LegDimension
 }
 
 __forceinline__ __host__ __device__ Circle
+inner_winglet_intersect(const LegDimensions leg, bool top, bool inner) {
+    Circle circle;
+    float fem_angle = (top) ? leg.max_angle_femur : leg.min_angle_femur;
+    float x_fem = leg.femur_length * cos(fem_angle);
+    float y_fem = leg.femur_length * sin(fem_angle);
+    float tib_raw = (inner ^ top) ? leg.min_angle_tibia : leg.max_angle_tibia;
+    float tib_angle = tib_raw + fem_angle;
+    float x_tib = leg.tibia_length * cos(tib_angle);
+    float y_tib = leg.tibia_length * sin(tib_angle);
+    circle.x = x_fem + x_tib;
+    circle.y = y_fem + y_tib;
+    circle.radius = 0;
+    circle.attractivity = true;
+    return circle;
+}
+
+__forceinline__ __host__ __device__ Circle
 top_inner_winglet_intersect(const LegDimensions leg) {
     Circle circle;
     float fem_angle = leg.max_angle_femur;
@@ -150,12 +168,47 @@ top_inner_winglet_intersect(const LegDimensions leg) {
 }
 
 __forceinline__ __host__ __device__ Circle
+inner_fromabove_intersect(const LegDimensions leg, bool top, bool inner) {
+    Circle circle;
+    auto abs = (top) ? leg.tibia_absolute_pos : leg.tibia_absolute_neg;
+    auto tib = (inner ^ top) ? leg.max_angle_tibia : leg.min_angle_tibia;
+    float tib_angle = abs;
+    float fem_angle = tib_angle - tib;
+    float x_fem = leg.femur_length * cos(fem_angle);
+    float y_fem = leg.femur_length * sin(fem_angle);
+    float x_tib = leg.tibia_length * cos(tib_angle);
+    float y_tib = leg.tibia_length * sin(tib_angle);
+    circle.x = x_fem + x_tib;
+    circle.y = y_fem + y_tib;
+    circle.radius = 0;
+    circle.attractivity = true;
+    return circle;
+}
+
+__forceinline__ __host__ __device__ Circle
 bot_inner_fromabove_intersect(const LegDimensions leg) {
     Circle circle;
     float fem_angle = leg.tibia_absolute_neg - leg.min_angle_tibia;
     float x_fem = leg.femur_length * cos(fem_angle);
     float y_fem = leg.femur_length * sin(fem_angle);
     float tib_angle = leg.min_angle_tibia + fem_angle;
+    float x_tib = leg.tibia_length * cos(tib_angle);
+    float y_tib = leg.tibia_length * sin(tib_angle);
+    circle.x = x_fem + x_tib;
+    circle.y = y_fem + y_tib;
+    circle.radius = 0;
+    circle.attractivity = true;
+    return circle;
+}
+
+__forceinline__ __host__ __device__ Circle
+winglet_fromabove_intersect(const LegDimensions leg, bool top) {
+    Circle circle;
+    float fem_angle = (top) ? leg.max_angle_femur : leg.min_angle_femur;
+    float tib_angle = (top) ? leg.tibia_absolute_pos : leg.tibia_absolute_neg;
+
+    float x_fem = leg.femur_length * cos(fem_angle);
+    float y_fem = leg.femur_length * sin(fem_angle);
     float x_tib = leg.tibia_length * cos(tib_angle);
     float y_tib = leg.tibia_length * sin(tib_angle);
     circle.x = x_fem + x_tib;
@@ -209,8 +262,8 @@ top_fromabove_winglet_intersect(const LegDimensions leg) {
 __forceinline__ __host__ __device__ Cricle* insert_always_circle(const LegDimensions leg,
                                                                  Circle* head) {
     head[0] = inner_circle(leg);
-    head[1] = fromabove_neg_circle(leg);
-    head[2] = winglet_pos_circle(leg);
+    // head[1] = fromabove_neg_circle(leg);
+    // head[2] = winglet_pos_circle(leg);
     auto tail = head + 1;
     return tail;
 }
@@ -245,6 +298,39 @@ __forceinline__ __host__ __device__ Cricle* insert_upper_circle(const LegDimensi
     head[0] = fromabove_pos_circle(leg);
     head[1] = winglet_pos_circle(leg);
     auto tail = head + 2;
+    return tail;
+}
+
+__host__ __device__ Cricle* insert_circles_v2(const LegDimensions leg,
+                                              AreaBitField region, Circle* head) {
+    // Don't forget to change MAX_CIRCLES if you touch this
+    auto tail = insert_always_circle(leg, head);
+    // bool lower_side = not region.UpperRegion;
+    constexpr uchar negAbs = 0; // useful indexes
+    constexpr uchar posAbs = 1;
+    constexpr uchar negWinglet = 2;
+    constexpr uchar posWinglet = 3;
+    tail[negAbs] = fromabove_neg_circle(leg);
+    tail[posAbs] = fromabove_pos_circle(leg);
+    tail[negWinglet] = winglet_circle(leg, true);
+    tail[posWinglet] = winglet_circle(leg, false);
+    tail += 4;
+
+    tail[negWinglet].attractivity = (region.UpperRegion)
+                                        ? region.FemurAngleLimitation_other
+                                        : region.FemurAngleLimitation;
+    tail[negAbs].attractivity = not tail[negWinglet].attractivity;
+
+    tail[posWinglet].attractivity = (region.UpperRegion)
+                                        ? region.FemurAngleLimitation
+                                        : region.FemurAngleLimitation_other;
+    tail[posAbs].attractivity = not tail[posWinglet].attractivity;
+
+    if (region.FullyExtended) { // we replace the attractive one by the outer_circle
+        tail[0] = outer_circle(leg);
+        tail++;
+    }
+
     return tail;
 }
 
@@ -314,17 +400,102 @@ insert_upper_intersect(const LegDimensions leg, Circle* head) {
     return tail;
 }
 
-__host__ __device__ Cricle* insert_intersec(const LegDimensions leg, Circle* head) {
-    // Don't forget to change MAX_INTERSECT if you touch this
-    auto& tail = head;
-    tail = insert_lower_intersect(leg, tail);
-    tail = insert_upper_intersect(leg, tail);
-    return tail;
-}
+// __host__ __device__ Cricle* insert_intersec(const LegDimensions leg, Circle* head) {
+//     // Don't forget to change MAX_INTERSECT if you touch this
+//     auto& tail = head;
+//     tail = insert_lower_intersect(leg, tail);
+//     tail = insert_upper_intersect(leg, tail);
+//     return tail;
+// }
+//
+__host__ __device__ Cricle* insert_intersecv2(const LegDimensions leg, Circle* head) {
+    auto tail = head;
+    // return tail + 10;
+    float femList[10];
+    float tibList[10];
+    femList[0] = leg.min_angle_femur;
+    tibList[0] = leg.max_angle_tibia;
+    femList[1] = leg.min_angle_femur;
+    tibList[1] = leg.min_angle_tibia;
 
+    femList[2] = leg.min_angle_femur;
+    tibList[2] = leg.tibia_absolute_neg - femList[2];
+    // femList[3] = leg.min_angle_femur;
+    // tibList[3] = leg.tibia_absolute_pos - femList[3];
+
+    femList[3] = leg.tibia_absolute_neg - leg.min_angle_tibia;
+    tibList[3] = leg.tibia_absolute_neg - femList[3];
+    femList[4] = leg.tibia_absolute_neg - leg.max_angle_tibia;
+    tibList[4] = leg.tibia_absolute_neg - femList[4];
+
+    femList[5] = leg.max_angle_femur;
+    tibList[5] = leg.min_angle_tibia;
+    femList[6] = leg.max_angle_femur;
+    tibList[6] = leg.max_angle_tibia;
+
+    femList[7] = leg.max_angle_femur;
+    tibList[7] = leg.tibia_absolute_pos - femList[7];
+    // femList[9] = leg.max_angle_femur;
+    // tibList[9] = leg.tibia_absolute_neg - femList[9];
+
+    femList[8] = leg.tibia_absolute_pos - leg.min_angle_tibia;
+    tibList[8] = leg.tibia_absolute_pos - femList[8];
+    femList[9] = leg.tibia_absolute_pos - leg.min_angle_tibia;
+    tibList[9] = leg.tibia_absolute_pos - femList[9];
+
+    for (int i = 0; i < 10; i++) {
+        auto& fem = femList[i];
+        auto& tib = tibList[i];
+        auto fem_valid =
+            (fem < leg.max_angle_femur + EPS) and (fem > leg.min_angle_femur - EPS);
+        auto tib_valid =
+            (tib < leg.max_angle_tibia + EPS) and (tib > leg.min_angle_tibia - EPS);
+        auto abs = fem + tib;
+        auto abs_valid =
+            (abs < leg.tibia_absolute_pos + EPS) and (abs > leg.tibia_absolute_neg - EPS);
+        if (fem_valid and tib_valid and abs_valid) {
+            Circle& circle = tail[0];
+            tail++;
+            float x_fem = leg.femur_length * cos(fem);
+            float y_fem = leg.femur_length * sin(fem);
+            float x_tib = leg.tibia_length * cos(abs);
+            float y_tib = leg.tibia_length * sin(abs);
+            circle.x = x_fem + x_tib;
+            circle.y = y_fem + y_tib;
+            circle.radius = 0;
+            circle.attractivity = true;
+        }
+    }
+     return tail;
+}
 __host__ __device__ Cricle* insert_intersec(const LegDimensions leg, AreaBitField region,
                                             Circle* head) {
-    return insert_intersec(leg, head);
+    auto tail = head;
+    tail[0] =
+        inner_winglet_intersect(leg, region.UpperRegion, region.FemurAngleLimitation);
+    // tail[1] = inner_winglet_intersect(leg, false, region.FemurAngleLimitation);
+    tail[1] = inner_fromabove_intersect(leg, region.UpperRegion,
+                                        not region.FemurAngleLimitation);
+    // tail[3] = inner_fromabove_intersect(leg, false, !region.FemurAngleLimitation);
+    // tail[0] = inner_winglet_intersect(leg, false, false);
+    // tail[1] = inner_winglet_intersect(leg, false, true);
+    // tail[2] = inner_fromabove_intersect(leg, false, false);
+    // tail[3] = inner_fromabove_intersect(leg, false, true);
+    tail[2] = winglet_fromabove_intersect(leg, false);
+    tail += 3;
+    tail[0] = inner_winglet_intersect(leg, not region.UpperRegion,
+                                      region.FemurAngleLimitation_other);
+    // tail[1] = inner_winglet_intersect(leg, true, region.FemurAngleLimitation);
+    tail[1] = inner_fromabove_intersect(leg, not region.UpperRegion,
+                                        not region.FemurAngleLimitation_other);
+    // tail[3] = inner_fromabove_intersect(leg, true, !region.FemurAngleLimitation);
+    // tail[0] = inner_winglet_intersect(leg, true, false);
+    // tail[1] = inner_winglet_intersect(leg, true, true);
+    // tail[2] = inner_fromabove_intersect(leg, true, false);
+    // tail[3] = inner_fromabove_intersect(leg, true, true);
+    tail[2] = winglet_fromabove_intersect(leg, true);
+    tail += 3;
+    return tail;
 }
 
 __host__ LegCompact LegDim2LegComp(LegDimensions leg) {

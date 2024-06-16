@@ -58,15 +58,15 @@ save_array_to_binary_file(body_map[:, 2].astype(np.float32), "numpy_input_bz.bin
 
 print("body samples shape: ", body_map.shape)
 
-pix_size = 2
+pix_size = 3
 if vertical_slice:
     x_map_dist = np.arange(-150, 551, pix_size)
-    y_map_dist = np.arange(-400, 400, 10)
-    z_map_dist = np.arange(-500, 500, pix_size)
+    y_map_dist = np.arange(-400, 401, 10)
+    z_map_dist = np.arange(-500, 501, pix_size)
 else:
     x_map_dist = np.arange(-50, 551, pix_size)
-    y_map_dist = np.arange(-400, 400, pix_size)
-    z_map_dist = np.arange(-500, 500, 10)
+    y_map_dist = np.arange(-400, 401, pix_size)
+    z_map_dist = np.arange(-500, 501, 10)
 X_map_dist, Y_map_dist, Z_map_dist = np.meshgrid(x_map_dist, y_map_dist, z_map_dist)
 
 dist_map = np.concatenate(
