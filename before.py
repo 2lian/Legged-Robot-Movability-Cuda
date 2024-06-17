@@ -61,7 +61,8 @@ print("body samples shape: ", body_map.shape)
 pix_size = 3
 if vertical_slice:
     x_map_dist = np.arange(-150, 551, pix_size)
-    y_map_dist = np.arange(-400, 401, 10)
+    y_map_dist = np.array([0])
+    # y_map_dist = np.arange(-400, 401, 10)
     z_map_dist = np.arange(-500, 501, pix_size)
 else:
     x_map_dist = np.arange(-50, 551, pix_size)

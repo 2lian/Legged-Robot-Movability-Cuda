@@ -1,4 +1,5 @@
 #include "cross_compiled.cuh"
+#include "unified_math_cuda.cu.h"
 #include "one_leg.cu.h"
 #define BLOCSIZE 1024 / 4
 
@@ -86,6 +87,11 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
 
     constexpr int blockSize = BLOCSIZE;
     int numBlock = (input.length + blockSize - 1) / blockSize;
+    Box box;
+    box.center = make_float3(200, 0, 0);
+    box.topOffset = make_float3(400, 1, 500);
+    const uint max_quad_ind = pow(8, 3);
+    numBlock = (max_quad_ind + blockSize - 1) / blockSize;
     // Prepare
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -93,10 +99,7 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
     // Start record
     cudaEventRecord(start, 0);
     // Do something on GPU
-    Box box;
-    box.center = make_float3(200, 0, 0);
-    box.topOffset = make_float3(400, 400, 500);
-    recursive_kernel<<<1, 8>>>(box, gpu_in, dim, gpu_out, 0);
+    recursive_kernel<<<numBlock, blockSize>>>(box, gpu_in, dim, gpu_out, 0);
     // Stop event and sync
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);

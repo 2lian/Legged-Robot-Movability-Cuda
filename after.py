@@ -93,10 +93,13 @@ plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
 plt.savefig("graph1.png")
 plt.clf()
 
+# filename = "out_dist_xx.bin"
 filename = "out_rec_xx.bin"
 xx = read_array_from_file_with_length(filename, np.float32)
+# filename = "out_dist_xy.bin"
 filename = "out_rec_xy.bin"
 xy = read_array_from_file_with_length(filename, np.float32)
+# filename = "out_dist_xz.bin"
 filename = "out_rec_xz.bin"
 xz = read_array_from_file_with_length(filename, np.float32)
 
@@ -158,14 +161,15 @@ plt.savefig("reachability_result.png", bbox_inches="tight", dpi=300)
 plt.clf()
 
 
-plt.grid(True)
+# plt.grid(True)
+sel1 = np.linalg.norm(dist[selection, :], axis=1)
 bool_grid_image(
     zero_plane,
-    np.linalg.norm(dist[selection, :], axis=1),
+    sel1,
     black_white=False,
     transparency=False,
 )
-sel2 =np.linalg.norm(dist[selection, :], axis=1) < 1
+sel2 = np.linalg.norm(dist[selection, :], axis=1) < 1
 bool_grid_image(
     zero_plane,
     sel2,
@@ -173,7 +177,7 @@ bool_grid_image(
     transparency=True,
 )
 
-plt.xlabel("x (mm)")
+plt.xlabel(f"x (mm) <min = {min(sel1)}, max = {max(sel1)}>")
 if vertical_slice:
     plt.title("Distance to reachablity's edge (y=0)")
     plt.ylabel("z (mm)")

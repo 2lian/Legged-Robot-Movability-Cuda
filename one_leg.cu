@@ -215,8 +215,15 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
                                                        const LegDimensions& dim,
                                                        const float& coxa_angle) {
     // saturating coxa angle for dist
-    float saturated_coxa_angle =
-        fmaxf(fminf(coxa_angle, dim.max_angle_coxa), dim.min_angle_coxa);
+    bool coxaMegaSaturated = coxa_angle > (dim.max_angle_coxa + PI / 2) or
+                             coxa_angle < (dim.min_angle_coxa - PI / 2);
+    float saturated_coxa_angle;
+    if (coxaMegaSaturated) {
+        saturated_coxa_angle = (coxa_angle > 0)? coxa_angle - PI: coxa_angle + PI;
+    } else {
+        saturated_coxa_angle =
+            fmaxf(fminf(coxa_angle, dim.max_angle_coxa), dim.min_angle_coxa);
+    }
     bool coxa_saturated = saturated_coxa_angle != coxa_angle;
     float coxa_limit = (coxa_angle > (dim.max_angle_coxa + dim.min_angle_coxa) / 2)
                            ? dim.max_angle_coxa
@@ -237,8 +244,14 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
     } else if (std::is_same_v<Tout, bool>) {
         Tout was_valid;
         float3 save = coordinates;
+        // if (coxaMegaSaturated) {
+            // coordinates.x = 0.01; // clamp on coxa axis
+        // }
         was_valid = vert_plane_func(coordinates.x, coordinates.z, dim);
-        if (was_valid) {
+        // if (coxaMegaSaturated){
+        // coordinates.x += save.x; // adds back coxa axis displacement
+        // }
+        if (was_valid and not coxaMegaSaturated) {
 
             float cos_coxa_memory2;
             float sin_coxa_memory2;
@@ -302,7 +315,7 @@ __device__ __inline__ bool reachability_circles(const float3& point,
 }
 
 __device__ __forceinline__ bool distance_circles(float3& result,
-                                                   const LegDimensions& dim) {
+                                                 const LegDimensions& dim) {
     float3 closest = result;
     place_over_coxa(closest, dim);
     float3 closest_flip = closest;
@@ -314,7 +327,7 @@ __device__ __forceinline__ bool distance_circles(float3& result,
     bool resflip = finish_finding_closest<bool>(closest_flip, dim, coxangle_flip);
 
     bool use_direct = (not (res^resflip))? norm3df(closest.x, closest.y, closest.z) <
-                      norm3df(closest_flip.x, closest_flip.y, closest_flip.z): res;
+    norm3df(closest_flip.x, closest_flip.y, closest_flip.z): res;
     // bool use_direct = true;
 
     float3* result_to_use = (use_direct) ? &closest : &closest_flip;

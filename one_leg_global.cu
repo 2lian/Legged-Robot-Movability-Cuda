@@ -1,3 +1,4 @@
+#include "HeaderCPP.h"
 #include "one_leg.cu"
 #include "unified_math_cuda.cu.h"
 
@@ -91,10 +92,10 @@ __device__ __forceinline__ Tout reachability_global(const float3& point,
     return result;
 }
 
-constexpr Quaternion quat = {1, 0, 0, 0};
+// constexpr Quaternion quat = {1, 0, 0, 0};
 // constexpr Quaternion quat = {0.999, 0, 0.01, 0};
 // constexpr Quaternion quat = {0.996, 0, -0.087, 0};
-// constexpr Quaternion quat = {0.985, 0, 0.174, 0};
+constexpr Quaternion quat = {0.985, 0, 0.174, 0};
 // constexpr Quaternion quat = {0.924, 0, -0.384, 0}; // y rot 40deg
 // constexpr Quaternion quat = {0.940, 0, 0, 0.342}; // z rot 40deg
 __global__ void reachability_global_kernel(const Array<float3> input,
@@ -124,12 +125,13 @@ __device__ __forceinline__ float3 centerPoint(float3 p1, float3 p2) {
     return center;
 }
 
-template <typename Tin>
-__host__ __device__ __forceinline__ bool readBit(Tin data, uchar bitPosition) {
+template <typename Tin, typename Tindex>
+__host__ __device__ __forceinline__ bool readBit(Tin data, Tindex bitPosition) {
     return (data >> bitPosition) & 1;
 }
 
-__device__ __forceinline__ float3 flipVectorOnQuad(float3 vect, uchar quadNumber) {
+template <typename Tin>
+__device__ __forceinline__ float3 flipVectorOnQuad(float3 vect, Tin quadNumber) {
     if (readBit(quadNumber, 0)) {
         vect.x *= -1;
     }
@@ -150,44 +152,151 @@ __global__ void fillOutKernel(Box box, float3 distance, Array<float3> input,
         auto in = input.elements[i];
         auto& out = output.elements[i];
         float3 delta = in - box.center;
-        delta = abs(delta);
         auto boxEdge = abs(box.topOffset);
-        bool inside = boxEdge.x > delta.x and boxEdge.y > delta.y and boxEdge.z > delta.z;
+        bool inside =
+            boxEdge.x >= delta.x and boxEdge.y >= delta.y and boxEdge.z >= delta.z;
+        inside = inside and -boxEdge.x < delta.x and -boxEdge.y < delta.y and
+                 -boxEdge.z < delta.z;
         if (inside) {
-            out = make_float3(222, 222, 222);
-            // out = distance;
+            // out = make_float3(222, 222, 222);
+            out = distance;
         }
     }
 }
 
-#define MAX_DEPTH 1
+template <typename Tin>
+__forceinline__ __device__ __host__ Tin bitShiftAboveN(Tin value, uint index,
+                                                       uint shift) {
+    // Create a mask to isolate bits above N
+    Tin mask = ~((1 << (index + 0)) - 1);
+
+    // Isolate the bits above N
+    Tin bitsAboveN = value & mask;
+
+    // Shift the isolated bits to the left by one
+    Tin shiftedBits = bitsAboveN << shift;
+
+    // Clear the original bits above N in the value
+    value &= ~mask;
+
+    // Combine the shifted bits with the original value
+    value |= shiftedBits;
+
+    return value;
+}
+
+template <typename Tin>
+__forceinline__ __device__ __host__ Tin bitShiftBetween(Tin value, uint indexLow,
+                                                        uint indexUp, uint shift) {
+    // Create a mask to isolate bits between indexLow and indexUp
+    Tin mask = ((1 << (indexUp + 1)) - 1) ^ ((1 << indexLow) - 1);
+
+    // Isolate the bits within the range
+    Tin bitsInRange = value & mask;
+
+    // Shift the isolated bits to the left by the specified number of positions
+    Tin shiftedBits = (bitsInRange << shift) & mask;
+
+    // Clear the original bits in the range in the value
+    value &= ~mask;
+
+    // Combine the shifted bits with the original value
+    value |= shiftedBits;
+
+    return value;
+}
+#define MAX_DEPTH 20
+#define MIN_BOX_X 1
+#define MIN_BOX_Y 1
+#define MIN_BOX_Z 1
+#define SUB_QUAD 3
 __global__ void recursive_kernel(Box box, const Array<float3> input,
                                  const LegDimensions leg, Array<float3> output,
                                  uchar depth) {
 
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (uchar quadr = index; quadr < 8; quadr += stride) {
-        auto center = box.center;
-        float3 distance = center;
-        bool reachability = distance_circles(distance, leg);
-        distance = flipVectorOnQuad(distance, quadr);
-        // float3 edge = flipVectorOnQuad(box.topOffset, quadr);
-        float3 edge = box.topOffset;
-        bool isInOrigin = distance.x > 0 and distance.y > 0 and distance.z > 0;
-        bool isInSubBox =
-            distance.x < edge.x and distance.y < edge.y and distance.z < edge.z;
-        bool reachabilityEdgeInTheBox = isInOrigin && isInSubBox;
-        Box new_box;
-        new_box.topOffset = box.topOffset / 2;
-        new_box.center = box.center + (flipVectorOnQuad(box.topOffset, quadr) / 2);
-        if (reachabilityEdgeInTheBox and (depth < MAX_DEPTH)) {
-            recursive_kernel<<<1, 8>>>(new_box, input, leg, output, depth + 1);
+    uint index = blockIdx.x * blockDim.x + threadIdx.x;
+    uint stride = blockDim.x * gridDim.x;
+    uint quad_count = 3;
+    if (box.topOffset.x < MIN_BOX_X) { // too small from the start
+        quad_count -= 1;
+    }
+    if (box.topOffset.y < MIN_BOX_Y) { // too small from the start
+        quad_count -= 1;
+    }
+    if (box.topOffset.z < MIN_BOX_Z) { // too small from the start
+        quad_count -= 1;
+    }
+    const uint max_quad_ind = pow(pow(2, quad_count), SUB_QUAD);
+    for (uint quadr = index; quadr < max_quad_ind; quadr += stride) {
+        Box new_box = box;
+        // float3 centerOffset = {0};
+
+        uint childCount = 0;
+        uint subQuadCount = 3;
+        for (uint iter = 0; iter < SUB_QUAD; iter++) {
+            uint sub_quadrant = quadr >> (iter * 3);
+            if (box.topOffset.x < MIN_BOX_X) { // too small from the start
+                sub_quadrant = bitShiftBetween(sub_quadrant, 0, 3, 1);
+            }
+            if (box.topOffset.y < MIN_BOX_Y) { // too small from the start
+                sub_quadrant = bitShiftBetween(sub_quadrant, 1, 3, 1);
+            }
+            if (box.topOffset.z < MIN_BOX_Z) { // too small from the start
+                sub_quadrant = bitShiftBetween(sub_quadrant, 2, 3, 1);
+            }
+            auto saveOff = new_box.topOffset;
+            auto saveCenter = new_box.center;
+            new_box.topOffset = new_box.topOffset / 2;
+            new_box.center =
+                new_box.center + flipVectorOnQuad(new_box.topOffset, sub_quadrant);
+            subQuadCount = 3;
+            if (new_box.topOffset.x < MIN_BOX_X) { // too small
+                if (readBit(sub_quadrant, 0)) {    // do not executes on half of the quadr
+                    return;
+                }
+                new_box.topOffset.x = saveOff.x; // we do not change the size
+                new_box.center.x = saveCenter.x;
+                subQuadCount -= 1;
+            }
+            if (new_box.topOffset.y < MIN_BOX_Y) { // too small
+                if (readBit(sub_quadrant, 1)) {    // do not executes on half of the quadr
+                    return;
+                }
+                new_box.topOffset.y = saveOff.y; // we do not change the size
+                new_box.center.y = saveCenter.y;
+                subQuadCount -= 1;
+            }
+            if (new_box.topOffset.z < MIN_BOX_Z) { // too small
+                if (readBit(sub_quadrant, 2)) {    // do not executes on half of the quadr
+                    return;
+                }
+                new_box.topOffset.z = saveOff.z; // we do not change the size
+                new_box.center.z = saveCenter.z;
+                subQuadCount -= 1;
+            }
+        }
+        childCount = pow(pow(2, subQuadCount), SUB_QUAD);
+        // new_box.center = box.center + centerOffset;
+
+        auto distance = new_box.center;
+        // distance.y = 0.1;
+        bool reachability = distance_global(distance, leg, quat);
+        bool reachabilityEdgeInTheBox = linorm(distance) < linorm(new_box.topOffset);
+        bool tooSmall = (abs(box.topOffset.x) < MIN_BOX_X * 2) and
+                        (abs(box.topOffset.y) < MIN_BOX_Y * 2) and
+                        (abs(box.topOffset.z) < MIN_BOX_Z * 2);
+        if (reachabilityEdgeInTheBox and (not tooSmall) and (depth < MAX_DEPTH)) {
+            // auto subDistance =
+            constexpr int blockSize = 1024 / 4;
+            int numBlock = (childCount + blockSize - 1) / blockSize;
+            recursive_kernel<<<numBlock, blockSize>>>(new_box, input, leg, output,
+                                                      depth + 1);
         } else {
-            // if (reachabilityEdgeInTheBox) {
+            distance = make_float3(depth, 0, 0);
+            // if (reachability) {
             // distance = distance * 0;
             // }
-            constexpr int blockSize = 1024 / 1;
+            constexpr int blockSize = 1024 / 4;
             int numBlock = (input.length + blockSize - 1) / blockSize;
             fillOutKernel<<<numBlock, blockSize>>>(new_box, distance, input, output);
         }

@@ -111,6 +111,14 @@ __forceinline__ __host__ __device__ float3 operator*(const float3& vec, float3 s
     return make_float3(vec.x * scalar.x, vec.y * scalar.y, vec.z * scalar.z);
 }
 
+__forceinline__ __host__ __device__ float3 operator-(const float3& vec, float scalar) {
+    return make_float3(vec.x - scalar, vec.y - scalar, vec.z - scalar);
+}
+
+__forceinline__ __host__ __device__ float3 operator+(const float3& vec, float scalar) {
+    return make_float3(vec.x + scalar, vec.y + scalar, vec.z + scalar);
+}
+
 __forceinline__ __host__ __device__ float3 operator-(const float3& vec, float3 scalar) {
     return make_float3(vec.x - scalar.x, vec.y - scalar.y, vec.z - scalar.z);
 }
@@ -129,4 +137,12 @@ __forceinline__ __host__ __device__ float3 operator*(const float3& vec, float sc
 
 __forceinline__ __host__ __device__ float3 abs(const float3& vec) {
     return make_float3(abs(vec.x), abs(vec.y), abs(vec.z));
+}
+
+__forceinline__ __host__ __device__ float sum(const float3& vec) {
+    return vec.x + vec.y + vec.z;
+}
+
+__forceinline__ __device__ float linorm(const float3& vec) {
+    return norm3df(vec.x, vec.y, vec.z);
 }
