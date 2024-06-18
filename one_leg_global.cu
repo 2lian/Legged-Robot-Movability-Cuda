@@ -149,7 +149,7 @@ __global__ void fillOutKernel(Box box, float3 distance, Array<float3> input,
     auto index = blockIdx.x * blockDim.x + threadIdx.x;
     auto stride = blockDim.x * gridDim.x;
     for (auto i = index; i < input.length; i += stride) {
-        auto in = input.elements[i];
+        const auto in = input.elements[i];
         auto& out = output.elements[i];
         float3 delta = in - box.center;
         auto boxEdge = abs(box.topOffset);
@@ -160,6 +160,9 @@ __global__ void fillOutKernel(Box box, float3 distance, Array<float3> input,
         if (inside) {
             // out = make_float3(222, 222, 222);
             out = distance;
+            // atomicAdd(&(output.elements[i].x), distance.x);
+            // atomicAdd(&(output.elements[i].x), 1.f);
+            // atomicAdd(&(output.elements[i].z), 1.f);
         }
     }
 }
@@ -205,76 +208,121 @@ __forceinline__ __device__ __host__ Tin bitShiftBetween(Tin value, uint indexLow
 
     return value;
 }
+
+template <typename T>
+__host__ __forceinline__ __device__ T swapBits(T value, uint pos1, uint pos2) {
+    // Extract the bits at pos1 and pos2
+    T bit1 = (value >> pos1) & 1;
+    T bit2 = (value >> pos2) & 1;
+
+    // If the bits are different, swap them
+    if (bit1 != bit2) {
+        // Toggle the bits at pos1 and pos2
+        value ^= (1 << pos1);
+        value ^= (1 << pos2);
+    }
+
+    return value;
+}
+__forceinline__ __device__ __host__ uint reverse(uint bits) {
+    bits = (((bits & 0xaaaaaaaa) >> 1) | ((bits & 0x55555555) << 1));
+    bits = (((bits & 0xcccccccc) >> 2) | ((bits & 0x33333333) << 2));
+    bits = (((bits & 0xf0f0f0f0) >> 4) | ((bits & 0x0f0f0f0f) << 4));
+    bits = (((bits & 0xff00ff00) >> 8) | ((bits & 0x00ff00ff) << 8));
+    return ((bits >> 16) | (bits << 16));
+}
+
 #define MAX_DEPTH 20
-#define MIN_BOX_X 1
-#define MIN_BOX_Y 1
-#define MIN_BOX_Z 1
-#define SUB_QUAD 3
+#define MIN_BOX_X 0.1f
+#define MIN_BOX_Y 0.1f
+#define MIN_BOX_Z 0.1f
+constexpr uint SUB_QUAD = 1;
 __global__ void recursive_kernel(Box box, const Array<float3> input,
                                  const LegDimensions leg, Array<float3> output,
                                  uchar depth) {
 
     uint index = blockIdx.x * blockDim.x + threadIdx.x;
     uint stride = blockDim.x * gridDim.x;
-    uint quad_count = 3;
-    if (box.topOffset.x < MIN_BOX_X) { // too small from the start
-        quad_count -= 1;
+    uint quadCount = 3;
+    bool small[3];
+    small[0] = abs(box.topOffset.x) < MIN_BOX_X;
+    small[1] = abs(box.topOffset.y) < MIN_BOX_Y;
+    small[2] = abs(box.topOffset.z) < MIN_BOX_Z;
+    if (small[0]) { // too small from the start
+        quadCount -= 1;
     }
-    if (box.topOffset.y < MIN_BOX_Y) { // too small from the start
-        quad_count -= 1;
+    if (small[1]) { // too small from the start
+        quadCount -= 1;
     }
-    if (box.topOffset.z < MIN_BOX_Z) { // too small from the start
-        quad_count -= 1;
+    if (small[2]) { // too small from the start
+        quadCount -= 1;
     }
-    const uint max_quad_ind = pow(pow(2, quad_count), SUB_QUAD);
+    // quad_count = 3;
+    const uint max_quad_ind = pow(pow(2, quadCount), SUB_QUAD);
     for (uint quadr = index; quadr < max_quad_ind; quadr += stride) {
+        quadr = reverse(quadr) >> (32 - (quadCount * SUB_QUAD));
+
         Box new_box = box;
         // float3 centerOffset = {0};
 
         uint childCount = 0;
-        uint subQuadCount = 3;
+        uint subQuadCount;
+        uint missingQuad;
         for (uint iter = 0; iter < SUB_QUAD; iter++) {
-            uint sub_quadrant = quadr >> (iter * 3);
-            if (box.topOffset.x < MIN_BOX_X) { // too small from the start
-                sub_quadrant = bitShiftBetween(sub_quadrant, 0, 3, 1);
-            }
-            if (box.topOffset.y < MIN_BOX_Y) { // too small from the start
-                sub_quadrant = bitShiftBetween(sub_quadrant, 1, 3, 1);
-            }
-            if (box.topOffset.z < MIN_BOX_Z) { // too small from the start
-                sub_quadrant = bitShiftBetween(sub_quadrant, 2, 3, 1);
-            }
-            auto saveOff = new_box.topOffset;
-            auto saveCenter = new_box.center;
-            new_box.topOffset = new_box.topOffset / 2;
-            new_box.center =
-                new_box.center + flipVectorOnQuad(new_box.topOffset, sub_quadrant);
-            subQuadCount = 3;
+            uint sub_quadrant = quadr >> (iter * quadCount); // 111011000 -> 000111011
+            sub_quadrant =                                   // 111011 -> 000000011
+                sub_quadrant & ((1 << (quadCount)) - 1 + (1 << (quadCount)));
+            float3 offsetDiv = make_float3(2, 2, 2);
+            uint upperIndex = quadCount - 1;
+            missingQuad = 0;
             if (new_box.topOffset.x < MIN_BOX_X) { // too small
-                if (readBit(sub_quadrant, 0)) {    // do not executes on half of the quadr
+                missingQuad++;
+                if (readBit(sub_quadrant,
+                            upperIndex) and
+                    not small[0]) { // do not executes on half of the quadr
                     return;
                 }
-                new_box.topOffset.x = saveOff.x; // we do not change the size
-                new_box.center.x = saveCenter.x;
-                subQuadCount -= 1;
+                sub_quadrant = bitShiftBetween(sub_quadrant, 0, 3, 1);
+                if (small[0]) {
+                    upperIndex++;
+                }
+                offsetDiv.x = 1;
             }
             if (new_box.topOffset.y < MIN_BOX_Y) { // too small
-                if (readBit(sub_quadrant, 1)) {    // do not executes on half of the quadr
+                missingQuad++;
+                if (readBit(sub_quadrant,
+                            upperIndex) and
+                    not small[1]) { // do not executes on half of the quadr
                     return;
                 }
-                new_box.topOffset.y = saveOff.y; // we do not change the size
-                new_box.center.y = saveCenter.y;
-                subQuadCount -= 1;
+                sub_quadrant = bitShiftBetween(sub_quadrant, 1, 3, 1);
+                if (small[1]) {
+                    upperIndex++;
+                }
+                offsetDiv.y = 1;
             }
             if (new_box.topOffset.z < MIN_BOX_Z) { // too small
-                if (readBit(sub_quadrant, 2)) {    // do not executes on half of the quadr
+                missingQuad++;
+                if (readBit(sub_quadrant,
+                            upperIndex) and
+                    not small[2]) { // do not executes on half of the quadr
                     return;
                 }
-                new_box.topOffset.z = saveOff.z; // we do not change the size
-                new_box.center.z = saveCenter.z;
-                subQuadCount -= 1;
+                sub_quadrant = bitShiftBetween(sub_quadrant, 2, 3, 1);
+                if (small[2]) {
+                    upperIndex++;
+                }
+                offsetDiv.z = 1;
             }
+            auto oldOff = new_box.topOffset;
+            new_box.topOffset = new_box.topOffset / offsetDiv;
+            auto offsetMovement = oldOff - new_box.topOffset;
+            // offsetMovement = offsetMovement * -1;
+            // if (iter & 1) {offsetMovement = offsetMovement * -1;}
+            new_box.center =
+                new_box.center + flipVectorOnQuad(offsetMovement, sub_quadrant);
         }
+        subQuadCount = 3 - missingQuad;
         childCount = pow(pow(2, subQuadCount), SUB_QUAD);
         // new_box.center = box.center + centerOffset;
 
@@ -282,20 +330,28 @@ __global__ void recursive_kernel(Box box, const Array<float3> input,
         // distance.y = 0.1;
         bool reachability = distance_global(distance, leg, quat);
         bool reachabilityEdgeInTheBox = linorm(distance) < linorm(new_box.topOffset);
-        bool tooSmall = (abs(box.topOffset.x) < MIN_BOX_X * 2) and
-                        (abs(box.topOffset.y) < MIN_BOX_Y * 2) and
-                        (abs(box.topOffset.z) < MIN_BOX_Z * 2);
+        // bool tooSmall = subQuadCount <= 0;
+        bool tooSmall = (abs(new_box.topOffset.x) < MIN_BOX_X * 1) and
+                        (abs(new_box.topOffset.y) < MIN_BOX_Y * 1) and
+                        (abs(new_box.topOffset.z) < MIN_BOX_Z * 1);
         if (reachabilityEdgeInTheBox and (not tooSmall) and (depth < MAX_DEPTH)) {
             // auto subDistance =
-            constexpr int blockSize = 1024 / 4;
+            constexpr uint maxBlockSize = 1024 / 4;
+            int blockSize = min(childCount, maxBlockSize);
             int numBlock = (childCount + blockSize - 1) / blockSize;
-            recursive_kernel<<<numBlock, blockSize>>>(new_box, input, leg, output,
-                                                      depth + 1);
+            // numBlock = 1;
+            // blockSize = 24;
+            recursive_kernel<<<numBlock, blockSize / 1>>>(new_box, input, leg,
+                                                                 output, depth + 1);
         } else {
-            distance = make_float3(depth, 0, 0);
-            // if (reachability) {
-            // distance = distance * 0;
+            // distance = make_float3(depth, 0, 0);
+            // distance = make_float3(threadIdx.x, 0, 0);
+            // if (tooSmall) {
+                // distance = distance * 0;
             // }
+            if (reachability) {
+                // distance = distance * 0;
+            }
             constexpr int blockSize = 1024 / 4;
             int numBlock = (input.length + blockSize - 1) / blockSize;
             fillOutKernel<<<numBlock, blockSize>>>(new_box, distance, input, output);

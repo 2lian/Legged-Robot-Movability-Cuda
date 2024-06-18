@@ -89,9 +89,10 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
     int numBlock = (input.length + blockSize - 1) / blockSize;
     Box box;
     box.center = make_float3(200, 0, 0);
-    box.topOffset = make_float3(400, 1, 500);
-    const uint max_quad_ind = pow(8, 3);
+    box.topOffset = make_float3(500000, 0.01, 500000);
+    const uint max_quad_ind = pow(8, 1);
     numBlock = (max_quad_ind + blockSize - 1) / blockSize;
+    recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 30);
     // Prepare
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -99,7 +100,7 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
     // Start record
     cudaEventRecord(start, 0);
     // Do something on GPU
-    recursive_kernel<<<numBlock, blockSize>>>(box, gpu_in, dim, gpu_out, 0);
+    recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 0);
     // Stop event and sync
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
