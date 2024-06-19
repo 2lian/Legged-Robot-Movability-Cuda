@@ -1,7 +1,10 @@
 #include "cross_compiled.cuh"
-#include "unified_math_cuda.cu.h"
 #include "one_leg.cu.h"
+#include "unified_math_cuda.cu.h"
+#include <chrono>
+#include <thread>
 #define BLOCSIZE 1024 / 4
+using namespace std::chrono_literals;
 
 #define CUDA_CHECK_ERROR(errorMessage)                                                   \
     do {                                                                                 \
@@ -89,21 +92,30 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
     int numBlock = (input.length + blockSize - 1) / blockSize;
     Box box;
     box.center = make_float3(200, 0, 0);
-    box.topOffset = make_float3(500000, 0.01, 500000);
-    const uint max_quad_ind = pow(8, 1);
+    box.topOffset = make_float3(500, 0.01, 500);
+    const uint max_quad_ind = pow(8, 2);
     numBlock = (max_quad_ind + blockSize - 1) / blockSize;
-    recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 30);
+    // recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 30);
     // Prepare
     cudaEvent_t start, stop;
+    cudaStream_t stream;
+    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     // Start record
-    cudaEventRecord(start, 0);
+    cudaEventRecord(start, stream);
     // Do something on GPU
-    recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 0);
+    recursive_kernel<<<numBlock, blockSize, 0, stream>>>(box, gpu_in, dim, gpu_out, 0, 0,
+                                                         false);
+    // recursive_kernel<<<numBlock, blockSize>>>(box, gpu_in, dim, gpu_out, 0, 0, false);
+    // recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 0, 0);
     // Stop event and sync
-    cudaEventRecord(stop, 0);
+    // cudaDeviceSynchronize();
+    // std::this_thread::sleep_for(1s);
+    cudaEventRecord(stop, stream);
     cudaEventSynchronize(stop);
+    cudaStreamSynchronize(stream);
+    cudaStreamDestroy(stream);
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, stop); // that's our time!
     // Clean up:
@@ -120,9 +132,8 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
     cudaFree(gpu_out.elements);
     return elapsedTime;
 }
-template float apply_recurs<float3, LegDimensions, float3>(Array<float3>,
-                                                               LegDimensions,
-                                                               Array<float3>);
+template float apply_recurs<float3, LegDimensions, float3>(Array<float3>, LegDimensions,
+                                                           Array<float3>);
 // Explicit instantiation for float3, float3
 template float apply_kernel<float3, LegDimensions, float3>(
     Array<float3>, LegDimensions, void (*)(Array<float3>, LegDimensions, Array<float3>),

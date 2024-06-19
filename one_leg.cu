@@ -4,6 +4,7 @@
 #include "one_leg.cu.h"
 // #include "unified_math_cuda.cu.h"
 #include "circles.cu.h"
+#include "unified_math_cuda.cu.h"
 
 #define CIRCLE_MARGIN 0.001     // margin in mm for inside/outside circles
 #define REACH_USECASE 0         // alias for the reachability computation
@@ -219,7 +220,7 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
                              coxa_angle < (dim.min_angle_coxa - PI / 2);
     float saturated_coxa_angle;
     if (coxaMegaSaturated) {
-        saturated_coxa_angle = (coxa_angle > 0)? coxa_angle - PI: coxa_angle + PI;
+        saturated_coxa_angle = (coxa_angle > 0) ? coxa_angle - PI : coxa_angle + PI;
     } else {
         saturated_coxa_angle =
             fmaxf(fminf(coxa_angle, dim.max_angle_coxa), dim.min_angle_coxa);
@@ -245,7 +246,7 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
         Tout was_valid;
         float3 save = coordinates;
         // if (coxaMegaSaturated) {
-            // coordinates.x = 0.01; // clamp on coxa axis
+        // coordinates.x = 0.01; // clamp on coxa axis
         // }
         was_valid = vert_plane_func(coordinates.x, coordinates.z, dim);
         // if (coxaMegaSaturated){
@@ -326,8 +327,10 @@ __device__ __forceinline__ bool distance_circles(float3& result,
     bool res = finish_finding_closest<bool>(closest, dim, coxangle);
     bool resflip = finish_finding_closest<bool>(closest_flip, dim, coxangle_flip);
 
-    bool use_direct = (not (res^resflip))? norm3df(closest.x, closest.y, closest.z) <
-    norm3df(closest_flip.x, closest_flip.y, closest_flip.z): res;
+    bool use_direct = (not(res ^ resflip))
+                          ? norm3df(closest.x, closest.y, closest.z) <
+                                norm3df(closest_flip.x, closest_flip.y, closest_flip.z)
+                          : res;
     // bool use_direct = true;
 
     float3* result_to_use = (use_direct) ? &closest : &closest_flip;

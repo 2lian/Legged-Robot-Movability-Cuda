@@ -169,7 +169,7 @@ bool_grid_image(
     black_white=False,
     transparency=False,
 )
-sel2 = np.linalg.norm(dist[selection, :], axis=1) < 1
+sel2 = np.all(dist[selection, :] == [0,0,0], axis=1)
 bool_grid_image(
     zero_plane,
     sel2,

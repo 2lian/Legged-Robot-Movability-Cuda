@@ -1,7 +1,9 @@
 #pragma once
 // #include "cuda_runtime_api.h"
 // #include <__clang_cuda_runtime_wrapper.h>
+#include "HeaderCUDA.h"
 #include <driver_types.h>
+
 
 typedef float4 Quaternion;
 
@@ -145,4 +147,12 @@ __forceinline__ __host__ __device__ float sum(const float3& vec) {
 
 __forceinline__ __device__ float linorm(const float3& vec) {
     return norm3df(vec.x, vec.y, vec.z);
+}
+
+__forceinline__ __host__ __device__ float3 min(float3 vec, int scalar) {
+    return make_float3(min(vec.x, (float)scalar), min(vec.y, (float)scalar), min(vec.z, (float)scalar));
+}
+
+__forceinline__ __host__ __device__ float3 max(float3 vec, int scalar) {
+    return make_float3(max(vec.x, (float)scalar), max(vec.y, (float)scalar), max(vec.z, (float)scalar));
 }
