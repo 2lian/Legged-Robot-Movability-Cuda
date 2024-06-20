@@ -5,6 +5,7 @@
 #include "math_util.h"
 #include "one_leg.cu.h"
 // #include "several_leg.cu.h"
+#include "settings.h"
 #include "static_variables.h"
 #include "vector_types.h"
 #include <catch2/catch_all.hpp>
@@ -235,11 +236,17 @@ int main() {
 
         auto duration = apply_recurs(target_map, dim, out2);
         auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Cuda distance octree took " << duration
-                  << " milliseconds to finish." << std::endl;
-        double ns_per_point = ((double)duration / (double)target_map.length) * 1000000.0;
+        std::cout << "Cuda one leg octree took " << duration
+                  << " milliseconds to compute." << std::endl;
+        long long points = (long)((double)BoxSize[0] / (double)MIN_BOX[0] + 1) *
+                      (long)((double)BoxSize[1] / (double)MIN_BOX[1] + 1) *
+                      (long)((double)BoxSize[2] / (double)MIN_BOX[2] + 1);
+        double ns_per_point = ((double)duration / points) * 1000000.0;
         std::cout << "That's " << ns_per_point
-                  << " ns per point (total: " << target_map.length << ")" << std::endl;
+                  << " ns per point (box size: " << BoxSize[0] * 2 << "mm x"
+                  << BoxSize[1] * 2 << "mm y" << BoxSize[2] * 2
+                  << "mm z, resolution: " << MINBOXSIZE * 2
+                  << "mm, total: " << (long long)points << " points)" << std::endl;
 
         delete[] target_map.elements;
 

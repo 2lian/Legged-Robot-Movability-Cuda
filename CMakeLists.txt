@@ -69,6 +69,8 @@ add_executable(cuda
     static_variables.h
     cross_compiled.cu
     cross_compiled.cuh
+    octree_util.cu.h
+    # several_leg_octree.cu
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)

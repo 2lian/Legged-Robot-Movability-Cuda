@@ -1,5 +1,8 @@
 #pragma once
 #include "HeaderCUDA.h"
+#include "settings.h"
+// #include "unified_math_cuda.cu.h"
+typedef float4 Quaternion;
 
 // __global__ void dist_kernel(const Array<float3> input,
 //                             const LegDimensions dimensions,
@@ -36,9 +39,4 @@ __global__ void distance_global_kernel(const Array<float3> input, const LegDimen
 __global__ void recursive_kernel(Box box, const Array<float3> input,
                                  const LegDimensions leg, Array<float3> output,
                                  uchar depth, float radius, bool validity);
-/* __global__ void dist_kernel(const Arrayf3 input, LegDimensions dimensions, */
-/*                             Arrayf3 const output); */
-
-/* __global__ void reachability_kernel(const Arrayf3 input, */
-/*                                     const LegDimensions dimensions, */
-/*                                     Arrayb const output); */
+__device__ bool distance(float3& point, const LegDimensions& dim, const Quaternion quat);

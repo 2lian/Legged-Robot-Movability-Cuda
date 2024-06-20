@@ -2,15 +2,9 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
 #include "one_leg.cu.h"
-// #include "unified_math_cuda.cu.h"
 #include "circles.cu.h"
-#include "unified_math_cuda.cu.h"
+#include "settings.h"
 
-#define CIRCLE_MARGIN 0.001     // margin in mm for inside/outside circles
-#define REACH_USECASE 0         // alias for the reachability computation
-#define DIST_USECASE 1          // alias for the distance computation
-#define CIRCLE_ARR_ORDERED true // signifies that the circle array first holds circles
-// then points (circles of radius < CIRCLE_MARGIN)
 
 __device__ __forceinline__ void place_over_coxa(float3& coordinates,
                                                 const LegDimensions dim) {

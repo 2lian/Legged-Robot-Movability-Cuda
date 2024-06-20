@@ -1,4 +1,5 @@
 #include "cross_compiled.cuh"
+#include "settings.h"
 #include "one_leg.cu.h"
 #include "unified_math_cuda.cu.h"
 #include <chrono>
@@ -91,8 +92,8 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
     constexpr int blockSize = BLOCSIZE;
     int numBlock = (input.length + blockSize - 1) / blockSize;
     Box box;
-    box.center = make_float3(200, 0, 0);
-    box.topOffset = make_float3(500, 0.01, 500);
+    box.center = make_float3(BoxCenter[0], BoxCenter[1], BoxCenter[2]);
+    box.topOffset = make_float3(BoxSize[0], BoxSize[1], BoxSize[2]);
     const uint max_quad_ind = pow(8, 2);
     numBlock = (max_quad_ind + blockSize - 1) / blockSize;
     // recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 30);

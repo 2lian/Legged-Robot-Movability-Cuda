@@ -20,6 +20,15 @@ typedef unsigned char uchar;
 __device__ constexpr float pIgpu =
     3.14159265358979323846264338327950288419716939937510582097f;
 
+
+typedef struct PlaneImage {
+    float3 normal;
+    float xmin;
+    float xmax;
+    float ymin;
+    float ymax;
+} PlaneImage;
+
 typedef struct Box {
     float3 center;
     float3 topOffset;
