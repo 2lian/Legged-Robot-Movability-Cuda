@@ -1,15 +1,12 @@
 #include "HeaderCPP.h"
-// #include "HeaderCUDA.h"
-// #include "cuda_util.cuh"
 #include "cross_compiled.cuh"
 #include "math_util.h"
 #include "one_leg.cu.h"
 // #include "several_leg.cu.h"
 #include "settings.h"
+#include "several_leg_octree.cu.h"
 #include "static_variables.h"
-#include "vector_types.h"
-#include <catch2/catch_all.hpp>
-#include <catch2/catch_test_macros.hpp>
+// #include "vector_types.h"
 #include <chrono>
 #include <iostream>
 #include <ostream>
@@ -213,6 +210,72 @@ int main() {
             delete[] z_arr2;
         }
     }
+    {
+        const LegDimensions dim = LegToUse(0);
+        const char* filename = "dist_input_tx.bin";
+        Array<float> inputxx = readArrayFromFile<float>(filename);
+        filename = "dist_input_ty.bin";
+        Array<float> inputxy = readArrayFromFile<float>(filename);
+        filename = "dist_input_tz.bin";
+        Array<float> inputxz = readArrayFromFile<float>(filename);
+
+        Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
+        delete[] inputxx.elements;
+        delete[] inputxy.elements;
+        delete[] inputxz.elements;
+
+        Array<float3> out2;
+        out2.length = target_map.length;
+        out2.elements = new float3[out2.length];
+        // apply_kernel(target_map, dim, distance_global_kernel, out2); // warmup
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        auto duration = apply_oct(target_map, dim);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "Cuda one leg octree took " << duration
+                  << " milliseconds to compute." << std::endl;
+        long long points = (long)((double)BoxSize[0] / (double)MIN_BOX[0] + 1) *
+                      (long)((double)BoxSize[1] / (double)MIN_BOX[1] + 1) *
+                      (long)((double)BoxSize[2] / (double)MIN_BOX[2] + 1);
+        double ns_per_point = ((double)duration / points) * 1000000.0;
+        std::cout << "That's " << ns_per_point
+                  << " ns per point (box size: " << BoxSize[0] * 2 << "mm x"
+                  << BoxSize[1] * 2 << "mm y" << BoxSize[2] * 2
+                  << "mm z, resolution: " << MINBOXSIZE * 2
+                  << "mm, total: " << (long long)points << " points)" << std::endl;
+
+        delete[] target_map.elements;
+
+        {
+            float* x_arr2 = new float[out2.length];
+            for (int i = 0; i < out2.length; i++) {
+                x_arr2[i] = out2.elements[i].x;
+            }
+            filename = "out_rec_xx.bin";
+            saveArrayToFile(x_arr2, out2.length, filename);
+            delete[] x_arr2;
+        }
+        {
+            float* y_arr2 = new float[out2.length];
+            for (long i = 0; i < out2.length; i++) {
+                y_arr2[i] = out2.elements[i].y;
+            }
+            filename = "out_rec_xy.bin";
+            saveArrayToFile(y_arr2, out2.length, filename);
+            delete[] y_arr2;
+        }
+        {
+            float* z_arr2 = new float[out2.length];
+            for (long i = 0; i < out2.length; i++) {
+                z_arr2[i] = out2.elements[i].z;
+            }
+            filename = "out_rec_xz.bin";
+            saveArrayToFile(z_arr2, out2.length, filename);
+            delete[] z_arr2;
+        }
+    }
+    return 0;
     {
         LegDimensions dim = LegToUse(0);
         const char* filename = "dist_input_tx.bin";

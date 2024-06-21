@@ -1,6 +1,5 @@
 #pragma once
 #include "HeaderCUDA.h"
-#include "settings.h"
 // #include "unified_math_cuda.cu.h"
 typedef float4 Quaternion;
 

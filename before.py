@@ -58,7 +58,7 @@ save_array_to_binary_file(body_map[:, 2].astype(np.float32), "numpy_input_bz.bin
 
 print("body samples shape: ", body_map.shape)
 
-pix_size = 1
+pix_size = 30
 if vertical_slice:
     x_map_dist = np.arange(-150, 551, pix_size)
     y_map_dist = np.array([0])

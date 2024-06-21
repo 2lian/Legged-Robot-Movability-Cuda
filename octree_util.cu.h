@@ -144,23 +144,7 @@ __forceinline__ __device__ __host__ bool isInBox(float3 vect, Box box) {
 }
 
 __global__ void fillOutKernel(Box box, float3 distance, Array<float3> input,
-                              Array<float3> output) {
-    auto index = blockIdx.x * blockDim.x + threadIdx.x;
-    auto stride = blockDim.x * gridDim.x;
-    for (auto i = index; i < input.length; i += stride) {
-        const auto in = input.elements[i];
-        auto& out = output.elements[i];
-        float3 delta = in - box.center;
-        bool inside = isInBox(delta, box);
-        if (inside) {
-            // out = make_float3(222, 222, 222);
-            out = distance;
-            // atomicAdd(&(output.elements[i].x), distance.x);
-            // atomicAdd(&(output.elements[i].x), 1.f);
-            // atomicAdd(&(output.elements[i].z), 1.f);
-        }
-    }
-}
+                              Array<float3> output);
 
 __forceinline__ __host__ __device__ Quaternion RPYtoQuat(float r, float p, float y) {
     Quaternion quatRoll = quatFromVectAngle(make_float3(1, 0, 0), r);
@@ -176,13 +160,13 @@ __forceinline__ __host__ __device__ Quaternion QuaternionFromAngleIndex(uint Ang
     auto reducedAngleIndex = AngleIndex;
     float rpy[3];
     for (uchar i = 0; i < 3; i++) {
-        auto& maxInd = AngleSample[i];
+        auto& maxInd = AngleSample_D[i];
         uchar ind = AngleIndex % maxInd;
         ind = (ind + (ind / 2)) % maxInd; // starts at middle
         reducedAngleIndex = AngleIndex / maxInd;
 
         float x = (float)ind / (uchar)(max(maxInd - 1, 1));
-        rpy[i] = (1 - x) * AngleMinMax[i * 2] + x * AngleMinMax[i * 2 + 1];
+        rpy[i] = (1 - x) * AngleMinMax_D[i * 2] + x * AngleMinMax_D[i * 2 + 1];
     }
     Quaternion quat = RPYtoQuat(rpy[0], rpy[1], rpy[2]);
     return quat;

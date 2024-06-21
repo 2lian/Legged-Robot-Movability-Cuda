@@ -165,7 +165,7 @@ __global__ void recursive_kernel(Box box, const Array<float3> input,
             notCloseEnough = false;
         } else {
             distToNewBox =
-                max(abs(new_box.center - box.center) + abs(new_box.topOffset), 0);
+                maxi(abs(new_box.center - box.center) + abs(new_box.topOffset), 0);
             notCloseEnough = (linorm(distToNewBox) < rad);
         }
 

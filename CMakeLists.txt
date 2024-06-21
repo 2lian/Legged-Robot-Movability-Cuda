@@ -70,7 +70,9 @@ add_executable(cuda
     cross_compiled.cu
     cross_compiled.cuh
     octree_util.cu.h
-    # several_leg_octree.cu
+    octree_util.cu
+    several_leg_octree.cu
+    several_leg_octree.cu.h
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)

@@ -1,6 +1,7 @@
 #pragma once
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "octree_util.cu.h"
 #include "one_leg.cu.h"
 #include "circles.cu.h"
 #include "settings.h"

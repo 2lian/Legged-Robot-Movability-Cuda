@@ -1,6 +1,12 @@
 #pragma once
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+// #include <driver_types.h>
+// #include <thrust/copy.h>
+// #include <thrust/device_vector.h>
+// #include <thrust/host_vector.h>
+// #include <thrust/remove.h>
+// #include <thrust/sequence.h>
 
 __global__ void empty_kernel();
 // __host__ float norm3df(float x, float y, float z);

@@ -149,10 +149,10 @@ __forceinline__ __device__ float linorm(const float3& vec) {
     return norm3df(vec.x, vec.y, vec.z);
 }
 
-__forceinline__ __host__ __device__ float3 min(float3 vec, int scalar) {
+__forceinline__ __host__ __device__ float3 mini(float3 vec, int scalar) {
     return make_float3(min(vec.x, (float)scalar), min(vec.y, (float)scalar), min(vec.z, (float)scalar));
 }
 
-__forceinline__ __host__ __device__ float3 max(float3 vec, int scalar) {
+__forceinline__ __host__ __device__ float3 maxi(float3 vec, int scalar) {
     return make_float3(max(vec.x, (float)scalar), max(vec.y, (float)scalar), max(vec.z, (float)scalar));
 }
