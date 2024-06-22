@@ -1,7 +1,22 @@
 #pragma once
 #include "HeaderCUDA.h"
+#include "cuda_device_runtime_api.h"
+#include "cuda_runtime_api.h"
+#include "driver_types.h"
 #include "settings.h"
 #include "unified_math_cuda.cu.h"
+#include <iostream>
+#include <ostream>
+
+typedef struct Node {
+    Box box;
+    bool validity = false;
+    bool leaf = false;
+    bool raw = false;
+    bool onEdge = false;
+    uchar childrenCount = MaxChildQuad;
+    Node* childrenArr;
+} Node;
 
 template <typename Tin>
 __forceinline__ __device__ __host__ Tin bitShiftAboveN(Tin value, uint index,
@@ -156,6 +171,16 @@ __forceinline__ __host__ __device__ Quaternion RPYtoQuat(float r, float p, float
     return quatYaw;
 }
 
+#define CUDA_CHECK_ERROR(errorMessage)                                                   \
+    do {                                                                                 \
+        cudaError_t err = cudaGetLastError();                                            \
+        if (err != cudaSuccess) {                                                        \
+            fprintf(stderr, "CUDA error in %s: %s\n", errorMessage,                      \
+                    cudaGetErrorString(err));                                            \
+            exit(EXIT_FAILURE);                                                          \
+        }                                                                                \
+    } while (0)
+
 __forceinline__ __host__ __device__ Quaternion QuaternionFromAngleIndex(uint AngleIndex) {
     auto reducedAngleIndex = AngleIndex;
     float rpy[3];
@@ -170,4 +195,33 @@ __forceinline__ __host__ __device__ Quaternion QuaternionFromAngleIndex(uint Ang
     }
     Quaternion quat = RPYtoQuat(rpy[0], rpy[1], rpy[2]);
     return quat;
+}
+
+inline __host__ void copyTreeOnCpuRecursion(Node parent) {
+    if (parent.leaf or parent.raw)
+        return;
+    Node* family = new Node[parent.childrenCount]();
+    std::cout << parent.childrenArr << std::endl;
+    std::cout << "f";
+    cudaMemcpy(family, parent.childrenArr, 1 * sizeof(Node),
+               cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("Copy recurs");
+    parent.childrenArr = family;
+    for (uint c = 0; c < parent.childrenCount; c++) {
+        Node child = parent.childrenArr[c];
+        copyTreeOnCpuRecursion(child);
+    }
+}
+
+inline __host__ Node copyTreeOnCpu(Node* gpuRoot) {
+    Node root;
+    cudaMemcpy(&root, gpuRoot, 1 * sizeof(Node), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    std::cout << "what" << std::endl;
+    std::cout << root.childrenArr << std::endl;
+    CUDA_CHECK_ERROR("Copy root");
+    cudaMalloc(&root.childrenArr, sizeof(Node));
+    copyTreeOnCpuRecursion(root);
+    return root;
 }

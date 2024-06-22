@@ -8,32 +8,25 @@
 #include "several_leg_octree.cu.h"
 #include "unified_math_cuda.cu.h"
 #include <cstdio>
+#include <iostream>
+#include <ostream>
 
 // __device__ constexpr auto AngleSample_D = AngleSample;
 // __device__ constexpr auto AngleMinMax_D = AngleMinMax;
 // __device__ constexpr auto LegMount_D = LegMount;
 //
-typedef struct Node {
-    Box box;
-    bool validity;
-    bool leaf;
-    bool raw;
-    uchar childrenCount = MaxChildQuad;
-    Node* childrenArr;
-} Node;
-
 __global__ void validity_child(Node parent, const Array<float3> input,
                                const LegDimensions leg) {
 
     auto box = parent.box;
     auto validity = parent.validity;
-    __shared__ bool childrens[MaxChildQuad];
+    __shared__ bool onEdge[MaxChildQuad];
     __shared__ bool validLeafs[MaxChildQuad];
     __shared__ bool globalValidity[MaxChildQuad];
     auto index = blockIdx.x * blockDim.x + threadIdx.x;
     auto stride = blockDim.x * gridDim.x;
     for (auto t = threadIdx.x; t < MaxChildQuad; t++) {
-        childrens[t] = false;
+        onEdge[t] = false;
         validLeafs[t] = false;
         globalValidity[t] = false;
     }
@@ -50,8 +43,8 @@ __global__ void validity_child(Node parent, const Array<float3> input,
          computeIndex += stride) {
         auto childIndex = computeIndex / (totalAngleSample * totalFootholdSample);
         auto threadQuadranId = computeIndex % (totalAngleSample * totalFootholdSample);
-        auto footholdIndex = threadQuadranId / totalFootholdSample;
-        auto angleIndex = threadQuadranId % totalFootholdSample;
+        auto footholdIndex = threadQuadranId / totalAngleSample;
+        auto angleIndex = threadQuadranId % totalAngleSample;
         Node& node = parent.childrenArr[childIndex];
         if (node.validity) { // DEADQUADRAN or already processed
             // std::printf("already done");
@@ -59,7 +52,7 @@ __global__ void validity_child(Node parent, const Array<float3> input,
         }
         bool tooSmall = node.leaf;
         Box new_box = node.box;
-        auto& thisChildrenShouldSpawn = childrens[childIndex];
+        auto& thisOnEdge = onEdge[childIndex];
         auto& thisGlobalValidity = globalValidity[childIndex];
         auto& thisValidLeaf = validLeafs[childIndex];
 
@@ -76,44 +69,60 @@ __global__ void validity_child(Node parent, const Array<float3> input,
         uchar reachabilityCount = 0;
         uchar crossBoxCount = 0;
 
+        // printf("q: %d, f: %d , x: %f , y: %f , z: %f\n", (int)childIndex,
+        // (int)footholdIndex, foothold.x, foothold.y, foothold.z);
+        // printf("p");
         for (uchar legN = 0; legN < LegCount; legN++) {
             auto vect = foothold - body;
             auto thisleg = leg;
             thisleg.body_angle = LegMount_D[legN];
             bool subReachability = distance(vect, leg, quat);
-            bool subCrossBox = linorm(vect) < linorm(new_box.topOffset);
+            bool subCrossBox = linormRaw(vect) < linormRaw(new_box.topOffset);
+            // printf("%f", linorm(vect));
+            // printf("p");
             // farthestDist = (linorm(farthestDist) > linorm(vect)) ? vect : farthestDist;
             crossBoxCount += subCrossBox;
             reachabilityCount += subReachability;
         }
-        if (crossBoxCount > 0)
+        if (crossBoxCount > LegCount - LegNumberForStab)
             reachabilityEdgeInTheBox = true;
         if (reachabilityCount >= LegNumberForStab)
             reachability = true;
 
         bool validLeaf = reachability and not reachabilityEdgeInTheBox;
-        bool childrenShouldSpawn =
-            reachabilityEdgeInTheBox and (not tooSmall) and (not validLeaf);
-        if (childrenShouldSpawn)
-            thisChildrenShouldSpawn = true;
-        if (reachability)
+        // bool childrenShouldSpawn = reachabilityEdgeInTheBox and (not tooSmall);
+        bool childrenOnEdge = reachabilityEdgeInTheBox;
+        if (childrenOnEdge) {
+            // printf("o");
+            thisOnEdge = true;
+        }
+        if (reachability) {
+            // std::printf("r");
             thisGlobalValidity = true;
-        if (validLeaf)
+        }
+        if (validLeaf) {
+            // std::printf("l");
             thisValidLeaf = true;
+        }
     }
     __syncthreads();
 
     for (auto t = threadIdx.x; t < parent.childrenCount; t++) {
         auto& node = parent.childrenArr[t];
-        auto& isChildrenShouldSpawn = childrens[t];
+        auto& isOnEdge = onEdge[t];
         auto& isGlobalValid = globalValidity[t];
         auto& isValidLeaf = validLeafs[t];
-        if (isGlobalValid)
+        if (isGlobalValid) {
             node.validity = true;
-        if (isValidLeaf)
+        }
+        if (isValidLeaf) {
+            // std::printf("found");
             node.leaf = true;
-        if (not isChildrenShouldSpawn)
-            node.leaf = true;
+        }
+        if (isOnEdge and not isValidLeaf) {
+            // std::printf("far");
+            node.onEdge = true;
+        }
     }
 }
 
@@ -139,7 +148,7 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
     const bool goDeeperDEEPERRRR = not parent.raw;
     if (not goDeeperDEEPERRRR) {
         if (index == 0) {
-            std::printf("\nComputing depth %d", depth);
+            std::printf("\n\nComputing depth %d", depth);
             std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
                         parent.box.center.y, parent.box.center.z);
             std::printf("\nleaf: %d", parent.leaf);
@@ -150,7 +159,7 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
         }
     } else {
         if (index == 0) {
-            std::printf("\nForking depth %d", depth);
+            std::printf("\n\nForking depth %d", depth);
             std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
                         parent.box.center.y, parent.box.center.z);
             std::printf("\nleaf: %d", parent.leaf);
@@ -168,6 +177,8 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
         if (goDeeperDEEPERRRR) {
             // std::printf("[%d] DEEEEEEEPER level: %d |", index, depth);
             Node& node = parent.childrenArr[computeIndex];
+            if (not node.onEdge)
+                node.leaf = true;
             bool branch = not node.leaf;
             if (branch) {
                 constexpr uint maxBlockSize = 1024 / 4;
@@ -175,8 +186,9 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
                 int numBlock = (node.childrenCount + blockSize - 1) / blockSize;
                 branchKernel<<<numBlock, blockSize>>>(&node, input, leg, depth + 1);
             } else {
-                std::printf("\nleaf x: %.1f y: %.1f z: %.1f ", node.box.center.x,
-                node.box.center.y, node.box.center.z);
+                // std::printf("\nleaf x: %.1f y: %.1f z: %.1f validity: %d raw: %d",
+                // node.box.center.x, node.box.center.y, node.box.center.z,
+                // node.validity, node.raw);
             }
             continue; // goto next computeIndex
         }
@@ -202,21 +214,22 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
             node.leaf = true;
             node.raw = false;
             node.validity = true;
-            node.box = new_box;
+            node.onEdge = true;
+            node.box = NullBox;
             continue;
         }
+        node.onEdge = false;
+        node.validity = false;
         if (subQuadCount <= 0) {
             // no new quadran possible so we mark it as leaf, put the box in, needs
             // processing but no malloc
             node.leaf = true;
             node.raw = false;
-            node.validity = false;
             node.box = new_box;
         } else {
             // new quadran so not a leaf and needs processing
             node.leaf = false;
             node.raw = true;
-            node.validity = false;
             node.box = new_box;
         }
     }
@@ -244,6 +257,46 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
     }
 }
 
+__forceinline__ __device__ __host__ bool isNullBox(Box box) {
+    return box.center.x == NullBox.center.x and box.center.y == NullBox.center.y and
+           box.center.z == NullBox.center.z and box.topOffset.x == NullBox.topOffset.x and
+           box.topOffset.y == NullBox.topOffset.y and
+           box.topOffset.z == NullBox.topOffset.z;
+}
+
+__global__ void makeImgFromTree(Node* root, Array<float3> input, Array<float3> output,
+                                uchar depth) {
+    return;
+    Node& parent = *root;
+    auto index = blockIdx.x * blockDim.x + threadIdx.x;
+    auto stride = blockDim.x * gridDim.x;
+    for (auto computeIndex = 0; computeIndex < parent.childrenCount; computeIndex++) {
+
+        Node& node = parent.childrenArr[computeIndex];
+        if (isNullBox(node.box))
+            continue;
+
+        if (node.leaf or node.raw) {
+            // continue;
+
+            constexpr uint maxBlockSize = 1024 / 4;
+            const uint threadCount = input.length;
+            int blockSize = min(threadCount, (typeof(threadCount))maxBlockSize);
+            int numBlock = (threadCount + blockSize - 1) / blockSize;
+
+            fillOutKernel<<<numBlock, blockSize>>>(node.box, make_float3(depth, 0, 0),
+                                                   input, output);
+        } else {
+            // continue;
+            constexpr uint maxBlockSize = 1024 / 4;
+            const uint threadCount = node.childrenCount;
+            int blockSize = min(threadCount, (typeof(threadCount))maxBlockSize);
+            int numBlock = (threadCount + blockSize - 1) / blockSize;
+            makeImgFromTree<<<numBlock, blockSize>>>(&node, input, output, depth + 1);
+        }
+    }
+}
+
 #define CUDA_CHECK_ERROR(errorMessage)                                                   \
     do {                                                                                 \
         cudaError_t err = cudaGetLastError();                                            \
@@ -254,10 +307,13 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
         }                                                                                \
     } while (0)
 
-float apply_oct(Array<float3> input, LegDimensions dim) {
+float apply_oct(Array<float3> input, LegDimensions dim, Array<float3> output) {
     Array<float3> gpu_in{};
+    Array<float3> gpu_out{};
     gpu_in.length = input.length;
+    gpu_out.length = output.length;
     cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(float3));
+    cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(float3));
     CUDA_CHECK_ERROR("cudaMalloc gpu_in.elements");
 
     cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(float3),
@@ -297,29 +353,26 @@ float apply_oct(Array<float3> input, LegDimensions dim) {
         branchKernel<<<numBlock, blockSize, 0, stream>>>(deviceRoot, gpu_in, dim, 0);
         cudaStreamSynchronize(stream);
     }
-    // branchKernel<<<numBlock, blockSize, 0, stream>>>(managedRoot, gpu_in, dim, 0);
-    // cudaStreamSynchronize(stream);
-    // branchKernel<<<numBlock, blockSize, 0, stream>>>(managedRoot, gpu_in, dim, 0);
-    // cudaStreamSynchronize(stream);
-    // branchKernel<<<numBlock, blockSize, 0, stream>>>(managedRoot, gpu_in, dim, 0);
-    // recursive_kernel<<<numBlock, blockSize>>>(box, gpu_in, dim, gpu_out, 0, 0, false);
-    // recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 0, 0);
-    // Stop event and sync
-    // cudaDeviceSynchronize();
-    // std::this_thread::sleep_for(1s);
     cudaEventRecord(stop, stream);
     cudaEventSynchronize(stop);
     cudaStreamSynchronize(stream);
-    cudaStreamDestroy(stream);
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, stop); // that's our time!
     // Clean up:
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
     CUDA_CHECK_ERROR("Kernel launch");
+    std::cout << "\n\ncompute done, building output" << std::endl;
+    root = copyTreeOnCpu(deviceRoot);
+    // makeImgFromTree<<<numBlock, blockSize, 0, stream>>>(deviceRoot, gpu_in, gpu_out, 0);
+    CUDA_CHECK_ERROR("Kernel img");
 
+    cudaStreamSynchronize(stream);
     cudaDeviceSynchronize();
+    cudaStreamDestroy(stream);
+    std::cout << "image done" << std::endl;
 
     cudaFree(gpu_in.elements);
+    cudaFree(gpu_out.elements);
     return elapsedTime;
 }

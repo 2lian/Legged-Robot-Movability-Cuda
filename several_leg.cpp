@@ -212,11 +212,11 @@ int main() {
     }
     {
         const LegDimensions dim = LegToUse(0);
-        const char* filename = "dist_input_tx.bin";
+        const char* filename = "numpy_input_tx.bin";
         Array<float> inputxx = readArrayFromFile<float>(filename);
-        filename = "dist_input_ty.bin";
+        filename = "numpy_input_ty.bin";
         Array<float> inputxy = readArrayFromFile<float>(filename);
-        filename = "dist_input_tz.bin";
+        filename = "numpy_input_tz.bin";
         Array<float> inputxz = readArrayFromFile<float>(filename);
 
         Array<float3> target_map = threeArrays2float3Arr(inputxx, inputxy, inputxz);
@@ -231,7 +231,7 @@ int main() {
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        auto duration = apply_oct(target_map, dim);
+        auto duration = apply_oct(target_map, dim, out2);
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Cuda one leg octree took " << duration
                   << " milliseconds to compute." << std::endl;
