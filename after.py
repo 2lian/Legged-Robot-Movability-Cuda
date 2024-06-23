@@ -70,19 +70,19 @@ grid = np.empty(shape=(len(xy), 3))
 grid[:, 0] = xx
 grid[:, 1] = xy
 grid[:, 2] = xz
+reach_count =np.empty(shape=(len(xy),)) + 2
+# filename = "cpp_array_y.bin"
+# reach_count = read_array_from_file_with_length(filename, np.int32)
 
-filename = "cpp_array_y.bin"
-reach_count = read_array_from_file_with_length(filename, np.int32)
-
-bool_grid_image(
-    grid[:, [0, 1]],
-    np.clip(reach_count / (reach_count.max() * 3 / 4), 0, 1),
-    black_white=False,
-    transparency=False,
-)
-
+# bool_grid_image(
+#     grid[:, [0, 1]],
+#     np.clip(reach_count / (reach_count.max() * 3 / 4), 0, 1),
+#     black_white=False,
+#     transparency=False,
+# )
+#
 map = np.load("map.npy")
-plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
+# plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
 
 # plt.xlabel(f'Index shape: xx{xx.shape} xy{xy.shape}')
 # plt.ylabel('Value')
@@ -90,8 +90,8 @@ plt.scatter(map[:, 0], map[:, 1], c="red", s=5)
 # plt.grid(False)
 # plt.axis("equal")
 
-plt.savefig("graph1.png")
-plt.clf()
+# plt.savefig("graph1.png")
+# plt.clf()
 
 # filename = "out_dist_xx.bin"
 filename = "out_rec_xx.bin"
@@ -225,25 +225,33 @@ print(f"robot reachable m^3: {select.sum() * delta**3}")
 
 print("python post process finished")
 
-if False:
+if True:
     map_pcd = o3d.geometry.PointCloud()
     map_pcd.points = o3d.utility.Vector3dVector(map)
 
-    select = reach_count > 1
-    shaved = grid[select, :]
-    intensity = reach_count[select]
-    np.save("robot_reach.npy", shaved)
-    np.save("robot_reach_intens.npy", intensity)
+    # select = reach_count > 1
+    # select = True
+    # shaved = grid[select, :]
+    # intensity = reach_count[select]
+    # np.save("robot_reach.npy", shaved)
+    # np.save("robot_reach_intens.npy", intensity)
+    print(np.max(grid))
     r_pcd = o3d.geometry.PointCloud()
-    r_pcd.points = o3d.utility.Vector3dVector(shaved)
+    r_pcd.points = o3d.utility.Vector3dVector(grid[:12000, :])
 
-    cmap = cm.get_cmap("viridis")
-    norm = plt.Normalize(vmin=np.min(intensity), vmax=np.max(intensity))
-    colors_rgb = np.array(cmap(norm(intensity)))[:, :3]
+    # cmap = cm.get_cmap("viridis")
+    # norm = plt.Normalize(vmin=np.min(intensity), vmax=np.max(intensity))
+    # colors_rgb = np.array(cmap(norm(intensity)))[:, :3]
+    # colors_rgb = np.array(cmap(norm(intensity)))[:, :3]
+    colors_rgb = np.zeros(shape=(grid.shape[0], 3))
+    colors_rgb[:, 1] = 255
 
     r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
+    # voxel_grid = r_pcd
     voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(
-        r_pcd, voxel_size=np.linalg.norm(grid[0, :] - grid[1, :])
+        r_pcd, voxel_size = 100.1
+        # r_pcd, voxel_size=np.linalg.norm(grid[0, :] - grid[1, :])
     )
 
     o3d.visualization.draw_geometries([map_pcd, voxel_grid])
+    # o3d.visualization.draw_geometries([r_pcd])

@@ -150,6 +150,10 @@ __forceinline__ __device__ float linorm(const float3& vec) {
     return norm3df(vec.x, vec.y, vec.z);
 }
 
+__forceinline__ __device__ float dot(const float3& vec1, const float3& vec2) {
+    return sum(vec1 * vec2);
+}
+
 __forceinline__ __host__ __device__ float3 mini(float3 vec, int scalar) {
     return make_float3(min(vec.x, (float)scalar), min(vec.y, (float)scalar),
                        min(vec.z, (float)scalar));

@@ -1,6 +1,24 @@
 #include "octree_util.cu.h"
 #include "one_leg.cu"
 #include "settings.h"
+#include "unified_math_cuda.cu.h"
+#include <tuple>
+
+__device__ __host__ __forceinline__ std::tuple<float3, bool>
+simpleGravityCheck(const float3 target, const Quaternion orientation, LegDimensions dim) {
+    float3 coxaJoint =
+        make_float3(cos(dim.body_angle) * dim.body, sin(dim.body_angle) * dim.body, 0);
+    float3 rotatedCoxa = qtRotate(orientation, coxaJoint);
+    float3 oriToCoxaHoriz = rotatedCoxa * make_float3(1, 1, 0);
+    float3 coxaOrigTarget = target - coxaJoint;
+    float dotprod = dot(coxaOrigTarget, oriToCoxaHoriz);
+    bool validity = dotprod > 0;
+    float3 planeToPoint = oriToCoxaHoriz * dotprod / linormRaw(oriToCoxaHoriz);
+    // float3 projection = coxaOrigTarget - oriToCoxaHoriz *
+    // dot(coxaOrigTarget, oriToCoxaHoriz) /
+    // linormRaw(oriToCoxaHoriz);
+    return std::make_tuple(planeToPoint, validity);
+}
 
 __device__ __forceinline__ void z_rotateInPlace(float3& point, float z_rot,
                                                 float& cos_memory, float& sin_memory) {
@@ -8,7 +26,6 @@ __device__ __forceinline__ void z_rotateInPlace(float3& point, float z_rot,
     float buffer = point.x * sin_memory;
     point.x = point.x * cos_memory - point.y * sin_memory;
     point.y = buffer + point.y * cos_memory;
-    return;
 }
 
 __device__ __forceinline__ void z_unrotateInPlace(float3& point, float& cos_memory,
@@ -58,7 +75,7 @@ __device__ __forceinline__ Tout distance_global(float3& point, const LegDimensio
     LegDimensions oriented_leg_dim = rotate_leg_data(quat, dim);
     // __shared__ LegDimensions oriented_leg_dim;
     // if (threadIdx.x == 0) {
-        // oriented_leg_dim = rotate_leg_data(quat, dim);
+    // oriented_leg_dim = rotate_leg_data(quat, dim);
     // }
     auto unrotated_point = qtInvRotate(quat, point);
     float cos_memory;
@@ -82,7 +99,7 @@ __device__ __forceinline__ Tout reachability_global(const float3& point,
     LegDimensions oriented_leg_dim = rotate_leg_data(quat, dim);
     // __shared__ LegDimensions oriented_leg_dim;
     // if (threadIdx.x == 0) {
-        // oriented_leg_dim = rotate_leg_data(quat, dim);
+    // oriented_leg_dim = rotate_leg_data(quat, dim);
     // }}
     auto unrotated_point = qtInvRotate(quat, point);
     float cos_memory;
@@ -117,14 +134,6 @@ __global__ void distance_global_kernel(const Array<float3> input, const LegDimen
         bool reachability = distance_global(result, dim, quat);
         output.elements[i] = result;
     }
-}
-
-__device__ __forceinline__ float3 centerPoint(float3 p1, float3 p2) {
-    float3 center;
-    center.x = p1.x + p2.x;
-    center.y = p1.y + p2.y;
-    center.z = p1.z + p2.z;
-    return center;
 }
 
 // constexpr cudaStream_t streams[10];
@@ -214,5 +223,12 @@ __global__ void recursive_kernel(Box box, const Array<float3> input,
 }
 
 __device__ bool distance(float3& point, const LegDimensions& dim, const Quaternion quat) {
+    const auto res = simpleGravityCheck(point, quat, dim);
+    bool gravValid = std::get<1>(res);
+    float3 gravDist = std::get<0>(res);
+    if (not gravValid) {
+        point = gravDist;
+        return false;
+    }
     return distance_global(point, dim, quat);
 }

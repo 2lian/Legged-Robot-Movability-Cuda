@@ -9,6 +9,7 @@
 // #include "vector_types.h"
 #include <chrono>
 #include <iostream>
+#include <iterator>
 #include <ostream>
 // #include <tuple>
 
@@ -251,8 +252,9 @@ int main() {
             float* x_arr2 = new float[out2.length];
             for (int i = 0; i < out2.length; i++) {
                 x_arr2[i] = out2.elements[i].x;
+                // std::cout << x_arr2[i] << std::endl;
             }
-            filename = "out_rec_xx.bin";
+            filename = "cpp_array_xx.bin";
             saveArrayToFile(x_arr2, out2.length, filename);
             delete[] x_arr2;
         }
@@ -261,7 +263,7 @@ int main() {
             for (long i = 0; i < out2.length; i++) {
                 y_arr2[i] = out2.elements[i].y;
             }
-            filename = "out_rec_xy.bin";
+            filename = "cpp_array_xy.bin";
             saveArrayToFile(y_arr2, out2.length, filename);
             delete[] y_arr2;
         }
@@ -270,7 +272,7 @@ int main() {
             for (long i = 0; i < out2.length; i++) {
                 z_arr2[i] = out2.elements[i].z;
             }
-            filename = "out_rec_xz.bin";
+            filename = "cpp_array_xz.bin";
             saveArrayToFile(z_arr2, out2.length, filename);
             delete[] z_arr2;
         }

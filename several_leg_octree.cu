@@ -1,5 +1,6 @@
 #include "HeaderCPP.h"
 #include "HeaderCUDA.h"
+#include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
 #include "driver_types.h"
 #include "octree_util.cu.h"
@@ -25,6 +26,8 @@ __global__ void validity_child(Node parent, const Array<float3> input,
     __shared__ bool globalValidity[MaxChildQuad];
     auto index = blockIdx.x * blockDim.x + threadIdx.x;
     auto stride = blockDim.x * gridDim.x;
+    // if (index == 1)
+    // printf("her");
     for (auto t = threadIdx.x; t < MaxChildQuad; t++) {
         onEdge[t] = false;
         validLeafs[t] = false;
@@ -45,6 +48,11 @@ __global__ void validity_child(Node parent, const Array<float3> input,
         auto threadQuadranId = computeIndex % (totalAngleSample * totalFootholdSample);
         auto footholdIndex = threadQuadranId / totalAngleSample;
         auto angleIndex = threadQuadranId % totalAngleSample;
+        bool rotationActive = parent.box.topOffset.x < EnableRotBelow;
+        if (not rotationActive and angleIndex > 0) {
+            continue;
+        }
+        float margin = (rotationActive) ? 0 : EnableRotBelow / 3;
         Node& node = parent.childrenArr[childIndex];
         if (node.validity) { // DEADQUADRAN or already processed
             // std::printf("already done");
@@ -64,6 +72,14 @@ __global__ void validity_child(Node parent, const Array<float3> input,
         // float3 farthestDist = make_float3(0, 0, 0);
 
         const auto foothold = input.elements[footholdIndex];
+        auto vect = foothold - body;
+        Box elongateBox = box;
+        elongateBox.center = make_float3(0, 0, 0);
+        elongateBox.topOffset =
+            elongateBox.topOffset +
+            (leg.body + leg.coxa_length + leg.femur_length + leg.tibia_length);
+        if (not isInBox(vect, elongateBox))
+            continue;
 
         const Quaternion quat = QuaternionFromAngleIndex(angleIndex);
         uchar reachabilityCount = 0;
@@ -73,14 +89,22 @@ __global__ void validity_child(Node parent, const Array<float3> input,
         // (int)footholdIndex, foothold.x, foothold.y, foothold.z);
         // printf("p");
         for (uchar legN = 0; legN < LegCount; legN++) {
-            auto vect = foothold - body;
+            auto v = vect;
             auto thisleg = leg;
             thisleg.body_angle = LegMount_D[legN];
-            bool subReachability = distance(vect, leg, quat);
-            bool subCrossBox = linormRaw(vect) < linormRaw(new_box.topOffset);
-            // printf("%f", linorm(vect));
-            // printf("p");
-            // farthestDist = (linorm(farthestDist) > linorm(vect)) ? vect : farthestDist;
+            bool subReachability = distance(v, leg, quat);
+            float distEdgeRaw = linormRaw(new_box.topOffset);
+            bool subCrossBox;
+            constexpr float conradSqrd = convexRadius * convexRadius;
+            if (distEdgeRaw > conradSqrd) {
+                Box zerobox = new_box;
+                zerobox.center = make_float3(0, 0, 0);
+                zerobox.topOffset = zerobox.topOffset + margin;
+                subCrossBox = isInBox(v, new_box);
+            } else
+                subCrossBox = linormRaw(v) < linormRaw(new_box.topOffset) + margin;
+
+            // farthestDist = (linorm(farthestDist) > linorm(v)) ? v : farthestDist;
             crossBoxCount += subCrossBox;
             reachabilityCount += subReachability;
         }
@@ -126,6 +150,94 @@ __global__ void validity_child(Node parent, const Array<float3> input,
     }
 }
 
+void branchCpu(Node& parent, Array<float3> input, const LegDimensions leg, uchar depth,
+               cudaStream_t stream) {
+    // const bool goDeeperDEEPERRRR = not parent.raw;
+    // std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
+    // parent.box.center.y, parent.box.center.z);
+    // std::printf("\nleaf: %d", parent.leaf);
+    // std::printf("\nraw: %d", parent.raw);
+    // std::printf("\nvalidity: %d", parent.validity);
+    if (parent.raw) {
+        // here we are left with uninitialized raw nodes
+        cudaMallocManaged(&parent.childrenArr, parent.childrenCount * sizeof(Node));
+        for (uint c = 0; c < parent.childrenCount; c++) { // inits all subbox
+            Node& node = parent.childrenArr[c];
+            auto quadranIndex = c;
+            Box new_box;
+            uchar missingQuad;
+
+            // we need to find the box of the uninitialized
+            bool small[3] = {0, 0, 0};
+            uint orderedQuadIndex = CreateChildBox(
+                parent.box, new_box, 3, (uint)quadranIndex, small, missingQuad);
+            auto subQuadCount = (3 - missingQuad);
+            node.childrenCount = MaxChildQuad;
+            if (missingQuad == DEADQUADRAN) {
+                // std::printf("DEAD %d ", index);
+                node.leaf = true;
+                node.raw = false;
+                node.validity = true;
+                node.onEdge = true;
+                node.box = NullBox;
+                continue;
+            }
+            node.onEdge = false;
+            node.validity = false;
+            if (subQuadCount <= 0) {
+                // no new quadran possible so we mark it as leaf, put the box in, needs
+                // processing but no malloc
+                node.leaf = true;
+                node.raw = false;
+                node.box = new_box;
+            } else {
+                // new quadran so not a leaf and needs processing
+                node.leaf = false;
+                node.raw = true;
+                node.box = new_box;
+            }
+            // parent.childrenArr[c] = node; // write to managed mem
+        }
+
+        // std::cout << "\nComputing!\n" << std::endl;
+        parent.raw = false;
+        // return;
+        const uint max_child_ind = parent.childrenCount;
+        const size_t totalFootholdSample = input.length;
+        constexpr size_t totalAngleSample =
+            AngleSample_D[0] * AngleSample_D[1] * AngleSample_D[2];
+        const size_t maxComputeIndex =
+            max_child_ind * totalFootholdSample * totalAngleSample;
+
+        constexpr uint maxBlockSize = 1024 / 4;
+
+        int blockSize = min(maxComputeIndex, (typeof(maxComputeIndex))maxBlockSize);
+        int numBlock = (maxComputeIndex + blockSize - 1) / blockSize;
+        // std::printf("<%d %d>", numBlock, blockSize);
+        std::cout << &parent << std::endl;
+        // cudaDeviceSynchronize();
+        // auto p = parent;
+        validity_child<<<numBlock, blockSize, 0, stream>>>(parent, input, leg);
+        // std::cout << "\nComputing!\n" << std::endl;
+        cudaStreamSynchronize(stream);
+        // cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR("vailidy cpu");
+
+    } else {
+        // std::cout << &parent << std::endl;
+        for (uint c = 0; c < parent.childrenCount; c++) {
+            Node& node = parent.childrenArr[c];
+            // std::cout << &node << std::endl;
+            if (not node.onEdge)
+                node.leaf = true;
+            bool branch = not node.leaf;
+            if (branch) {
+                branchCpu(node, input, leg, depth + 1, stream);
+            }
+        }
+    }
+}
+
 __global__ void branchKernel(Node* parentPTR, Array<float3> input,
                              const LegDimensions leg, uchar depth) {
     Node& parent = *parentPTR;
@@ -146,25 +258,32 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
     bool small[3] = {0, 0, 0};
     // auto maxComputeIndex = pow(pow(2, SUB_QUAD), quadCount);
     const bool goDeeperDEEPERRRR = not parent.raw;
+    if (index == 0 and not goDeeperDEEPERRRR) {
+        std::printf("\n\nDepth %d", depth);
+        std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
+                    parent.box.center.y, parent.box.center.z);
+        std::printf("\nsize x: %.1f y: %.1f z: %.1f ", parent.box.topOffset.x,
+                    parent.box.topOffset.y, parent.box.topOffset.z);
+    }
     if (not goDeeperDEEPERRRR) {
         if (index == 0) {
-            std::printf("\n\nComputing depth %d", depth);
-            std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
-                        parent.box.center.y, parent.box.center.z);
-            std::printf("\nleaf: %d", parent.leaf);
-            std::printf("\nraw: %d", parent.raw);
-            std::printf("\nvalidity: %d", parent.validity);
+            // std::printf("\n\nComputing depth %d", depth);
+            // std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
+            // parent.box.center.y, parent.box.center.z);
+            // std::printf("\nleaf: %d", parent.leaf);
+            // std::printf("\nraw: %d", parent.raw);
+            // std::printf("\nvalidity: %d", parent.validity);
             cudaMalloc(&parent.childrenArr, sizeof(Node) * parent.childrenCount);
             // parent.childrenArr = (Node*)malloc(sizeof(Node) * MaxChildQuad);
         }
     } else {
         if (index == 0) {
-            std::printf("\n\nForking depth %d", depth);
-            std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
-                        parent.box.center.y, parent.box.center.z);
-            std::printf("\nleaf: %d", parent.leaf);
-            std::printf("\nraw: %d", parent.raw);
-            std::printf("\nvalidity: %d", parent.validity);
+            // std::printf("\n\nForking depth %d", depth);
+            // std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
+            // parent.box.center.y, parent.box.center.z);
+            // std::printf("\nleaf: %d", parent.leaf);
+            // std::printf("\nraw: %d", parent.raw);
+            // std::printf("\nvalidity: %d", parent.validity);
         }
     }
     __syncthreads();
@@ -235,7 +354,7 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
     }
     if (not goDeeperDEEPERRRR) {
         if (index == 0) {
-            std::printf("\nComputing!\n");
+            // std::printf("\nComputing!\n");
             parent.raw = false;
             // return;
             const uint max_child_ind = parent.childrenCount;
@@ -249,50 +368,10 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
 
             int blockSize = min(maxComputeIndex, (typeof(maxComputeIndex))maxBlockSize);
             int numBlock = (maxComputeIndex + blockSize - 1) / blockSize;
-            std::printf("<%d %d>", numBlock, blockSize);
+            // std::printf("<%d %d>", numBlock, blockSize);
             validity_child<<<numBlock, blockSize>>>(parent, input, leg);
             // input.length = 10;
             // validity_child<<<1, 16>>>(parent, input, leg);
-        }
-    }
-}
-
-__forceinline__ __device__ __host__ bool isNullBox(Box box) {
-    return box.center.x == NullBox.center.x and box.center.y == NullBox.center.y and
-           box.center.z == NullBox.center.z and box.topOffset.x == NullBox.topOffset.x and
-           box.topOffset.y == NullBox.topOffset.y and
-           box.topOffset.z == NullBox.topOffset.z;
-}
-
-__global__ void makeImgFromTree(Node* root, Array<float3> input, Array<float3> output,
-                                uchar depth) {
-    return;
-    Node& parent = *root;
-    auto index = blockIdx.x * blockDim.x + threadIdx.x;
-    auto stride = blockDim.x * gridDim.x;
-    for (auto computeIndex = 0; computeIndex < parent.childrenCount; computeIndex++) {
-
-        Node& node = parent.childrenArr[computeIndex];
-        if (isNullBox(node.box))
-            continue;
-
-        if (node.leaf or node.raw) {
-            // continue;
-
-            constexpr uint maxBlockSize = 1024 / 4;
-            const uint threadCount = input.length;
-            int blockSize = min(threadCount, (typeof(threadCount))maxBlockSize);
-            int numBlock = (threadCount + blockSize - 1) / blockSize;
-
-            fillOutKernel<<<numBlock, blockSize>>>(node.box, make_float3(depth, 0, 0),
-                                                   input, output);
-        } else {
-            // continue;
-            constexpr uint maxBlockSize = 1024 / 4;
-            const uint threadCount = node.childrenCount;
-            int blockSize = min(threadCount, (typeof(threadCount))maxBlockSize);
-            int numBlock = (threadCount + blockSize - 1) / blockSize;
-            makeImgFromTree<<<numBlock, blockSize>>>(&node, input, output, depth + 1);
         }
     }
 }
@@ -307,17 +386,23 @@ __global__ void makeImgFromTree(Node* root, Array<float3> input, Array<float3> o
         }                                                                                \
     } while (0)
 
-float apply_oct(Array<float3> input, LegDimensions dim, Array<float3> output) {
+// __constant__ float3 cst[20000];
+
+__host__ float apply_oct(Array<float3> input, LegDimensions dim, Array<float3>& output) {
     Array<float3> gpu_in{};
     Array<float3> gpu_out{};
     gpu_in.length = input.length;
     gpu_out.length = output.length;
     cudaMalloc(&gpu_in.elements, gpu_in.length * sizeof(float3));
+    // cudaMalloc(cst, gpu_in.length * sizeof(float3));
     cudaMalloc(&gpu_out.elements, gpu_out.length * sizeof(float3));
     CUDA_CHECK_ERROR("cudaMalloc gpu_in.elements");
 
     cudaMemcpy(gpu_in.elements, input.elements, gpu_in.length * sizeof(float3),
                cudaMemcpyHostToDevice);
+    // cudaMemcpyToSymbol(cst, input.elements, gpu_in.length * sizeof(float3),
+    // cudaMemcpyHostToDevice);
+    // gpu_in.elements = cst;
     CUDA_CHECK_ERROR("cudaMemcpy gpu_in.elements");
 
     constexpr int blockSize = 64;
@@ -327,12 +412,18 @@ float apply_oct(Array<float3> input, LegDimensions dim, Array<float3> output) {
     box.topOffset = make_float3(BoxSize[0], BoxSize[1], BoxSize[2]);
     Node* deviceRoot;
     Node root;
-    // cudaMallocManaged(&managedRoot, sizeof(Node));
+    Node* managedRoot;
+    cudaMallocManaged(&managedRoot, sizeof(Node));
     root.box = box;
     root.raw = true;
     root.leaf = false;
     root.validity = false;
     root.childrenCount = MaxChildQuad;
+    managedRoot->box = box;
+    managedRoot->raw = true;
+    managedRoot->leaf = false;
+    managedRoot->validity = false;
+    managedRoot->childrenCount = MaxChildQuad;
     cudaMalloc(&deviceRoot, sizeof(Node));
     cudaMemcpy(deviceRoot, &root, sizeof(Node), cudaMemcpyHostToDevice);
     // managedRoot[0] = root;
@@ -340,10 +431,14 @@ float apply_oct(Array<float3> input, LegDimensions dim, Array<float3> output) {
     numBlock = (max_quad_ind + blockSize - 1) / blockSize;
     // recursive_kernel<<<1, 24>>>(box, gpu_in, dim, gpu_out, 30);
     // Prepare
+    cudaDeviceSetLimit(cudaLimitMallocHeapSize, 200000000);
+    // cudaDeviceSetLimit(cudaLimitPersistingL2CacheSize, 100);
+    CUDA_CHECK_ERROR("limit set");
+    // ((size_t)MaxChildQuad * (size_t)(MAX_DEPTH)));
     cudaEvent_t start, stop;
     cudaStream_t stream;
-    // cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-    cudaStreamCreateWithFlags(&stream, cudaStreamDefault);
+    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+    // cudaStreamCreateWithFlags(&stream, cudaStreamDefault);
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     // Start record
@@ -351,7 +446,9 @@ float apply_oct(Array<float3> input, LegDimensions dim, Array<float3> output) {
     // Do something on GPU
     for (uint d = 0; d < MAX_DEPTH; d++) {
         branchKernel<<<numBlock, blockSize, 0, stream>>>(deviceRoot, gpu_in, dim, 0);
+        // branchCpu(managedRoot[0], gpu_in, dim, 0, stream);
         cudaStreamSynchronize(stream);
+        // cudaDeviceSynchronize();
     }
     cudaEventRecord(stop, stream);
     cudaEventSynchronize(stop);
@@ -363,14 +460,27 @@ float apply_oct(Array<float3> input, LegDimensions dim, Array<float3> output) {
     cudaEventDestroy(stop);
     CUDA_CHECK_ERROR("Kernel launch");
     std::cout << "\n\ncompute done, building output" << std::endl;
-    root = copyTreeOnCpu(deviceRoot);
-    // makeImgFromTree<<<numBlock, blockSize, 0, stream>>>(deviceRoot, gpu_in, gpu_out, 0);
+    Node* rootPtr;
+    copyTreeOnCpu(deviceRoot, rootPtr);
+    std::cout << "deleting GPU mem" << std::endl;
+    deleteTree(deviceRoot);
+    std::cout << "counting leafs" << std::endl;
+    std::cout << "total: " << countLeaf(*rootPtr) << std::endl;
+    delete[] output.elements;
+    auto newoutput = extractValidAsArray(*rootPtr);
+    output.length = newoutput.length;
+    output.elements = newoutput.elements;
+
+    // std::cout << "total: " << countLeaf(*managedRoot) << std::endl;
+
+    // makeImgFromTree<<<numBlock, blockSize, 0, stream>>>(deviceRoot, gpu_in,
+    // gpu_out, 0);
     CUDA_CHECK_ERROR("Kernel img");
 
     cudaStreamSynchronize(stream);
     cudaDeviceSynchronize();
     cudaStreamDestroy(stream);
-    std::cout << "image done" << std::endl;
+    // std::cout << "image done" << std::endl;
 
     cudaFree(gpu_in.elements);
     cudaFree(gpu_out.elements);

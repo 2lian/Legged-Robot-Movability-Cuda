@@ -197,31 +197,16 @@ __forceinline__ __host__ __device__ Quaternion QuaternionFromAngleIndex(uint Ang
     return quat;
 }
 
-inline __host__ void copyTreeOnCpuRecursion(Node parent) {
-    if (parent.leaf or parent.raw)
-        return;
-    Node* family = new Node[parent.childrenCount]();
-    std::cout << parent.childrenArr << std::endl;
-    std::cout << "f";
-    cudaMemcpy(family, parent.childrenArr, 1 * sizeof(Node),
-               cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("Copy recurs");
-    parent.childrenArr = family;
-    for (uint c = 0; c < parent.childrenCount; c++) {
-        Node child = parent.childrenArr[c];
-        copyTreeOnCpuRecursion(child);
-    }
-}
+__host__ void copyTreeOnCpu(Node* gpuRoot, Node*& root);
 
-inline __host__ Node copyTreeOnCpu(Node* gpuRoot) {
-    Node root;
-    cudaMemcpy(&root, gpuRoot, 1 * sizeof(Node), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    std::cout << "what" << std::endl;
-    std::cout << root.childrenArr << std::endl;
-    CUDA_CHECK_ERROR("Copy root");
-    cudaMalloc(&root.childrenArr, sizeof(Node));
-    copyTreeOnCpuRecursion(root);
-    return root;
+__host__ uint countLeaf(Node&);
+
+__host__ void deleteTree(Node* node);
+
+__forceinline__ __device__ __host__ bool isNullBox(Box box) {
+    return box.center.x == NullBox.center.x and box.center.y == NullBox.center.y and
+           box.center.z == NullBox.center.z and box.topOffset.x == NullBox.topOffset.x and
+           box.topOffset.y == NullBox.topOffset.y and
+           box.topOffset.z == NullBox.topOffset.z;
 }
+__host__ Array<float3> extractValidAsArray(Node node);
