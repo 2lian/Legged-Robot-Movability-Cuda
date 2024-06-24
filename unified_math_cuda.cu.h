@@ -144,13 +144,19 @@ __forceinline__ __host__ __device__ float sum(const float3& vec) {
     return vec.x + vec.y + vec.z;
 }
 
-__forceinline__ __device__ float linormRaw(const float3& vec) { return sum(vec * vec); }
-
-__forceinline__ __device__ float linorm(const float3& vec) {
-    return norm3df(vec.x, vec.y, vec.z);
+__host__ __forceinline__ __device__ float linormRaw(const float3& vec) {
+    return sum(vec * vec);
 }
 
-__forceinline__ __device__ float dot(const float3& vec1, const float3& vec2) {
+__host__ __forceinline__ __device__ float linorm(const float3& vec) {
+#ifdef __CUDA_ARCH__
+    return norm3df(vec.x, vec.y, vec.z);
+#else
+    return sqrt(linormRaw(vec));
+#endif
+}
+
+__host__ __forceinline__ __device__ float dot(const float3& vec1, const float3& vec2) {
     return sum(vec1 * vec2);
 }
 

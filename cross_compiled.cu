@@ -1,6 +1,6 @@
 #include "cross_compiled.cuh"
-#include "settings.h"
 #include "one_leg.cu.h"
+#include "settings.h"
 #include "unified_math_cuda.cu.h"
 #include <chrono>
 #include <thread>
@@ -46,6 +46,7 @@ float apply_kernel(const Array<T_in> input, const param dim,
 
     constexpr int blockSize = BLOCSIZE;
     int numBlock = (input.length + blockSize - 1) / blockSize;
+    kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out); // warmup
     // Prepare
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -155,3 +156,12 @@ template float apply_kernel<float3, LegCompact, bool>(Array<float3>, LegCompact,
                                                       void (*)(const Array<float3>,
                                                                LegCompact, Array<bool>),
                                                       Array<bool>);
+
+__host__ double apply_reach_cpu(const Array<float3> input, const LegDimensions dim,
+                           Array<bool> const output) {
+    auto start = std::chrono::high_resolution_clock::now();
+    reachability_kernel_cpu(input, dim, output);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    return duration.count();
+}

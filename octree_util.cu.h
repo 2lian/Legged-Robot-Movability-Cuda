@@ -181,14 +181,14 @@ __forceinline__ __host__ __device__ Quaternion RPYtoQuat(float r, float p, float
         }                                                                                \
     } while (0)
 
-__forceinline__ __host__ __device__ Quaternion QuaternionFromAngleIndex(uint AngleIndex) {
+__forceinline__ __device__ Quaternion QuaternionFromAngleIndex(uint AngleIndex) {
     auto reducedAngleIndex = AngleIndex;
     float rpy[3];
     for (uchar i = 0; i < 3; i++) {
         auto& maxInd = AngleSample_D[i];
-        uchar ind = AngleIndex % maxInd;
+        uchar ind = reducedAngleIndex % maxInd;
         ind = (ind + (ind / 2)) % maxInd; // starts at middle
-        reducedAngleIndex = AngleIndex / maxInd;
+        reducedAngleIndex = reducedAngleIndex / maxInd;
 
         float x = (float)ind / (uchar)(max(maxInd - 1, 1));
         rpy[i] = (1 - x) * AngleMinMax_D[i * 2] + x * AngleMinMax_D[i * 2 + 1];

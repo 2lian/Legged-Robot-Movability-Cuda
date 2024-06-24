@@ -58,16 +58,21 @@ save_array_to_binary_file(body_map[:, 2].astype(np.float32), "numpy_input_bz.bin
 
 print("body samples shape: ", body_map.shape)
 
-pix_size = 50
-if vertical_slice:
-    x_map_dist = np.arange(-150, 551, pix_size)
+if WHOLE3D:
+    x_map_dist = np.arange(-100, 601, PIX_SIZE)
+    y_map_dist = np.arange(-400, 401, PIX_SIZE)
+    z_map_dist = np.arange(-500, 201, PIX_SIZE)
+
+elif VERT_SLICE:
+    x_map_dist = np.arange(-100, 601, PIX_SIZE)
     y_map_dist = np.array([0])
     # y_map_dist = np.arange(-400, 401, pix_size)
-    z_map_dist = np.arange(-500, 501, pix_size)
+    z_map_dist = np.arange(-500, 201, PIX_SIZE)
 else:
-    x_map_dist = np.arange(-50, 551, pix_size)
-    y_map_dist = np.arange(-400, 401, pix_size)
-    z_map_dist = np.arange(-500, 501, 10)
+    x_map_dist = np.arange(-50, 551, PIX_SIZE)
+    y_map_dist = np.arange(-400, 401, PIX_SIZE)
+    # z_map_dist = np.arange(-500, 501, 10)
+    z_map_dist = np.array([Z_CUT])
 X_map_dist, Y_map_dist, Z_map_dist = np.meshgrid(x_map_dist, y_map_dist, z_map_dist)
 
 dist_map = np.concatenate(

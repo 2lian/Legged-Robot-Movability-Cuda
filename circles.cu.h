@@ -45,7 +45,7 @@ __device__ __forceinline__ bool isPointAboveLine(float x, float y, float theta) 
     return 0 > diff;
 }
 
-__device__ __forceinline__ AreaBitField find_region(float x, float y,
+__host__ __device__ __forceinline__ AreaBitField find_region(float x, float y,
                                                     const LegDimensions dim) {
     AreaBitField region = {0};
     auto angle = atan2f(y, x);
@@ -362,17 +362,23 @@ __host__ __device__ Cricle* insert_circles(const LegDimensions leg, AreaBitField
 
     // if (not region.UpperRegion) {tail[winglet].attractivity = true;}
 
-    if (region.FullyExtended) { // we replace the attractive one by the outer_circle
-        int attractive_index;
-        if (tail[otherC].attractivity) {
-            attractive_index = otherC;
-        } else {
-            attractive_index = winglet;
+    if constexpr (MegaClamp) {
+        tail += 3;
+        tail[0] = outer_circle(leg);
+        tail++;
+    } else {
+        if (region.FullyExtended) { // we replace the attractive one by the outer_circle
+            int attractive_index;
+            if (tail[otherC].attractivity) {
+                attractive_index = otherC;
+            } else {
+                attractive_index = winglet;
+            }
+            tail[attractive_index] = outer_circle(leg);
         }
-        tail[attractive_index] = outer_circle(leg);
+        tail += 3;
     }
 
-    tail += 3;
     return tail;
 }
 
@@ -466,7 +472,7 @@ __host__ __device__ Cricle* insert_intersecv2(const LegDimensions leg, Circle* h
             circle.attractivity = true;
         }
     }
-     return tail;
+    return tail;
 }
 __host__ __device__ Cricle* insert_intersec(const LegDimensions leg, AreaBitField region,
                                             Circle* head) {

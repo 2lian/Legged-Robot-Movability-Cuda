@@ -39,3 +39,6 @@ __global__ void recursive_kernel(Box box, const Array<float3> input,
                                  const LegDimensions leg, Array<float3> output,
                                  uchar depth, float radius, bool validity);
 __device__ bool distance(float3& point, const LegDimensions& dim, const Quaternion quat);
+
+__host__ void reachability_kernel_cpu(const Array<float3> input, const LegDimensions dim,
+                                      Array<bool> output);

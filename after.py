@@ -1,3 +1,6 @@
+from numpy.typing import NDArray
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import open3d as o3d
 import maps
 import matplotlib.pyplot as plt
@@ -9,8 +12,22 @@ from setting import *
 matplotlib.use("Agg")
 
 
+def get_closest_vector(point_a: NDArray, points: NDArray, vectors: NDArray):
+    distances = np.linalg.norm(points - point_a, axis=1)
+    closest_index = np.argmin(distances)
+    closest_vector = vectors[closest_index]
+
+    return closest_vector
+
+
 def bool_grid_image(
-    grid: np.ndarray, data: np.ndarray, black_white=True, transparency=False
+    grid: np.ndarray,
+    data: np.ndarray,
+    black_white=True,
+    transparency=False,
+    bool_color: NDArray = np.array([0, 0, 0]),
+    background: NDArray = np.array([1, 1, 1]),
+    true_alpha=1,
 ):
     """
     From a grid of coordinates corresponding to pixels positions and the corresponding bool value of that pixel
@@ -40,12 +57,15 @@ def bool_grid_image(
     img = img.transpose()
 
     if black_white:
+        img_rgba = np.zeros((img.shape[0], img.shape[1], 4))
         if transparency:
-            img_rgba = np.zeros((img.shape[0], img.shape[1], 4))
-            img_rgba[..., -1] = img
-            plt.imshow(img_rgba, extent=[xmin, xmax, ymin, ymax])
+            img_rgba[..., -1] = img * true_alpha
         else:
-            plt.imshow(img, cmap="gray_r", extent=[xmin, xmax, ymin, ymax])
+            img_rgba[..., -1] = 1
+        for i in range(3):
+            img_rgba[..., i] = (1 - img) * background[i] - (0 - img) * bool_color[i]
+        plt.imshow(img_rgba, extent=[xmin, xmax, ymin, ymax])
+        # plt.imshow(img, cmap="gray_r", extent=[xmin, xmax, ymin, ymax])
     else:
         plt.imshow(img, extent=[xmin, xmax, ymin, ymax])
     return
@@ -70,7 +90,7 @@ grid = np.empty(shape=(len(xy), 3))
 grid[:, 0] = xx
 grid[:, 1] = xy
 grid[:, 2] = xz
-reach_count =np.empty(shape=(len(xy),)) + 2
+reach_count = np.empty(shape=(len(xy),)) + 2
 # filename = "cpp_array_y.bin"
 # reach_count = read_array_from_file_with_length(filename, np.int32)
 
@@ -93,14 +113,14 @@ map = np.load("map.npy")
 # plt.savefig("graph1.png")
 # plt.clf()
 
-# filename = "out_dist_xx.bin"
-filename = "out_rec_xx.bin"
+filename = "out_dist_xx.bin"
+# filename = "out_rec_xx.bin"
 xx = read_array_from_file_with_length(filename, np.float32)
-# filename = "out_dist_xy.bin"
-filename = "out_rec_xy.bin"
+filename = "out_dist_xy.bin"
+# filename = "out_rec_xy.bin"
 xy = read_array_from_file_with_length(filename, np.float32)
-# filename = "out_dist_xz.bin"
-filename = "out_rec_xz.bin"
+filename = "out_dist_xz.bin"
+# filename = "out_rec_xz.bin"
 xz = read_array_from_file_with_length(filename, np.float32)
 
 dist = np.empty(shape=(len(xx), 3))
@@ -126,68 +146,124 @@ selection = targets[:, 1] == closest_to_0
 filename = "out_reachability.bin"
 reach = read_array_from_file_with_length(filename, bool).astype(bool)
 
-z_slice_cut = 200
-
-if vertical_slice:
+if VERT_SLICE:
+    plane_sel = [0, 2]
     closest_to_0 = min(targets[targets[:, 1] >= 0, 1])
     selection = targets[:, 1] == closest_to_0
     zero_plane = targets[selection][:, [0, 2]]
 else:
-    closest_to_0 = min(targets[(targets[:, 2] + z_slice_cut) >= 0, 2])
+    plane_sel = [0, 1]
+    closest_to_0 = min(targets[(targets[:, 2] - Z_CUT) >= 0, 2])
     # closest_to_0 = min(targets[(targets[:, 2] + 230) >= 0, 2])
     selection = targets[:, 2] == closest_to_0
     zero_plane = targets[targets[:, 2] == closest_to_0][:, [0, 1]]
 
+color = np.array([0, 0.5, 0.3])
 plt.grid(True)
 bool_grid_image(
     zero_plane,
     reach[selection],
     black_white=True,
     transparency=False,
+    bool_color=color,
 )
 
 plt.xlabel("x (mm)")
-if vertical_slice:
+if VERT_SLICE:
     plt.title("Reachable area of Moonbot leg (y=0)")
     plt.ylabel("z (mm)")
 else:
-    plt.title(f"Reachable area of Moonbot leg (z={-z_slice_cut})")
+    plt.title(f"Reachable area of Moonbot leg (z={Z_CUT})")
     plt.ylabel("y (mm)")
-plt.scatter(0, 0, s=0.01, c="black", marker="s", label="Reachable")
+plt.scatter(0, 0, s=0.01, color=color, marker="s", label="Reachable")
 legend = plt.legend(loc="upper left")
 for handle in legend.legendHandles:
     handle.set_sizes([50.0])
 plt.savefig("reachability_result.png", bbox_inches="tight", dpi=300)
 plt.clf()
 
-
 # plt.grid(True)
 sel1 = np.linalg.norm(dist[selection, :], axis=1)
-bool_grid_image(
-    zero_plane,
-    sel1,
-    black_white=False,
-    transparency=False,
-)
-sel2 = np.all(dist[selection, :] == [0,0,0], axis=1)
+sel1 = np.minimum(sel1, SATURATE)
+if GRADIENT:
+    bool_grid_image(
+        zero_plane,
+        sel1,
+        black_white=False,
+        transparency=False,
+    )
+    color = np.array([1, 1, 1])
+else:
+    color = np.array([0, 0, 0])
+# sel2 = np.all(dist[selection, :] == [0,0,0], axis=1)
+sel2 = sel1 < PIX_SIZE / 2
 bool_grid_image(
     zero_plane,
     sel2,
     black_white=True,
     transparency=True,
+    bool_color=color,
 )
 
-plt.xlabel(f"x (mm) <min = {min(sel1)}, max = {max(sel1)}>")
-if vertical_slice:
-    plt.title("Distance to reachablity's edge (y=0)")
+# plt.xlabel(f"x (mm) <min = {min(sel1)}, max = {max(sel1)}>")
+plt.xlabel(f"x (mm)")
+if VERT_SLICE:
+    plt.title("y=0 plane")
     plt.ylabel("z (mm)")
 else:
-    plt.title(f"Distance to reachablity's edge (z={-z_slice_cut})")
+    plt.title(f"z={Z_CUT} plane")
     plt.ylabel("y (mm)")
-plt.scatter(0, 0, s=0.01, c="black", marker="s", label="Reachability's edge")
-legend = plt.legend(loc="upper left")
-for handle in legend.legendHandles:
-    handle.set_sizes([50.0])
+plt.scatter(0, 0, s=0.01, color=color, marker="_", label="Reachability edge")
+plt.scatter(0, 0, s=0.01, c="black", marker="$\leftarrow$", label="Vector to the edge")
+
+if LEGEND:
+    legend = plt.legend(loc="upper left", facecolor=(0.5, 0.5, 0.5, 1))
+    for handle in legend.legendHandles:
+        handle.set_sizes([50.0])
+
+if QUIVER:
+    tailCount = 5
+    x_map_dist = np.linspace(
+        min(targets[:, plane_sel[0]]), max(targets[:, plane_sel[0]]), tailCount
+    )
+    z_map_dist = np.linspace(
+        min(targets[:, plane_sel[1]]), max(targets[:, plane_sel[1]]) - 100, tailCount
+    )
+    X_map_dist, Z_map_dist = np.meshgrid(x_map_dist, z_map_dist)
+    point = np.concatenate(
+        [
+            X_map_dist.flatten().reshape((len(X_map_dist.flatten()), 1)),
+            Z_map_dist.flatten().reshape((len(Z_map_dist.flatten()), 1)),
+        ],
+        axis=1,
+    ).astype("float32")
+    endp = np.empty_like(point)
+    for i in range(point.shape[0]):
+        endp[i, :] = (
+            get_closest_vector(point[i, :], targets[:, plane_sel], dist[:, plane_sel])
+            * -1
+        )
+    plt.quiver(
+        point[:, 0], point[:, 1], endp[:, 0], endp[:, 1], scale_units="xy", scale=1
+    )
+
+if COLORBAR:
+    cmap = cm.viridis
+    norm = mcolors.Normalize(vmin=0, vmax=SATURATE)
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cax = plt.axes((0.85, 0.1, 0.075, 0.8))
+    colorbar = plt.colorbar(sm, cax=cax)
+# Set the ticks and labels, replacing the last tick with '>= 400'
+    ticks = np.linspace(0, SATURATE, 5)
+# ticks = [0, 100, 200, 300, 400]
+    tick_labels = np.round(ticks).astype(int).astype(str)
+    tick_labels[-1] = f">{SATURATE}"
+    colorbar.set_ticks(ticks)
+    colorbar.set_ticklabels(tick_labels)
+
+    colorbar.set_label("Distance to reachability edge (mm)")
+
 plt.savefig("distance_result.png", bbox_inches="tight", dpi=300)
 
 shaved = targets[reach, :]
@@ -210,22 +286,26 @@ if False:
 
     o3d.visualization.draw_geometries([voxel_grid])
 
-select = reach_count > 1
-shaved = grid[select, :]
-intensity = reach_count[select]
-np.save("robot_reach.npy", shaved)
-np.save("robot_reach_intens.npy", intensity)
-print(f"robot reachable samples: {select.sum()}")
-d = np.linalg.norm(grid[:-1, :] - grid[1:, :], axis=1)
-d = np.min(d) / 1_000
-# delta = max(abs(grid[0, :] - grid[1, :])) / 1_000
-delta = d
-print(f"detected voxel size: {delta}")
-print(f"robot reachable m^3: {select.sum() * delta**3}")
+if grid.shape[0] > 1:
+    select = reach_count > 1
+    shaved = grid[select, :]
+    intensity = reach_count[select]
+    np.save("robot_reach.npy", shaved)
+    np.save("robot_reach_intens.npy", intensity)
+    print(f"robot reachable samples: {select.sum()}")
+    d = np.linalg.norm(grid[:-1, :] - grid[1:, :], axis=1)
+    print(d)
+    d = np.min(d) / 1_000
+    # delta = max(abs(grid[0, :] - grid[1, :])) / 1_000
+    delta = d
+    print(f"detected voxel size: {delta}")
+    print(f"robot reachable m^3: {select.sum() * delta**3}")
+else:
+    print("Warning: no points.")
 
 print("python post process finished")
 
-if True:
+if False:
     map_pcd = o3d.geometry.PointCloud()
     map_pcd.points = o3d.utility.Vector3dVector(map)
 
@@ -249,7 +329,8 @@ if True:
     r_pcd.colors = o3d.utility.Vector3dVector(colors_rgb)
     # voxel_grid = r_pcd
     voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(
-        r_pcd, voxel_size = 100.1
+        r_pcd,
+        voxel_size=100.1,
         # r_pcd, voxel_size=np.linalg.norm(grid[0, :] - grid[1, :])
     )
 

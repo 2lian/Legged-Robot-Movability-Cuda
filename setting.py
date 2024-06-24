@@ -1,2 +1,10 @@
-vertical_slice = True
-# vertical_slice = False
+VERT_SLICE = True
+# VERT_SLICE = False
+WHOLE3D = False
+Z_CUT = -200
+SATURATE = 200
+PIX_SIZE = 30
+GRADIENT = 1
+QUIVER = 1
+COLORBAR = 1
+LEGEND = 1

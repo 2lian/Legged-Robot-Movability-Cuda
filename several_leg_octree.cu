@@ -58,13 +58,13 @@ __global__ void validity_child(Node parent, const Array<float3> input,
             // std::printf("already done");
             continue;
         }
-        bool tooSmall = node.leaf;
+        // bool tooSmall = node.leaf;
         Box new_box = node.box;
         auto& thisOnEdge = onEdge[childIndex];
         auto& thisGlobalValidity = globalValidity[childIndex];
         auto& thisValidLeaf = validLeafs[childIndex];
 
-        float3 distToNewBox;
+        // float3 distToNewBox;
 
         auto body = new_box.center;
         bool reachabilityEdgeInTheBox = false;
@@ -92,7 +92,7 @@ __global__ void validity_child(Node parent, const Array<float3> input,
             auto v = vect;
             auto thisleg = leg;
             thisleg.body_angle = LegMount_D[legN];
-            bool subReachability = distance(v, leg, quat);
+            bool subReachability = distance(v, thisleg, quat);
             float distEdgeRaw = linormRaw(new_box.topOffset);
             bool subCrossBox;
             constexpr float conradSqrd = convexRadius * convexRadius;
@@ -150,8 +150,8 @@ __global__ void validity_child(Node parent, const Array<float3> input,
     }
 }
 
-void branchCpu(Node& parent, Array<float3> input, const LegDimensions leg, uchar depth,
-               cudaStream_t stream) {
+__host__ void branchCpu(Node& parent, Array<float3> input, const LegDimensions leg,
+                        uchar depth, cudaStream_t stream) {
     // const bool goDeeperDEEPERRRR = not parent.raw;
     // std::printf("\ncenter x: %.1f y: %.1f z: %.1f ", parent.box.center.x,
     // parent.box.center.y, parent.box.center.z);
@@ -205,7 +205,7 @@ void branchCpu(Node& parent, Array<float3> input, const LegDimensions leg, uchar
         const uint max_child_ind = parent.childrenCount;
         const size_t totalFootholdSample = input.length;
         constexpr size_t totalAngleSample =
-            AngleSample_D[0] * AngleSample_D[1] * AngleSample_D[2];
+            AngleSample[0] * AngleSample[1] * AngleSample[2];
         const size_t maxComputeIndex =
             max_child_ind * totalFootholdSample * totalAngleSample;
 
@@ -244,7 +244,7 @@ __global__ void branchKernel(Node* parentPTR, Array<float3> input,
     auto index = blockIdx.x * blockDim.x + threadIdx.x;
     auto stride = blockDim.x * gridDim.x;
     auto maxComputeIndex = parent.childrenCount;
-    uchar quadCount = 3;
+    // uchar quadCount = 3;
     // bool small[3];
     // small[0] = abs(parent.box.topOffset.x) < MIN_BOX_X;
     // small[1] = abs(parent.box.topOffset.y) < MIN_BOX_Y;

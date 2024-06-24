@@ -8,3 +8,6 @@ float apply_kernel(const Array<T_in> input, const param dim,
 
 template <typename T_in, typename param, typename T_out>
 float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const output);
+
+__host__ double apply_reach_cpu(const Array<float3> input, const LegDimensions dim,
+                                Array<bool> const output);
