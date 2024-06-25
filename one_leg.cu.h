@@ -42,3 +42,5 @@ __device__ bool distance(float3& point, const LegDimensions& dim, const Quaterni
 
 __host__ void reachability_kernel_cpu(const Array<float3> input, const LegDimensions dim,
                                       Array<bool> output);
+__host__ void distance_kernel_cpu(const Array<float3> input, const LegDimensions dim,
+                                      Array<float3> output);

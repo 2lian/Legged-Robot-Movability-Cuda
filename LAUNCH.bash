@@ -7,8 +7,9 @@ echo -e "\e[1;31mBEFORE\e[0m"
 python3 before.py 
 echo -e "\e[1;31mBUILD\e[0m"
 # LDFLAGS="-Wl,--no-as-needed"
-cmake --build . -- -j8 
-# cmake . 
+# cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake
+# cmake --build . -- -j8
+cmake . 
 # LDFLAGS="-Wl,--no-as-needed"
 make -j8 
 echo -e "\e[1;31mEXECUTING\e[0m"

@@ -1,8 +1,18 @@
 cmake_minimum_required(VERSION 3.26)
+
+# Use vcpkg toolchain
+# set(VCPKG_ROOT "~/vcpkg")
+# set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+    # CACHE STRING "")
+
 project(cuda LANGUAGES CUDA CXX)
 set(CMAKE_CUDA_ARCHITECTURES "native")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 # set(CMAKE_CXX_COMPILER "/usr/local/cuda/bin/nvcc")
+# if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+#     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+#         CACHE STRING "")
+# endif()
 
 # Detect the operating system
 # you need sfml installed using 'sudo apt-get install libsfml-dev' to
@@ -15,8 +25,11 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 # for cuda 12:
 set(CUDA_DIR "/usr/local/cuda")
 # find_package(CUDA 12.0 REQUIRED)
+# include_directories("~/vcpkg/installed/x64-linux/share/rbdl")
 
-find_package(Catch2 3 REQUIRED)
+list(APPEND CMAKE_MODULE_PATH "/home/elian/rbdl/share")
+# find_package(Catch2 3 REQUIRED)
+find_package(RBDL REQUIRED)
 #install with
 # cd ~
 # $ git clone https://github.com/catchorg/Catch2.git
@@ -25,10 +38,15 @@ find_package(Catch2 3 REQUIRED)
 # $ sudo cmake --build build/ --target install
 
 include_directories("${CUDA_DIR}/include")
+# include_directories("${VCPKG_INSTALL}/include")
+# include_directories(${rbdl_INCLUDE_DIRS})
 include_directories("${CMAKE_SOURCE_DIR}/externals/tinycolormap-master/include")
 # include_directories("externals/tinycolormap-master/include")
 include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
-# include_directories("${CMAKE_SOURCE_DIR}/externals/sciplot")
+# include_directories("/home/elian/rbdl/include")
+# include_directories("/home/elian/rbdl/src")
+# include_directories("/home/elian/rbdl")
+# include_directories("/home/elian/rbdl-build")
 # include_directories("externals/eigen-3.4.0")
 
 # set(CMAKE_CUDA_STANDARD 17)
@@ -73,12 +91,14 @@ add_executable(cuda
     octree_util.cu
     several_leg_octree.cu
     several_leg_octree.cu.h
+    rbdl_benchmark.cpp
     )
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
 # target_link_libraries(cuda PRIVATE Catch2::Catch2)
-# target_link_libraries(cuda PRIVATE Catch2::Catch2WithMain)
-target_include_directories(cuda PRIVATE "${CUDA_DIR}/include")
+target_link_libraries(cuda rbdl)
+# target_include_directories(cuda PRIVATE "${CMAKE_SOURCE_DIR}/externals/rbdl/lib")
+target_include_directories(cuda PRIVATE "${CUDA_DIR}/include" )
 
 # Copy font file to the build directory
 configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYONLY)

@@ -11,3 +11,5 @@ float apply_recurs(const Array<T_in> input, const param dim, Array<T_out> const 
 
 __host__ double apply_reach_cpu(const Array<float3> input, const LegDimensions dim,
                                 Array<bool> const output);
+__host__ double apply_dist_cpu(const Array<float3> input, const LegDimensions dim,
+                           Array<float3> const output);

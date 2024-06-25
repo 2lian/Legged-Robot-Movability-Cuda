@@ -3,6 +3,8 @@
 #include "settings.h"
 #include "unified_math_cuda.cu.h"
 #include <chrono>
+#include <iostream>
+#include <ostream>
 #include <thread>
 #define BLOCSIZE 1024 / 4
 using namespace std::chrono_literals;
@@ -157,11 +159,22 @@ template float apply_kernel<float3, LegCompact, bool>(Array<float3>, LegCompact,
                                                                LegCompact, Array<bool>),
                                                       Array<bool>);
 
+__host__ double apply_dist_cpu(const Array<float3> input, const LegDimensions dim,
+                           Array<float3> const output) {
+    auto start = std::chrono::high_resolution_clock::now();
+    distance_kernel_cpu(input, dim, output);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = (end - start)*1000;
+    return duration.count();
+}
+
 __host__ double apply_reach_cpu(const Array<float3> input, const LegDimensions dim,
                            Array<bool> const output) {
     auto start = std::chrono::high_resolution_clock::now();
+    // std::cout << "start" << std::endl;
     reachability_kernel_cpu(input, dim, output);
+    // std::cout << "end" << std::endl;
     auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - start;
+    std::chrono::duration<double> duration = (end - start)*1000;
     return duration.count();
 }

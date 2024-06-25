@@ -1,7 +1,6 @@
 #include "octree_util.cu.h"
 #include "one_leg.cu"
 #include "settings.h"
-#include "thrust/detail/tuple.inl"
 #include "thrust/tuple.h"
 #include "unified_math_cuda.cu.h"
 #include <iostream>
@@ -66,25 +65,32 @@ __forceinline__ __host__ __device__ float3 make_asif_leg0(float3 point, LegDimen
     z_rotateInPlace(point, -leg.body_angle, cos_memory, sin_memory);
     return point;
 }
-__forceinline__ __device__ float3 undo_asif_leg0(float3 point, float cos_memory,
-                                                 float sin_memory) {
+__host__ __forceinline__ __device__ float3 undo_asif_leg0(float3 point, float cos_memory,
+                                                          float sin_memory) {
     z_unrotateInPlace(point, cos_memory, sin_memory);
     return point;
 }
 
 template <typename Tout = bool, // function for distance
           Tout (*reach_function)(float3&, const LegDimensions&) = distance_circles>
-__device__ __forceinline__ Tout distance_global(float3& point, const LegDimensions& dim,
-                                                const Quaternion quat) {
+__host__ __device__ __forceinline__ Tout distance_global(float3& point,
+                                                         const LegDimensions& dim,
+                                                         const Quaternion quat) {
     // LegDimensions oriented_leg_dim = rotate_leg_data(quat, dim);
+#ifdef __CUDA_ARCH__
     __shared__ LegDimensions oriented_leg_dim;
     if (threadIdx.x == 0) {
         oriented_leg_dim = rotate_leg_data(quat, dim);
     }
+#else
+    LegDimensions oriented_leg_dim = rotate_leg_data(quat, dim);
+#endif
     auto unrotated_point = qtInvRotate(quat, point);
     float cos_memory;
     float sin_memory;
+#ifdef __CUDA_ARCH__
     __syncthreads();
+#endif
     auto point_as_leg0 =
         make_asif_leg0(unrotated_point, oriented_leg_dim, cos_memory, sin_memory);
     Tout result = reach_function(point_as_leg0, oriented_leg_dim);
@@ -125,9 +131,18 @@ __host__ __device__ __forceinline__ Tout reachability_global(const float3& point
 
 __host__ void reachability_kernel_cpu(const Array<float3> input, const LegDimensions dim,
                                       Array<bool> output) {
-    for (int i = 0; i < input.length; i += 0) {
-        std::cout << "hey" << std::endl;
+    for (int i = 0; i < input.length; i++) {
         output.elements[i] = reachability_global(input.elements[i], dim, quatTest);
+    }
+}
+
+__host__ void distance_kernel_cpu(const Array<float3> input, const LegDimensions dim,
+                                  Array<float3> output) {
+    for (int i = 0; i < input.length; i++) {
+        // std::cout << "hey" << std::endl;
+        float3 result = input.elements[i];
+        bool reachability = distance_global(result, dim, quatTest);
+        output.elements[i] = result;
     }
 }
 

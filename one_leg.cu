@@ -8,7 +8,7 @@
 
 template <bool Reverse = false>
 __host__ __device__ __forceinline__ void place_over_coxa(float3& coordinates,
-                                                const LegDimensions dim) {
+                                                         const LegDimensions dim) {
     // Coxa as the frame of reference without rotation
     if constexpr (not Reverse)
         coordinates.x -= dim.body;
@@ -28,8 +28,9 @@ __host__ __device__ __forceinline__ float find_coxa_angle(const float3 coordinat
     return atan2f(coordinates.y, coordinates.x);
 }
 
-__device__ __forceinline__ void distance_to_circumf(const Circle circle, float x, float y,
-                                                    float& distance, bool& validity) {
+__host__ __device__ __forceinline__ void distance_to_circumf(const Circle circle, float x,
+                                                             float y, float& distance,
+                                                             bool& validity) {
     x -= circle.x;
     y -= circle.y;
     float magnitude = sqrtf(x * x + y * y);
@@ -38,9 +39,10 @@ __device__ __forceinline__ void distance_to_circumf(const Circle circle, float x
     validity =
         (inside_the_circle == circle.attractivity) or (fabs(distance) < CIRCLE_MARGIN);
 }
-__device__ __forceinline__ void force_clamp_on_circle(const Circle circle, float& x,
-                                                      float& y, float& distance,
-                                                      bool& validity) {
+__host__ __device__ __forceinline__ void force_clamp_on_circle(const Circle circle,
+                                                               float& x, float& y,
+                                                               float& distance,
+                                                               bool& validity) {
     x -= circle.x;
     y -= circle.y;
     float magnitude = sqrtf(x * x + y * y);
@@ -61,8 +63,8 @@ __device__ __forceinline__ void force_clamp_on_circle(const Circle circle, float
 }
 
 template <bool OnlyCircles = false> // if the array has no points a chek is skipped
-__device__ __forceinline__ bool multi_circle_validate(float x, float y, Circle* circleArr,
-                                                      int number_of_circles) {
+__host__ __device__ __forceinline__ bool
+multi_circle_validate(float x, float y, Circle* circleArr, int number_of_circles) {
     for (int i = 0; i < number_of_circles; i++) {
         Circle& circle = circleArr[i];
         if constexpr (not OnlyCircles) {
@@ -86,7 +88,7 @@ __device__ __forceinline__ bool multi_circle_validate(float x, float y, Circle* 
     return true; // return true is all valid
 }
 
-__device__ __forceinline__ bool multi_circle_clamp(float& x, float& y, Circle* circleArr,
+__host__ __device__ __forceinline__ bool multi_circle_clamp(float& x, float& y, Circle* circleArr,
                                                    const int number_of_circles) {
     // number_of_circles = 1;
     bool overall_validity = true; // switches to false if one result is false
@@ -142,9 +144,9 @@ __device__ __forceinline__ bool multi_circle_clamp(float& x, float& y, Circle* c
     return overall_validity;
 }
 __host__ __device__ __forceinline__ void cancel_coxa_rotation(float3& coordinates,
-                                                     const float coxa_angle,
-                                                     float& cosine_coxa_memory,
-                                                     float& sin_coxa_memory) {
+                                                              const float coxa_angle,
+                                                              float& cosine_coxa_memory,
+                                                              float& sin_coxa_memory) {
     // canceling coxa rotation for dist
     // Coxa as the frame of reference with rotation
     sincosf(-coxa_angle, &sin_coxa_memory, &cosine_coxa_memory);
@@ -154,8 +156,8 @@ __host__ __device__ __forceinline__ void cancel_coxa_rotation(float3& coordinate
 }
 
 __host__ __device__ __forceinline__ void restore_coxa_rotation(float3& coordinates,
-                                                      float cosine_coxa_memory,
-                                                      float sin_coxa_memory) {
+                                                               float cosine_coxa_memory,
+                                                               float sin_coxa_memory) {
 
     float buffer = coordinates.y * sin_coxa_memory;
     coordinates.y = -coordinates.x * sin_coxa_memory + coordinates.y * cosine_coxa_memory;
@@ -164,7 +166,7 @@ __host__ __device__ __forceinline__ void restore_coxa_rotation(float3& coordinat
 
 template <int UseCase = REACH_USECASE>
 __host__ __device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
-                                                   const LegDimensions dim) {
+                                                            const LegDimensions dim) {
     static_assert(UseCase == REACH_USECASE || UseCase == DIST_USECASE, "bad usecase");
     // Femur as the frame of reference witout rotation
     x -= dim.coxa_length;
@@ -205,7 +207,7 @@ __host__ __device__ __forceinline__ bool eval_plane_circles(float& x, float& y,
     return is_valid;
 }
 
-__device__ __forceinline__ bool place_on_vert_plane_circle(float& x, float& z,
+__host__ __device__ __forceinline__ bool place_on_vert_plane_circle(float& x, float& z,
                                                            const LegDimensions& dim) {
     return eval_plane_circles<DIST_USECASE>(x, z, dim);
 }
@@ -213,9 +215,9 @@ __device__ __forceinline__ bool place_on_vert_plane_circle(float& x, float& z,
 template <typename Tout = void, // function vert plane is templated
           Tout (*vert_plane_func)(float&, float&,
                                   const LegDimensions&) = place_on_vert_plane_circle>
-__device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
-                                                       const LegDimensions& dim,
-                                                       const float& coxa_angle) {
+__host__ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
+                                                                const LegDimensions& dim,
+                                                                const float& coxa_angle) {
     // saturating coxa angle for dist
     bool coxaMegaSaturated = coxa_angle > (dim.max_angle_coxa + PI / 2) or
                              coxa_angle < (dim.min_angle_coxa - PI / 2);
@@ -262,8 +264,8 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
             save.x = 0;
             save.z = 0;
             const auto distance_clamped =
-                norm3df(coordinates.x, coordinates.y, coordinates.z);
-            float distance_to_coxa_lim = norm3df(save.x, save.y, save.z);
+                linorm(coordinates);
+            float distance_to_coxa_lim = linorm(save);
             const bool better_not_clamp = distance_clamped > distance_to_coxa_lim;
             if (better_not_clamp) {
                 restore_coxa_rotation(save, cos_coxa_memory2, sin_coxa_memory2);
@@ -276,7 +278,7 @@ __device__ __forceinline__ Tout finish_finding_closest(float3& coordinates,
 }
 
 __host__ __device__ __inline__ bool reachability_circles(const float3& point,
-                                                const LegDimensions& dim)
+                                                         const LegDimensions& dim)
 // the tibia cannot exceed a specified cangle relative to the BODY
 // this ensures that the tibia is for example always pointing down
 {
@@ -316,8 +318,8 @@ __host__ __device__ __inline__ bool reachability_circles(const float3& point,
     return reachability;
 }
 
-__device__ __forceinline__ bool distance_circles(float3& result,
-                                                 const LegDimensions& dim) {
+__host__ __device__ __forceinline__ bool distance_circles(float3& result,
+                                                          const LegDimensions& dim) {
     float3 closest = result;
     bool constexpr Reverse = true;
     place_over_coxa<not Reverse>(closest, dim);
@@ -329,11 +331,7 @@ __device__ __forceinline__ bool distance_circles(float3& result,
     bool res = finish_finding_closest<bool>(closest, dim, coxangle);
     bool resflip = finish_finding_closest<bool>(closest_flip, dim, coxangle_flip);
 
-    bool use_direct = (not(res ^ resflip))
-                          ? norm3df(closest.x, closest.y, closest.z) <
-                                norm3df(closest_flip.x, closest_flip.y, closest_flip.z)
-                          : res;
-    // bool use_direct = true;
+    bool use_direct = (not(res ^ resflip)) ? linorm(closest) < linorm(closest_flip) : res;
 
     float3* result_to_use = (use_direct) ? &closest : &closest_flip;
 

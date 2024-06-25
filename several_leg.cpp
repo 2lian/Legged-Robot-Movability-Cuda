@@ -140,11 +140,9 @@ int main() {
 
         float duration;
         if constexpr (not CpuMode)
-            duration =
-                apply_kernel(target_map, dim, reachability_global_kernel, out2);
+            duration = apply_kernel(target_map, dim, reachability_global_kernel, out2);
         else
-            duration =
-                apply_reach_cpu(target_map, dim, out2);
+            duration = apply_reach_cpu(target_map, dim, out2);
         std::cout << "Cuda reachability took " << duration << " milliseconds to finish."
                   << std::endl;
         double ns_per_point = ((double)duration / (double)target_map.length) * 1000000.0;
@@ -176,7 +174,11 @@ int main() {
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        auto duration = apply_kernel(target_map, dim, distance_global_kernel, out2);
+        float duration;
+        if constexpr (not CpuMode)
+            duration = apply_kernel(target_map, dim, distance_global_kernel, out2);
+        else
+            duration = apply_dist_cpu(target_map, dim, out2);
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Cuda distance took " << duration << " milliseconds to finish."
                   << std::endl;
