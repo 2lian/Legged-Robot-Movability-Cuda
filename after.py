@@ -160,6 +160,7 @@ else:
 
 color = np.array([0, 0.5, 0.3])
 plt.grid(True)
+plt.scatter(0, 0, s=0.0001, color=color, marker="s", label="Reachable")
 bool_grid_image(
     zero_plane,
     reach[selection],
@@ -175,7 +176,6 @@ if VERT_SLICE:
 else:
     plt.title(f"Reachable area of Moonbot leg (z={Z_CUT})")
     plt.ylabel("y (mm)")
-plt.scatter(0, 0, s=0.01, color=color, marker="s", label="Reachable")
 legend = plt.legend(loc="upper left")
 for handle in legend.legendHandles:
     handle.set_sizes([50.0])
@@ -196,7 +196,9 @@ if GRADIENT:
 else:
     color = np.array([0, 0, 0])
 # sel2 = np.all(dist[selection, :] == [0,0,0], axis=1)
-sel2 = sel1 < PIX_SIZE / 2
+sel2 = sel1 < max(PIX_SIZE / 2, 1)
+plt.scatter(0, 0, s=0.0, color=color, marker="_", label="Reachability edge")
+plt.scatter(0, 0, s=0.0000, c="black", marker="$\leftarrow$", label="Vector to the edge")
 bool_grid_image(
     zero_plane,
     sel2,
@@ -213,8 +215,6 @@ if VERT_SLICE:
 else:
     plt.title(f"z={Z_CUT} plane")
     plt.ylabel("y (mm)")
-plt.scatter(0, 0, s=0.01, color=color, marker="_", label="Reachability edge")
-plt.scatter(0, 0, s=0.01, c="black", marker="$\leftarrow$", label="Vector to the edge")
 
 if LEGEND:
     legend = plt.legend(loc="upper left", facecolor=(0.5, 0.5, 0.5, 1))

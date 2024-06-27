@@ -11,6 +11,7 @@
 #include <iostream>
 #include <iterator>
 #include <ostream>
+#include "RBDL_benchmark.h"
 // #include <tuple>
 
 int main() {
@@ -139,10 +140,14 @@ int main() {
         out2.elements = new bool[out2.length];
 
         float duration;
-        if constexpr (not CpuMode)
+        if constexpr (ComputeMode == GPUMode)
             duration = apply_kernel(target_map, dim, reachability_global_kernel, out2);
-        else
+        else if (ComputeMode == CPUMode)
             duration = apply_reach_cpu(target_map, dim, out2);
+        else if (ComputeMode == RBDLMode)
+            duration = apply_RBDL(target_map, dim, out2);
+        else
+            std::cout << "Compute Mode Error" << std::endl;
         std::cout << "Cuda reachability took " << duration << " milliseconds to finish."
                   << std::endl;
         double ns_per_point = ((double)duration / (double)target_map.length) * 1000000.0;
@@ -175,7 +180,7 @@ int main() {
         auto start = std::chrono::high_resolution_clock::now();
 
         float duration;
-        if constexpr (not CpuMode)
+        if constexpr (ComputeMode == GPUMode)
             duration = apply_kernel(target_map, dim, distance_global_kernel, out2);
         else
             duration = apply_dist_cpu(target_map, dim, out2);

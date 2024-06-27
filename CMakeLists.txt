@@ -1,10 +1,4 @@
 cmake_minimum_required(VERSION 3.26)
-
-# Use vcpkg toolchain
-# set(VCPKG_ROOT "~/vcpkg")
-# set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-    # CACHE STRING "")
-
 project(cuda LANGUAGES CUDA CXX)
 set(CMAKE_CUDA_ARCHITECTURES "native")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
@@ -64,7 +58,7 @@ include_directories("${CMAKE_SOURCE_DIR}/externals/eigen-3.4.0")
 #     cuda_util.cu
 #     cuda_util.h
 #     )
-
+#
 add_executable(cuda
     # one_leg.cu
     one_leg_global.cu
@@ -92,11 +86,17 @@ add_executable(cuda
     several_leg_octree.cu
     several_leg_octree.cu.h
     rbdl_benchmark.cpp
+    RBDL_benchmark.h
     )
+
+# add_executable(rbdlTest
+    # rbdl_benchmark.cpp)
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
 # target_link_libraries(cuda PRIVATE Catch2::Catch2)
 target_link_libraries(cuda rbdl)
+# target_link_libraries(rbdlTest rbdl)
+# target_compile_definitions(cuda PRIVATE -U RBDL_USE_CASADI_MATH)
 # target_include_directories(cuda PRIVATE "${CMAKE_SOURCE_DIR}/externals/rbdl/lib")
 target_include_directories(cuda PRIVATE "${CUDA_DIR}/include" )
 

@@ -1,5 +1,5 @@
-VERT_SLICE = True
-# VERT_SLICE = False
+# VERT_SLICE = True
+VERT_SLICE = False
 WHOLE3D = False
 Z_CUT = -200
 SATURATE = 200

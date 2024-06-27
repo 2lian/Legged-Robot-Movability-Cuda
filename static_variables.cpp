@@ -18,8 +18,8 @@ LegDimensions leg_factory(float azimut, float body2coxa, float coxa_pitch_deg,
     leg.tibia_length = femur2tip;
     leg.tibia_absolute_pos = tib_abs_pos / 180.0f * pI - leg.coxa_pitch;
     leg.tibia_absolute_neg = (-180.0f - tib_abs_neg) / 180.0f * pI - leg.coxa_pitch;
-    std::cout << leg.tibia_absolute_pos * 180 / pI << std::endl;
-    std::cout << leg.tibia_absolute_neg * 180 / pI << std::endl;
+    // std::cout << leg.tibia_absolute_pos * 180 / pI << std::endl;
+    // std::cout << leg.tibia_absolute_neg * 180 / pI << std::endl;
 
     leg.max_angle_coxa = pI / 180.0f * coxa_angle_deg;
     leg.min_angle_coxa = -pI / 180.0f * coxa_angle_deg;
