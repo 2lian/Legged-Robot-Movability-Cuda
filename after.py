@@ -10,6 +10,10 @@ import matplotlib.cm as cm
 from setting import *
 
 matplotlib.use("Agg")
+if VERT_SLICE:
+    postfix = "_side"
+else:
+    postfix = "_top"
 
 
 def get_closest_vector(point_a: NDArray, points: NDArray, vectors: NDArray):
@@ -171,15 +175,20 @@ bool_grid_image(
 
 plt.xlabel("x (mm)")
 if VERT_SLICE:
-    plt.title("Reachable area of Moonbot leg (y=0)")
+    if TITLE:
+        plt.title("Reachable area of Moonbot leg (y=0)")
     plt.ylabel("z (mm)")
 else:
-    plt.title(f"Reachable area of Moonbot leg (z={Z_CUT})")
+    if TITLE:
+        plt.title(f"Reachable area of Moonbot leg (z={Z_CUT})")
     plt.ylabel("y (mm)")
 legend = plt.legend(loc="upper left")
 for handle in legend.legendHandles:
     handle.set_sizes([50.0])
-plt.savefig("reachability_result.png", bbox_inches="tight", dpi=300)
+plt.savefig(f"reachability_result{postfix}.jpg", bbox_inches="tight", dpi=150)
+plt.savefig(f"reachability_result{postfix}.png", bbox_inches="tight", dpi=150)
+plt.savefig(f"reachability_result{postfix}.pdf", bbox_inches="tight", dpi=150)
+plt.savefig(f"reachability_result{postfix}.eps", bbox_inches="tight", dpi=150)
 plt.clf()
 
 # plt.grid(True)
@@ -210,10 +219,12 @@ bool_grid_image(
 # plt.xlabel(f"x (mm) <min = {min(sel1)}, max = {max(sel1)}>")
 plt.xlabel(f"x (mm)")
 if VERT_SLICE:
-    plt.title("y=0 plane")
+    if TITLE:
+        plt.title("y=0 plane")
     plt.ylabel("z (mm)")
 else:
-    plt.title(f"z={Z_CUT} plane")
+    if TITLE:
+        plt.title(f"z={Z_CUT} plane")
     plt.ylabel("y (mm)")
 
 if LEGEND:
@@ -227,7 +238,7 @@ if QUIVER:
         min(targets[:, plane_sel[0]]), max(targets[:, plane_sel[0]]), tailCount
     )
     z_map_dist = np.linspace(
-        min(targets[:, plane_sel[1]]), max(targets[:, plane_sel[1]]) - 100, tailCount
+        min(targets[:, plane_sel[1]]), max(targets[:, plane_sel[1]]) - 0, tailCount
     )
     X_map_dist, Z_map_dist = np.meshgrid(x_map_dist, z_map_dist)
     point = np.concatenate(
@@ -252,7 +263,8 @@ if COLORBAR:
     norm = mcolors.Normalize(vmin=0, vmax=SATURATE)
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cax = plt.axes((0.85, 0.1, 0.075, 0.8))
+    # [left, bottom, width, height]
+    cax = plt.axes((0.92, 0.2, 0.03, 0.59))
     colorbar = plt.colorbar(sm, cax=cax)
 # Set the ticks and labels, replacing the last tick with '>= 400'
     ticks = np.linspace(0, SATURATE, 5)
@@ -264,7 +276,10 @@ if COLORBAR:
 
     colorbar.set_label("Distance to reachability edge (mm)")
 
-plt.savefig("distance_result.png", bbox_inches="tight", dpi=300)
+plt.savefig(f"distance_result{postfix}.jpg", bbox_inches="tight", dpi=150)
+plt.savefig(f"distance_result{postfix}.png", bbox_inches="tight", dpi=150)
+plt.savefig(f"distance_result{postfix}.pdf", bbox_inches="tight", dpi=150)
+plt.savefig(f"distance_result{postfix}.eps", bbox_inches="tight", dpi=150)
 
 shaved = targets[reach, :]
 np.save("leg0_reach.npy", shaved)

@@ -64,10 +64,16 @@ if WHOLE3D:
     z_map_dist = np.arange(-500, 201, PIX_SIZE)
 
 elif VERT_SLICE:
+    # benchmark
+    # x_map_dist = np.arange(-100, 601, PIX_SIZE)
+    # y_map_dist = np.array([0])
+    # y_map_dist = np.arange(-400, 401, pix_size)
+    # z_map_dist = np.arange(-500, 201, PIX_SIZE)
+
     x_map_dist = np.arange(-100, 601, PIX_SIZE)
     y_map_dist = np.array([0])
     # y_map_dist = np.arange(-400, 401, pix_size)
-    z_map_dist = np.arange(-500, 201, PIX_SIZE)
+    z_map_dist = np.arange(-350, 51, PIX_SIZE)
 else:
     x_map_dist = np.arange(-50, 551, PIX_SIZE)
     y_map_dist = np.arange(-400, 401, PIX_SIZE)

@@ -221,6 +221,7 @@ int main() {
             delete[] z_arr2;
         }
     }
+    return 0;
     {
         const LegDimensions dim = LegToUse(0);
         const char* filename = "numpy_input_tx.bin";
