@@ -72,7 +72,7 @@ LegDimensions get_M2_leg(float azimut) {
     float coxa_pitch_deg = -45;
     float coxa2tibia = 65.5;
     float tibia2femur = 129;
-    float femur2tip = 160;
+    float femur2tip = 135;
 
     float coxa_margin = 0.0f;
     float femur_margin = 0.0f;

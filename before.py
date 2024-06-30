@@ -34,6 +34,10 @@ y_map2 = (
 )
 z_map2 = np.arange(map[:, 2].min(), (map[:, 2].max() + 350) / 1, voxel_size)
 
+print(np.min(x_map2)- np.max(x_map2))
+print(np.min(y_map2)- np.max(y_map2))
+print(np.min(z_map2)- np.max(z_map2))
+
 cut_xyz_dataset = 1
 x_map2 = x_map2[: x_map2.shape[0] // cut_xyz_dataset]
 y_map2 = y_map2[: y_map2.shape[0] // cut_xyz_dataset]

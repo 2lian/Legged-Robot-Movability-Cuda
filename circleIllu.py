@@ -37,7 +37,7 @@ background = patches.Rectangle(
     2000,
     edgecolor=bkgColor,
     facecolor="none",
-    hatch="/",
+    hatch="//",
 )
 
 # Add the rectangle to the plot
@@ -59,10 +59,12 @@ circle = patches.Circle(
 # Add the circle to the plot
 ax.add_patch(circle)
 
-P = (femur2tibia + tibia2tip + 0j) * np.exp((-femur_angle_deg + coxa_pitch_deg) * 1j) * 2
+P0 = (body2coxa + coxa2femur)
+P1 = (body2coxa + coxa2femur) + (femur2tibia + tibia2tip + 0j) * np.exp((-femur_angle_deg + coxa_pitch_deg) * 1j) * 2
+P2 = (body2coxa + coxa2femur) + (femur2tibia + tibia2tip + 0j) * np.exp(tib_abs_pos * 1j) * 2
 plt.fill_between(
-    [center[0], center[0] + np.real(P)],
-    [0, np.imag(P)],
+    [center[0], np.real(P1)],
+    [0, np.imag(P1)],
     y2=1000,
     color="none",
     hatch="/",
@@ -70,16 +72,18 @@ plt.fill_between(
     linewidth=0.0,
 )
 
-P = (femur2tibia + tibia2tip + 0j) * np.exp(tib_abs_pos * 1j) * 2
 plt.fill_between(
-    [center[0], center[0] + np.real(P)],
-    [0, np.imag(P)],
+    [center[0], np.real(P2)],
+    [0, np.imag(P2)],
     y2=1000,
     color="none",
     hatch="/",
     edgecolor=bkgColor,
     linewidth=0.0,
 )
+
+A = np.array([P1, P0, P2])
+plt.plot(np.real(A), np.imag(A), c = "black", zorder = 0)
 
 center = (
     body2coxa + coxa2femur + femur2tibia * np.cos(femur_angle_deg + coxa_pitch_deg),
@@ -212,7 +216,7 @@ circle = patches.Circle(
     radius,
     edgecolor=bkgColor,
     facecolor="none",
-    hatch="/",
+    hatch="//",
 )
 ax.add_patch(circle)
 circle = patches.Circle(
@@ -232,18 +236,23 @@ ax.set_xlim(
 ax.set_ylim(-(femur2tibia + tibia2tip + 25), femur2tibia + tibia2tip + 25)
 
 
-
 # Create custom patches for the legend
 handleList = []
-handleList.append(Patch(facecolor='none', edgecolor="black", hatch='/', label='Tibia angle limit'))
-handleList.append(Patch(facecolor='none', edgecolor="black", hatch='.', label='Femur angle limit'))
-handleList.append(Patch(facecolor='none', edgecolor="black", hatch='o', label='Incidence angle limit'))
+handleList.append(
+    Patch(facecolor="none", edgecolor="black", hatch="//", label="$C_{out}$ and $C_{in}$")
+)
+handleList.append(
+    Patch(facecolor="none", edgecolor="black", hatch=".", label="""$C_{\\beta}^{\\pm}$""")
+)
+handleList.append(
+    Patch(facecolor="none", edgecolor="black", hatch="o", label="""$C_{\\phi}^{\\pm}$""")
+)
+handleList.append(
+    Patch(facecolor="none", edgecolor=falseColor, hatch="", label="""Un-reachable""")
+)
 
 # Add the legend
-ax.legend(handles=handleList, loc='upper right')
-
-
-
+ax.legend(handles=handleList, loc="upper right")
 
 
 plt.xlabel(f"x (mm)")
