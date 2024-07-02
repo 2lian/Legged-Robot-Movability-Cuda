@@ -14,3 +14,13 @@ A proper Python interface through PyBind11 and cleaning of the code is in progre
 
 <img src="https://github.com/hubble14567/Legged-Robot-Movability-Cuda/assets/70491689/da48f334-7c07-4208-a30b-9e8058e9d1fb" width="400">
 <img src="https://github.com/hubble14567/Legged-Robot-Movability-Cuda/assets/70491689/161e7b7e-5a8e-4e5c-93ce-f452cc611ee2" width="400">
+
+# Main code shortcut
+
+Circle creation code
+https://github.com/2lian/Legged-Robot-Movability-Cuda/blob/a8ab44ec5f8315a1c68d51138dcb07dd423bd520/circles.cu.h#L337
+Intersection code
+https://github.com/2lian/Legged-Robot-Movability-Cuda/blob/a8ab44ec5f8315a1c68d51138dcb07dd423bd520/circles.cu.h#L417
+
+Reachability and distance kernel
+https://github.com/2lian/Legged-Robot-Movability-Cuda/blob/a8ab44ec5f8315a1c68d51138dcb07dd423bd520/one_leg.cu#L343
