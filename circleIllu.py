@@ -5,7 +5,7 @@ from matplotlib.patches import PathPatch, Patch
 from matplotlib.path import Path
 
 body2coxa = 181
-coxa_pitch_deg = np.deg2rad(-45)
+coxa_pitch = np.deg2rad(-45)
 coxa2femur = 65.5
 femur2tibia = 129
 tibia2tip = 160
@@ -14,15 +14,16 @@ coxa_margin = 0.0
 femur_margin = 0.0
 tibia_margin = 0.0
 
-coxa_angle_deg = np.deg2rad(60.0)
-femur_angle_deg = np.deg2rad(90.0)
+coxa_angle = np.deg2rad(60.0)
+femur_angle = np.deg2rad(90.0)
 tibia_angle = np.deg2rad(120.0)
 
 dist_margin = 0.0
 aboveang = -5
 tib_abs_pos = np.deg2rad(aboveang)
 tib_abs_neg = np.deg2rad(-180 - (aboveang))
-
+coxa2femur = coxa2femur * np.cos(coxa_pitch)
+coxa2femurZ = coxa2femur * np.sin(coxa_pitch)
 # Create a figure and axis
 fig, ax = plt.subplots()
 bkgColor = "red"
@@ -44,7 +45,7 @@ background = patches.Rectangle(
 ax.add_patch(background)
 
 # Define the center and radius of the circle
-center = (body2coxa + coxa2femur, 0)
+center = (body2coxa + coxa2femur, coxa2femurZ)
 radius = femur2tibia + tibia2tip
 
 # Create a circle with the specified center and radius, and fill it with a pattern
@@ -59,12 +60,12 @@ circle = patches.Circle(
 # Add the circle to the plot
 ax.add_patch(circle)
 
-P0 = (body2coxa + coxa2femur)
-P1 = (body2coxa + coxa2femur) + (femur2tibia + tibia2tip + 0j) * np.exp((-femur_angle_deg + coxa_pitch_deg) * 1j) * 2
-P2 = (body2coxa + coxa2femur) + (femur2tibia + tibia2tip + 0j) * np.exp(tib_abs_pos * 1j) * 2
+P0 = (body2coxa + coxa2femur) + (coxa2femurZ * 1j)
+P1 = P0 + (femur2tibia + tibia2tip + 0j) * np.exp((-femur_angle + coxa_pitch) * 1j) * 2
+P2 = P0 + (femur2tibia + tibia2tip + 0j) * np.exp(tib_abs_pos * 1j) * 2
 plt.fill_between(
     [center[0], np.real(P1)],
-    [0, np.imag(P1)],
+    [center[1], np.imag(P1)],
     y2=1000,
     color="none",
     hatch="/",
@@ -74,7 +75,7 @@ plt.fill_between(
 
 plt.fill_between(
     [center[0], np.real(P2)],
-    [0, np.imag(P2)],
+    [center[1], np.imag(P2)],
     y2=1000,
     color="none",
     hatch="/",
@@ -83,11 +84,11 @@ plt.fill_between(
 )
 
 A = np.array([P1, P0, P2])
-plt.plot(np.real(A), np.imag(A), c = "black", zorder = 0)
+plt.plot(np.real(A), np.imag(A), c="black", zorder=0)
 
 center = (
-    body2coxa + coxa2femur + femur2tibia * np.cos(femur_angle_deg + coxa_pitch_deg),
-    femur2tibia * np.sin(femur_angle_deg + coxa_pitch_deg),
+    body2coxa + coxa2femur + femur2tibia * np.cos(femur_angle + coxa_pitch),
+    coxa2femurZ + femur2tibia * np.sin(femur_angle + coxa_pitch),
 )
 radius = tibia2tip
 circle = patches.Circle(
@@ -99,8 +100,8 @@ circle = patches.Circle(
 ax.add_patch(circle)
 
 center = (
-    body2coxa + coxa2femur + femur2tibia * np.cos(-femur_angle_deg + coxa_pitch_deg),
-    femur2tibia * np.sin(-femur_angle_deg + coxa_pitch_deg),
+    body2coxa + coxa2femur + femur2tibia * np.cos(-femur_angle + coxa_pitch),
+    coxa2femurZ + femur2tibia * np.sin(-femur_angle + coxa_pitch),
 )
 radius = tibia2tip
 circle = patches.Circle(
@@ -114,7 +115,7 @@ ax.add_patch(circle)
 
 center = (
     body2coxa + coxa2femur + tibia2tip * np.cos(tib_abs_pos),
-    tibia2tip * np.sin(tib_abs_pos),
+    coxa2femurZ + tibia2tip * np.sin(tib_abs_pos),
 )
 radius = femur2tibia
 circle = patches.Circle(
@@ -127,7 +128,7 @@ ax.add_patch(circle)
 
 center = (
     body2coxa + coxa2femur + tibia2tip * np.cos(tib_abs_neg),
-    tibia2tip * np.sin(tib_abs_neg),
+    coxa2femurZ + tibia2tip * np.sin(tib_abs_neg),
 )
 radius = femur2tibia
 circle = patches.Circle(
@@ -139,8 +140,8 @@ circle = patches.Circle(
 ax.add_patch(circle)
 
 center = (
-    body2coxa + coxa2femur + femur2tibia * np.cos(-femur_angle_deg + coxa_pitch_deg),
-    femur2tibia * np.sin(-femur_angle_deg + coxa_pitch_deg),
+    body2coxa + coxa2femur + femur2tibia * np.cos(-femur_angle + coxa_pitch),
+    coxa2femurZ + femur2tibia * np.sin(-femur_angle + coxa_pitch),
 )
 radius = tibia2tip
 circle = patches.Circle(
@@ -154,8 +155,8 @@ ax.add_patch(circle)
 
 
 center = (
-    body2coxa + coxa2femur + femur2tibia * np.cos(femur_angle_deg + coxa_pitch_deg),
-    femur2tibia * np.sin(femur_angle_deg + coxa_pitch_deg),
+    body2coxa + coxa2femur + femur2tibia * np.cos(femur_angle + coxa_pitch),
+    coxa2femurZ + femur2tibia * np.sin(femur_angle + coxa_pitch),
 )
 radius = tibia2tip
 circle = patches.Circle(
@@ -176,7 +177,7 @@ ax.add_patch(circle)
 
 center = (
     body2coxa + coxa2femur + tibia2tip * np.cos(tib_abs_pos),
-    tibia2tip * np.sin(tib_abs_pos),
+    coxa2femurZ + tibia2tip * np.sin(tib_abs_pos),
 )
 radius = femur2tibia
 circle = patches.Circle(
@@ -190,7 +191,7 @@ ax.add_patch(circle)
 
 center = (
     body2coxa + coxa2femur + tibia2tip * np.cos(tib_abs_neg),
-    tibia2tip * np.sin(tib_abs_neg),
+    coxa2femurZ + tibia2tip * np.sin(tib_abs_neg),
 )
 radius = femur2tibia
 circle = patches.Circle(
@@ -209,7 +210,7 @@ circle = patches.Circle(
 )
 ax.add_patch(circle)
 
-center = (body2coxa + coxa2femur, 0)
+center = (body2coxa + coxa2femur, coxa2femurZ + 0)
 radius = np.abs(femur2tibia + (tibia2tip + 0j) * np.exp(tibia_angle * 1j))
 circle = patches.Circle(
     center,
@@ -233,11 +234,15 @@ ax.set_xlim(
     -(femur2tibia + tibia2tip + 25) + body2coxa + coxa2femur,
     femur2tibia + tibia2tip + 25 + body2coxa + coxa2femur,
 )
-ax.set_ylim(-(femur2tibia + tibia2tip + 25), femur2tibia + tibia2tip + 25)
+ax.set_ylim(
+    coxa2femurZ - (femur2tibia + tibia2tip + 25),
+    coxa2femurZ + femur2tibia + tibia2tip + 25,
+)
 
 
 # Create custom patches for the legend
 handleList = []
+
 handleList.append(
     Patch(facecolor="none", edgecolor="black", hatch="//", label="$C_{out}$ and $C_{in}$")
 )
@@ -252,7 +257,13 @@ handleList.append(
 )
 
 # Add the legend
-ax.legend(handles=handleList, loc="upper right")
+ax.legend(
+    handles=handleList,
+    loc="upper left",
+    handleheight=3,
+    handlelength=2.0,
+    # fontsize="large",
+)
 
 
 plt.xlabel(f"x (mm)")
