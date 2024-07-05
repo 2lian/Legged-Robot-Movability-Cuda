@@ -244,7 +244,7 @@ ax.set_ylim(
 handleList = []
 
 handleList.append(
-    Patch(facecolor="none", edgecolor="black", hatch="//", label="$C_{out}$ and $C_{in}$")
+    Patch(facecolor="none", edgecolor="black", hatch="//", label="$C_{out}$\n$C_{in}$")
 )
 handleList.append(
     Patch(facecolor="none", edgecolor="black", hatch=".", label="""$C_{\\beta}^{\\pm}$""")
@@ -253,14 +253,15 @@ handleList.append(
     Patch(facecolor="none", edgecolor="black", hatch="o", label="""$C_{\\phi}^{\\pm}$""")
 )
 handleList.append(
-    Patch(facecolor="none", edgecolor=falseColor, hatch="", label="""Un-reachable""")
+    Patch(facecolor="none", edgecolor=falseColor, hatch="", label="""Un-\nreach-\nable""")
 )
 
 # Add the legend
 ax.legend(
     handles=handleList,
+    bbox_to_anchor=(1.05, 1),  # Adjust these values as needed
     loc="upper left",
-    handleheight=3,
+    handleheight=7,
     handlelength=2.0,
     # fontsize="large",
 )
