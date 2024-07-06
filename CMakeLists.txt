@@ -89,21 +89,55 @@ add_executable(cuda
     RBDL_benchmark.h
     )
 
+add_executable(bench
+    # one_leg.cu
+    one_leg_global.cu
+    one_leg.cu.h
+    # one_leg.cpp
+    cuda_util.cu
+    cuda_util.cuh
+    # several_leg.cu
+    # several_leg.cu.h
+    collision.cu
+    collision.cu.h
+    # unified_math_cuda.cu
+    unified_math_cuda.cu.h
+    HeaderCPP.h
+    HeaderCUDA.h
+    math_util.cpp
+    math_util.h
+    static_variables.cpp
+    static_variables.h
+    cross_compiled.cu
+    cross_compiled.cuh
+    octree_util.cu.h
+    octree_util.cu
+    several_leg_octree.cu
+    several_leg_octree.cu.h
+    rbdl_benchmark.cpp
+    RBDL_benchmark.h
+    bench.cpp
+    )
+
 # add_executable(rbdlTest
     # rbdl_benchmark.cpp)
 
 # target_link_libraries(cuda sfml-graphics sfml-window sfml-system)
 # target_link_libraries(cuda PRIVATE Catch2::Catch2)
 target_link_libraries(cuda rbdl)
+target_link_libraries(bench rbdl)
 # target_link_libraries(rbdlTest rbdl)
 # target_compile_definitions(cuda PRIVATE -U RBDL_USE_CASADI_MATH)
 # target_include_directories(cuda PRIVATE "${CMAKE_SOURCE_DIR}/externals/rbdl/lib")
 target_include_directories(cuda PRIVATE "${CUDA_DIR}/include" )
+target_include_directories(bench PRIVATE "${CUDA_DIR}/include" )
 
 # Copy font file to the build directory
 configure_file(${CMAKE_SOURCE_DIR}/arial.ttf ${CMAKE_BINARY_DIR}/arial.ttf COPYONLY)
 
 set_target_properties(cuda PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(bench PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON)
 # set_target_properties(cuda PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

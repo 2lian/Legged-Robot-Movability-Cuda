@@ -19,6 +19,7 @@ using namespace std::chrono_literals;
         }                                                                                \
     } while (0)
 
+__global__ void empty_kernel();
 /**
  * @brief applies kernel on provided array to provided array
  *
@@ -48,7 +49,7 @@ float apply_kernel(const Array<T_in> input, const param dim,
 
     constexpr int blockSize = BLOCSIZE;
     int numBlock = (input.length + blockSize - 1) / blockSize;
-    kernel<<<numBlock, blockSize>>>(gpu_in, dim, gpu_out); // warmup
+    empty_kernel<<<numBlock, blockSize>>>(); // warmup
     // Prepare
     cudaEvent_t start, stop;
     cudaEventCreate(&start);

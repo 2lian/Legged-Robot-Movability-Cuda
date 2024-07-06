@@ -17,12 +17,12 @@ faceSetting = {
     },
     PC_CPU: {
         "marker": "o",
-        "line": "--",
+        "line": "-",
         "color": "firebrick",
     },
     JET_GPU: {
         "marker": "x",
-        "line": "-",
+        "line": "--",
         "color": "black",
     },
     JET_CPU: {
@@ -85,7 +85,7 @@ plt.rcParams.update(
         "font.serif": ["DejaVu Serif"],
         # 'axes.titlesize': 16,
         # 'axes.labelsize': 17,
-        'legend.fontsize': 15,
+        "legend.fontsize": 15,
         "xtick.labelsize": 16,
         "ytick.labelsize": 15,
         "lines.linewidth": 3,  # Default line width
@@ -95,47 +95,75 @@ plt.rcParams.update(
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
 
-for file in file_list_r:
-    path = file[D]
-    name = file[N]
-    if "rbdl" in name:
-        continue
-    # Read the CSV file using numpy
-    data = np.genfromtxt(path, delimiter=";")
+for p in [0, 1]:
+    if p == 0:
+        filelist = file_list_r
+        ax = ax1
+    else:
+        filelist = file_list_d
+        ax = ax2
+    for file in filelist:
+        path = file[D]
+        name = file[N]
+        if "rbdl" in name:
+            continue
+        # Read the CSV file using numpy
+        data = np.genfromtxt(path, delimiter=";")
+        x = data[:, 0]
+        y = data[:, 1]
+        unique_x = np.unique(x)
+        # average_y = np.array([np.median(y[x == ux]) for ux in unique_x])
+        low_y = np.array([np.percentile(y[x == ux], 5) for ux in unique_x])
+        high_y = np.array([np.percentile(y[x == ux], 95) for ux in unique_x])
+        for i in range(len(unique_x)):
+            ux = unique_x[i]
+            mask = (x == ux) & (y > high_y[i])
+            mask |= (x == ux) & (y < low_y[i])
+            print(mask.sum())
+            y[mask] = np.nan
+        x = x[~np.isnan(y)]
+        y = y[~np.isnan(y)]
+        average_y = np.array([np.mean(y[x == ux]) for ux in unique_x])
+        std_y = np.array([np.std(y[x == ux]) for ux in unique_x])
+        low_y = np.array([np.percentile(y[x == ux], 5) for ux in unique_x])
+        high_y = np.array([np.percentile(y[x == ux], 95) for ux in unique_x])
 
-    # Split the data into x and y values
-    x_values = data[:, 0]
-    y_values = data[:, 1]
+        # Split the data into x and y values
+        x_values = unique_x
+        y_values = average_y
 
-    ax1.plot(
-        x_values,
-        y_values,
-        marker=faceSetting[name]["marker"],
-        color=faceSetting[name]["color"],
-        linestyle=faceSetting[name]["line"],
-        label=name,
-    )
+        # ax.plot(
+        #     x_values,
+        #     high_y,
+        #     color="grey",
+        # )
+        # ax.plot(
+        #     x_values,
+        #     low_y,
+        #     color="grey",
+        # )
+        ax.plot(
+            x_values,
+            y_values,
+            marker=faceSetting[name]["marker"],
+            color=faceSetting[name]["color"],
+            linestyle=faceSetting[name]["line"],
+            label=name,
+        )
+        ax.errorbar(
+            x_values,
+            average_y,
+            yerr=std_y,  # Add the standard deviation as the error bar
+            # (low_y + high_y) / 2,
+            # yerr=(high_y - low_y) / 2,  # Add the standard deviation as the error bar
+            # ecolor=faceSetting[name]["color"],
+            ecolor="grey",
+            capsize=2,  # Add caps to the error bars
+            elinewidth=1,
+            fmt="none",
+            barsabove=True,
+        )
 
-for file in file_list_d:
-    path = file[D]
-    name = file[N]
-    if "rbdl" in name:
-        continue
-    # Read the CSV file using numpy
-    data = np.genfromtxt(path, delimiter=";")
-
-    # Split the data into x and y values
-    x_values = data[:, 0]
-    y_values = data[:, 1]
-
-    ax2.plot(
-        x_values,
-        y_values,
-        marker=faceSetting[name]["marker"],
-        color=faceSetting[name]["color"],
-        linestyle=faceSetting[name]["line"],
-        label=name,
-    )
 
 # Set plot labels and title
 ax2.set_xlabel("Sample Count")
@@ -205,7 +233,12 @@ plt.rcParams.update(
 
 # Sample data
 # categories = [PC_GPU, PC_CPU, JET_GPU, JET_CPU]
-categories = ["GPU\n1080Ti", "CPU\ni5-12600K",  "GPU Jetson\nOrin NX",   "GPU Jetson\nOrin NX"]
+categories = [
+    "GPU\n1080Ti",
+    "CPU\ni5-12600K",
+    "GPU Jetson\nOrin NX",
+    "GPU Jetson\nOrin NX",
+]
 subcategories = ["Proposed\nReachability", "Proposed\nDistance", "Levenberg-Marquardt"]
 values = np.array(
     [
@@ -238,7 +271,21 @@ for file in file_list_r:
     # Read the CSV file using numpy
     data = np.genfromtxt(path, delimiter=";")
     data = data[data[:, 0] > 10_000, :]
-    values[row, col] = sum(data[:, 1]) / data.shape[0]
+    x = data[:, 0]
+    y = data[:, 1]
+    unique_x = np.unique(x)
+    # average_y = np.array([np.median(y[x == ux]) for ux in unique_x])
+    low_y = np.array([np.percentile(y[x == ux], 5) for ux in unique_x])
+    high_y = np.array([np.percentile(y[x == ux], 95) for ux in unique_x])
+    for i in range(len(unique_x)):
+        ux = unique_x[i]
+        mask = (x == ux) & (y > high_y[i])
+        mask |= (x == ux) & (y < low_y[i])
+        print(mask.sum())
+        y[mask] = np.nan
+    x = x[~np.isnan(y)]
+    y = y[~np.isnan(y)]
+    values[row, col] = np.mean(y)
 
 for file in file_list_d:
     path = file[D]
@@ -255,7 +302,22 @@ for file in file_list_d:
         row = 3
     # Read the CSV file using numpy
     data = np.genfromtxt(path, delimiter=";")
-    values[row, col] = sum(data[:, 1]) / data.shape[0]
+    data = data[data[:, 0] > 10_000, :]
+    x = data[:, 0]
+    y = data[:, 1]
+    unique_x = np.unique(x)
+    # average_y = np.array([np.median(y[x == ux]) for ux in unique_x])
+    low_y = np.array([np.percentile(y[x == ux], 5) for ux in unique_x])
+    high_y = np.array([np.percentile(y[x == ux], 95) for ux in unique_x])
+    for i in range(len(unique_x)):
+        ux = unique_x[i]
+        mask = (x == ux) & (y > high_y[i])
+        mask |= (x == ux) & (y < low_y[i])
+        print(mask.sum())
+        y[mask] = np.nan
+    x = x[~np.isnan(y)]
+    y = y[~np.isnan(y)]
+    values[row, col] = np.mean(y)
 
 # Number of groups and subcategories
 n_groups = len(categories)
@@ -286,16 +348,22 @@ for i in range(n_subcategories):
         yval = bar.get_height()
         if yval >= 10:
             roundedval = int(round(yval, 0))
-        else:
+        elif yval >=1:
             roundedval = round(yval, 1)
+        else:
+            roundedval = round(yval, 2)
+            roundedval = str(roundedval)
+            # roundedval = roundedval[1:]
+            if len(roundedval) < 4:
+                roundedval += "0"
         plt.text(
             bar.get_x() + bar.get_width() / 2.0,
             yval + 0.1,
             roundedval,
             ha="center",
             va="bottom",
-            fontsize = 14,
-            bbox=dict(facecolor='white', edgecolor='none', pad=0),
+            fontsize=14,
+            bbox=dict(facecolor="white", edgecolor="none", pad=0),
         )
 # Add labels and title
 plt.yscale("log")

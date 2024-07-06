@@ -59,4 +59,4 @@ constexpr uint RobotNumb = 1; // benchmark: 1
 constexpr uint GPUMode = 0;
 constexpr uint CPUMode = 1;
 constexpr uint RBDLMode = 2;
-constexpr uint ComputeMode = CPUMode;
+constexpr uint ComputeMode = GPUMode;
