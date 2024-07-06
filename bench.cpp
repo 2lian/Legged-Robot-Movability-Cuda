@@ -58,10 +58,11 @@ int main() {
         LegToUse = get_M2_leg;
     LegDimensions dim = LegToUse(0);
 
-    for (uint computeIndex = 0; computeIndex < 4; computeIndex++) {
+    for (uint computeIndex = 0; computeIndex < 5; computeIndex++) {
         bool reach;
         uint compute_mode;
         int subsample;
+        float Min = MinPix;
         const char* file;
         if (computeIndex == 0) {
             compute_mode = GPUMode;
@@ -92,6 +93,10 @@ int main() {
             subsample = SubSamples_GPU;
         else if (compute_mode == CPUMode)
             subsample = SubSamples_CPU;
+        else if (compute_mode == RBDLMode) {
+            subsample = SubSamples_RBDL;
+            Min = MinPixRBDL;
+        }
 
         std::ofstream csvFile(file);
         if (!csvFile.is_open()) {
@@ -101,22 +106,19 @@ int main() {
 
         // for (int P = 1; P <= Samples; P=P*2) {
 
-        for (int sub = 0; sub < subsample; sub++) {
-            for (float x = MinPix; x <= MaxPix; x = x * Spacing) {
-                // float x =
-                // MaxPix * ((Samples - P) / (float)Samples) + MinPix *
-                // (P/(float)Samples);
-                auto Pix = x;
+        for (float x = Min; x <= MaxPix; x = x * Spacing) {
+            auto Pix = x;
 
-                float x_start = XMin, x_end = XMax, x_step = Pix;
-                float y_start = YMin, y_end = YMax, y_step = Pix;
-                float z_start = XMin, z_end = ZMax, z_step = Pix;
+            float x_start = XMin, x_end = XMax, x_step = Pix;
+            float y_start = YMin, y_end = YMax, y_step = Pix;
+            float z_start = XMin, z_end = ZMax, z_step = Pix;
 
-                std::vector<float> x_values = arange(x_start, x_end, x_step);
-                std::vector<float> y_values = arange(y_start, y_end, y_step);
-                std::vector<float> z_values = arange(z_start, z_end, z_step);
+            std::vector<float> x_values = arange(x_start, x_end, x_step);
+            std::vector<float> y_values = arange(y_start, y_end, y_step);
+            std::vector<float> z_values = arange(z_start, z_end, z_step);
 
-                Array<float3> target_map = generate3DGrid(x_values, y_values, z_values);
+            Array<float3> target_map = generate3DGrid(x_values, y_values, z_values);
+            for (int sub = 0; sub < subsample; sub++) {
 
                 float duration;
                 if (compute_mode == GPUMode and reach) {
@@ -168,11 +170,11 @@ int main() {
                 double floatValue = ns_per_point;
                 csvFile << intValue << ";" << floatValue << std::endl;
 
-                delete[] target_map.elements;
-                x_values.clear();
-                y_values.clear();
-                z_values.clear();
             }
+            delete[] target_map.elements;
+            x_values.clear();
+            y_values.clear();
+            z_values.clear();
         }
         csvFile.close();
     }

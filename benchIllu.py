@@ -363,7 +363,7 @@ for i in range(n_subcategories):
             ha="center",
             va="bottom",
             fontsize=14,
-            bbox=dict(facecolor="white", edgecolor="none", pad=0),
+            bbox=dict(facecolor="white", edgecolor="none", pad=-1),
         )
 # Add labels and title
 plt.yscale("log")
