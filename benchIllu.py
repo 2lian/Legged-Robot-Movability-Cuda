@@ -95,6 +95,7 @@ plt.rcParams.update(
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
 
+
 for p in [0, 1]:
     if p == 0:
         filelist = file_list_r
@@ -205,6 +206,7 @@ legend_ax.legend(
     edgecolor="None",  # Set border color
 )
 
+ax2.xaxis.label.set_size(22)
 plt.subplots_adjust(top=0.90, hspace=0.02)
 
 
@@ -219,7 +221,7 @@ plt.savefig(f"image/benchIllu.eps", bbox_inches="tight", dpi=150)
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "font.size": 18,
+        "font.size": 22,
         "font.serif": ["DejaVu Serif"],
         # 'axes.titlesize': 16,
         # 'axes.labelsize': 17,
@@ -332,7 +334,7 @@ slim = 0.9
 index = np.arange(n_groups)
 
 # Create a figure and axis
-fig, ax = plt.subplots(figsize=(10, 4))
+fig, ax = plt.subplots(figsize=(10, 5))
 
 # Plot bars for each subcategory
 for i in range(n_subcategories):
@@ -358,7 +360,7 @@ for i in range(n_subcategories):
                 roundedval += "0"
         plt.text(
             bar.get_x() + bar.get_width() / 2.0,
-            yval + 0.1,
+            yval + 0.12,
             roundedval,
             ha="center",
             va="bottom",
@@ -393,9 +395,9 @@ legend_ax.legend(
     labels=labels,
     loc="center",
     ncol=3,
-    handleheight=1,
+    handleheight=1.5,
     # handlelength=4.0,
-    # fontsize=15,
+    fontsize=17,
     facecolor="None",  # Set background color
     edgecolor="None",  # Set border color
 )

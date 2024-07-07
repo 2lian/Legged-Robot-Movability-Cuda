@@ -26,9 +26,11 @@ coxa2femur = coxa2femur * np.cos(coxa_pitch)
 coxa2femurZ = coxa2femur * np.sin(coxa_pitch)
 # Create a figure and axis
 fig, ax = plt.subplots()
-bkgColor = "red"
-falseColor = "red"
-almostColor = "grey"
+bkgColor = "firebrick"
+falseColor = "firebrick"
+almostColor = "aquamarine"
+
+outHatch = "\\\\"
 
 
 # Create a rectangle that covers the entire plot area with the desired pattern
@@ -37,7 +39,8 @@ background = patches.Rectangle(
     2000,
     2000,
     edgecolor=bkgColor,
-    facecolor="none",
+    # facecolor="none",
+    facecolor=falseColor,
     hatch="//",
 )
 
@@ -52,12 +55,17 @@ radius = femur2tibia + tibia2tip
 circle = patches.Circle(
     center,
     radius,
-    edgecolor="black",
+    edgecolor=almostColor,
     facecolor="white",
-    hatch="",
+    hatch=outHatch,
 )
-
-# Add the circle to the plot
+ax.add_patch(circle)
+circle = patches.Circle(
+    center,
+    radius,
+    edgecolor="black",
+    facecolor="none",
+)
 ax.add_patch(circle)
 
 P0 = (body2coxa + coxa2femur) + (coxa2femurZ * 1j)
@@ -68,7 +76,7 @@ plt.fill_between(
     [center[1], np.imag(P1)],
     y2=1000,
     color="none",
-    hatch="/",
+    hatch=outHatch,
     edgecolor=bkgColor,
     linewidth=0.0,
 )
@@ -78,7 +86,7 @@ plt.fill_between(
     [center[1], np.imag(P2)],
     y2=1000,
     color="none",
-    hatch="/",
+    hatch=outHatch,
     edgecolor=bkgColor,
     linewidth=0.0,
 )
@@ -149,7 +157,14 @@ circle = patches.Circle(
     radius,
     edgecolor=almostColor,
     facecolor="none",
-    hatch=".",
+    hatch="..",
+)
+ax.add_patch(circle)
+circle = patches.Circle(
+    center,
+    radius,
+    edgecolor="grey",
+    facecolor="none",
 )
 ax.add_patch(circle)
 
@@ -164,7 +179,7 @@ circle = patches.Circle(
     radius,
     edgecolor=falseColor,
     facecolor="none",
-    hatch=".",
+    hatch="..",
 )
 ax.add_patch(circle)
 circle = patches.Circle(
@@ -186,6 +201,13 @@ circle = patches.Circle(
     edgecolor=almostColor,
     facecolor="none",
     hatch="o",
+)
+ax.add_patch(circle)
+circle = patches.Circle(
+    center,
+    radius,
+    edgecolor="grey",
+    facecolor="none",
 )
 ax.add_patch(circle)
 
@@ -229,14 +251,14 @@ circle = patches.Circle(
 )
 ax.add_patch(circle)
 
-
+MARGIN = 0
 ax.set_xlim(
-    -(femur2tibia + tibia2tip + 25) + body2coxa + coxa2femur,
-    femur2tibia + tibia2tip + 25 + body2coxa + coxa2femur,
+    -(femur2tibia + tibia2tip + MARGIN) + body2coxa + coxa2femur,
+    femur2tibia + tibia2tip + MARGIN + body2coxa + coxa2femur,
 )
 ax.set_ylim(
-    coxa2femurZ - (femur2tibia + tibia2tip + 25),
-    coxa2femurZ + femur2tibia + tibia2tip + 25,
+    coxa2femurZ - (femur2tibia + tibia2tip + MARGIN),
+    coxa2femurZ + femur2tibia + tibia2tip + MARGIN,
 )
 
 
@@ -244,10 +266,13 @@ ax.set_ylim(
 handleList = []
 
 handleList.append(
-    Patch(facecolor="none", edgecolor="black", hatch="//", label="$C_{out}$\n$C_{in}$")
+    Patch(facecolor="none", edgecolor="black", hatch="//", label="$C_{in}$")
 )
 handleList.append(
-    Patch(facecolor="none", edgecolor="black", hatch=".", label="""$C_{\\beta}^{\\pm}$""")
+    Patch(facecolor="none", edgecolor="black", hatch="\\\\", label="$C_{out}$")
+)
+handleList.append(
+    Patch(facecolor="none", edgecolor="black", hatch="..", label="""$C_{\\beta}^{\\pm}$""")
 )
 handleList.append(
     Patch(facecolor="none", edgecolor="black", hatch="o", label="""$C_{\\phi}^{\\pm}$""")
@@ -261,7 +286,7 @@ ax.legend(
     handles=handleList,
     bbox_to_anchor=(1.05, 1),  # Adjust these values as needed
     loc="upper left",
-    handleheight=7,
+    handleheight=5,
     handlelength=2.0,
     # fontsize="large",
 )
