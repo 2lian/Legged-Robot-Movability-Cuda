@@ -4,9 +4,10 @@ build01/
 build02/
 .idea/
 Session.vim
-/CMakeCache.txt
-/CMakeFiles/
-/Makefile
+*/CMakeCache.txt
+image/CMakeLists.txt
+*/CMakeFiles/
+*/Makefile
 /cmake_install.cmake
 /cuda
 /.cache
@@ -22,3 +23,4 @@ cuda-b12d07c_tests.cmake
 *.bin
 *.npy
 *.png
+*.eps

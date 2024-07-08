@@ -58,7 +58,7 @@ int main() {
         LegToUse = get_M2_leg;
     LegDimensions dim = LegToUse(0);
 
-    for (uint computeIndex = 0; computeIndex < 5; computeIndex++) {
+    for (uint computeIndex = 5; computeIndex < 5; computeIndex++) {
         bool reach;
         uint compute_mode;
         int subsample;
@@ -67,23 +67,23 @@ int main() {
         if (computeIndex == 0) {
             compute_mode = GPUMode;
             reach = true;
-            file = "./bdata/pc/rgpu.csv";
+            file = "./bdata/jetson/rgpu.csv";
         } else if (computeIndex == 1) {
             compute_mode = CPUMode;
             reach = true;
-            file = "./bdata/pc/rcpu.csv";
+            file = "./bdata/jetson/rcpu.csv";
         } else if (computeIndex == 2) {
             compute_mode = GPUMode;
             reach = false;
-            file = "./bdata/pc/dgpu.csv";
+            file = "./bdata/jetson/dgpu.csv";
         } else if (computeIndex == 3) {
             compute_mode = CPUMode;
             reach = false;
-            file = "./bdata/pc/dcpu.csv";
+            file = "./bdata/jetson/dcpu.csv";
         } else if (computeIndex == 4) {
             compute_mode = RBDLMode;
             reach = true;
-            file = "./bdata/pc/rbdl.csv";
+            file = "./bdata/jetson/rbdl.csv";
         } else {
             std::cerr << "Unknown compute index." << std::endl;
             return 1;

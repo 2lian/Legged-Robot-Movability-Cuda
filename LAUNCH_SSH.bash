@@ -15,12 +15,15 @@ rsync -av --exclude-from='.gitignore' --exclude='*.bin' --exclude='image' --excl
 ssh -q -t "${SSH_ADDRESS}" <<EOF
 script -q /dev/null
 cd ~/elian_cuda_tmp
-. LAUNCH.bash
+# mkdir image
+. LAUNCHbench.bash
 exit
 EOF
 
-rsync -av --include='*.txt' --include='*.eps' --include='*.pdf'  --include='*.jpg' --include='*.png' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}/image" > /dev/null
+rsync -av --include='*.txt' --include='*.eps' --include='*.pdf'  --include='*.jpg' --include='*.png' --exclude='*' "${DESTINATION_DIR}/image/" "${SOURCE_DIR}/image/" > /dev/null
+# rsync -av --include='*.txt' --include='*.eps' --include='*.pdf'  --include='*.jpg' --include='*.png' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}/image" > /dev/null
 rsync -av --include='*.npy' --exclude='*' "${DESTINATION_DIR}" "/home/elian/Moonbot-Motion-Stack/src/pcl_reader/pcl_reader/python_package_include/" > /dev/null
+rsync -av --include='*' "${DESTINATION_DIR}/bdata/" "${SOURCE_DIR}/bdata/" > /dev/null
 
 # rsync -av --include='*.bin' --exclude='*' "${DESTINATION_DIR}" "${SOURCE_DIR}"
 # python3 array_vizu_1D.py

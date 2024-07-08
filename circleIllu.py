@@ -4,6 +4,22 @@ import matplotlib.patches as patches
 from matplotlib.patches import PathPatch, Patch
 from matplotlib.path import Path
 
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.size": 14,
+        "font.serif": ["DejaVu Serif"],
+        # 'axes.titlesize': 16,
+        # 'axes.labelsize': 17,
+        "legend.fontsize": 12,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        # "lines.linewidth": 3,  # Default line width
+        # "lines.markersize": 12,  # Default marker size
+    }
+)
+
+MARGIN = 0
 body2coxa = 181
 coxa_pitch = np.deg2rad(-45)
 coxa2femur = 65.5
@@ -251,7 +267,6 @@ circle = patches.Circle(
 )
 ax.add_patch(circle)
 
-MARGIN = 0
 ax.set_xlim(
     -(femur2tibia + tibia2tip + MARGIN) + body2coxa + coxa2femur,
     femur2tibia + tibia2tip + MARGIN + body2coxa + coxa2femur,
@@ -272,10 +287,10 @@ handleList.append(
     Patch(facecolor="none", edgecolor="black", hatch="\\\\", label="$C_{out}$")
 )
 handleList.append(
-    Patch(facecolor="none", edgecolor="black", hatch="..", label="""$C_{\\beta}^{\\pm}$""")
+    Patch(facecolor="none", edgecolor="black", hatch="..", label="""$C_{\\mathrm{fem}}^{\\pm}$""")
 )
 handleList.append(
-    Patch(facecolor="none", edgecolor="black", hatch="o", label="""$C_{\\phi}^{\\pm}$""")
+    Patch(facecolor="none", edgecolor="black", hatch="o", label="""$C_{\\mathrm{inc}}^{\\pm}$""")
 )
 handleList.append(
     Patch(facecolor="none", edgecolor=falseColor, hatch="", label="""Un-\nreach-\nable""")
@@ -284,11 +299,12 @@ handleList.append(
 # Add the legend
 ax.legend(
     handles=handleList,
-    bbox_to_anchor=(1.05, 1),  # Adjust these values as needed
+    bbox_to_anchor=(1, 1),
     loc="upper left",
     handleheight=5,
     handlelength=2.0,
     # fontsize="large",
+
 )
 
 

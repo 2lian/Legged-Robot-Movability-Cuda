@@ -16,12 +16,12 @@ faceSetting = {
         "color": "black",
     },
     PC_CPU: {
-        "marker": "o",
+        "marker": "x",
         "line": "-",
         "color": "firebrick",
     },
     JET_GPU: {
-        "marker": "x",
+        "marker": "o",
         "line": "--",
         "color": "black",
     },
@@ -239,7 +239,7 @@ categories = [
     "GPU\n1080Ti",
     "CPU\ni5-12600K",
     "GPU Jetson\nOrin NX",
-    "GPU Jetson\nOrin NX",
+    "CPU Jetson\nOrin NX",
 ]
 subcategories = ["Proposed\nReachability", "Proposed\nDistance", "Levenberg-Marquardt"]
 values = np.array(
