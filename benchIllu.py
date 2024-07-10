@@ -227,7 +227,7 @@ plt.rcParams.update(
         # 'axes.labelsize': 17,
         # 'legend.fontsize': 12,
         "xtick.labelsize": 18,
-        "ytick.labelsize": 14,
+        "ytick.labelsize": 15,
         "lines.linewidth": 3,  # Default line width
         "lines.markersize": 12,  # Default marker size
     }
@@ -334,7 +334,7 @@ slim = 0.9
 index = np.arange(n_groups)
 
 # Create a figure and axis
-fig, ax = plt.subplots(figsize=(10, 5))
+fig, ax = plt.subplots(figsize=(10, 4.5))
 
 # Plot bars for each subcategory
 for i in range(n_subcategories):
@@ -386,7 +386,7 @@ plt.grid(axis="y", linewidth=2, color="black", alpha=0.2)
 handles, labels = ax.get_legend_handles_labels()
 
 # Create an axis for the legend
-legend_ax = fig.add_axes([0.07, 0.98, 0.8, 0.04], frame_on=False)
+legend_ax = fig.add_axes([0.10, 0.98, 0.8, 0.04], frame_on=False)
 legend_ax.axis("off")  # Hide the axis
 
 # Add the legend to the custom axis
@@ -397,7 +397,7 @@ legend_ax.legend(
     ncol=3,
     handleheight=1.5,
     # handlelength=4.0,
-    fontsize=17,
+    fontsize=16,
     facecolor="None",  # Set background color
     edgecolor="None",  # Set border color
 )
